@@ -28,16 +28,26 @@ packages=(
     xdg-desktop-portal-hyprland
     xdg-desktop-portal-gtk
     xorg-xwayland
-    foot
+    ghostty
     rofi
-    waybar
     awww
+    hypridle
     hyprpolkitagent
     pipewire
     pipewire-pulse
     wireplumber
     networkmanager
+    brightnessctl
+    pacman-contrib
+    playerctl
+    upower
     ttf-jetbrains-mono-nerd
+)
+
+aur_packages=(
+    ags-hyprpanel-git
+    bibata-cursor-theme
+    oranchelo-icon-theme-git
 )
 
 needs_display_manager=false
@@ -53,11 +63,50 @@ for package in "${packages[@]}"; do
     fi
 done
 
+missing_aur_packages=()
+for package in "${aur_packages[@]}"; do
+    if ! pacman -Q "$package" >/dev/null 2>&1; then
+        missing_aur_packages+=("$package")
+    fi
+done
+
+aur_helper=""
+if command -v paru >/dev/null 2>&1; then
+    aur_helper=paru
+elif command -v yay >/dev/null 2>&1; then
+    aur_helper=yay
+fi
+
+if (( ${#missing_aur_packages[@]} > 0 )) && [[ -z $aur_helper ]]; then
+    if ! pacman -Q base-devel >/dev/null 2>&1; then
+        missing_packages+=(base-devel)
+    fi
+fi
+
 if (( ${#missing_packages[@]} > 0 )); then
     printf 'Installing missing packages: %s\n' "${missing_packages[*]}"
     sudo pacman -Syu --needed "${missing_packages[@]}"
 else
     printf 'All required packages are already installed.\n'
+fi
+
+if (( ${#missing_aur_packages[@]} > 0 )); then
+    if [[ -z $aur_helper ]]; then
+        build_root=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-yay.XXXXXX")
+        printf 'Installing the AUR helper yay-bin...\n'
+        git clone --depth=1 https://aur.archlinux.org/yay-bin.git "$build_root/yay-bin"
+        (
+            cd "$build_root/yay-bin"
+            makepkg -si --needed --noconfirm
+        )
+        rm -rf -- "$build_root"
+        aur_helper=yay
+    fi
+
+    printf 'Installing missing AUR packages: %s\n' "${missing_aur_packages[*]}"
+    "$aur_helper" -S --needed --noconfirm "${missing_aur_packages[@]}"
+else
+    printf 'All required AUR packages are already installed.\n'
 fi
 
 backup_stamp=$(date +%Y%m%d-%H%M%S)
@@ -87,15 +136,18 @@ mkdir -p -- "$HOME/.config"
 
 for target in \
     "$HOME/.config/hypr" \
-    "$HOME/.config/foot" \
+    "$HOME/.config/ghostty" \
+    "$HOME/.config/hyprpanel" \
     "$HOME/.config/rofi" \
-    "$HOME/.config/waybar" \
-    "$HOME/.config/uwsm"; do
+    "$HOME/.config/uwsm" \
+    "$HOME/.config/wallpapers" \
+    "$HOME/.local/share/fonts/Lexend"; do
     backup_unmanaged_path "$target"
 done
 
 printf 'Linking the managed configuration...\n'
 stow --dir="$repo_root" --target="$HOME" --restow hypr
+fc-cache -f >/dev/null
 
 if ! systemctl is-enabled NetworkManager.service >/dev/null 2>&1; then
     printf 'Enabling NetworkManager...\n'
@@ -124,20 +176,25 @@ if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>
         exit 1
     fi
 
+    # Stop the old panel if this machine used an earlier revision.
     systemctl --user stop waybar.service >/dev/null 2>&1 || true
     pkill -x waybar >/dev/null 2>&1 || true
-    nohup waybar \
-        -c "$HOME/.config/waybar/config.jsonc" \
-        -s "$HOME/.config/waybar/style.css" \
-        >"${XDG_RUNTIME_DIR:-/tmp}/waybar-dotfiles.log" 2>&1 &
+
+    pkill -x hyprpanel >/dev/null 2>&1 || true
+    pkill -f '/usr/share/hyprpanel/hyprpanel.js' >/dev/null 2>&1 || true
+    nohup uwsm app -- hyprpanel \
+        >"${XDG_RUNTIME_DIR:-/tmp}/hyprpanel-dotfiles.log" 2>&1 &
 
     if ! pgrep -x awww-daemon >/dev/null 2>&1; then
         nohup awww-daemon \
             >"${XDG_RUNTIME_DIR:-/tmp}/awww-dotfiles.log" 2>&1 &
     fi
-    awww clear 11111b >/dev/null 2>&1 || true
+    awww img "$HOME/.config/wallpapers/arch-bsod.png" \
+        --transition-type none >/dev/null 2>&1 || true
 
-    printf 'Hyprland and Waybar were refreshed.\n'
+    hyprctl setcursor Bibata-Modern-Classic 24 >/dev/null 2>&1 || true
+
+    printf 'Hyprland, HyprPanel and the wallpaper were refreshed.\n'
 else
     printf 'The configuration will load on the next Hyprland login.\n'
 fi

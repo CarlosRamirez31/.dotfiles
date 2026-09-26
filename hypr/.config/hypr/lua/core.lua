@@ -34,7 +34,8 @@ hl.gesture({
 })
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd([[pkill waybar; waybar -c "$HOME/.config/waybar/config.jsonc" -s "$HOME/.config/waybar/style.css"]])
-    hl.exec_cmd("awww-daemon & awww clear 11111b")
+    hl.exec_cmd("uwsm app -- hyprpanel")
+    hl.exec_cmd([[pgrep -x awww-daemon >/dev/null || awww-daemon & sleep 1; awww img "$HOME/.config/wallpapers/arch-bsod.png" --transition-type none]])
+    hl.exec_cmd("hyprctl setcursor Bibata-Modern-Classic 24")
     hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
 end)

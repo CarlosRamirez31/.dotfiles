@@ -9,16 +9,16 @@ hl.config({
         },
     },
     decoration = {
-        rounding = 10,
+        rounding = 0,
         shadow = {
             enabled = true,
-            range = 20,
+            range = 30,
             color = 0x44000000,
         },
         blur = {
             enabled = true,
             size = 4,
-            passes = 2,
+            passes = 4,
             new_optimizations = true,
             ignore_opacity = true,
         },

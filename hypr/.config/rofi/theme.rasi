@@ -1,0 +1,58 @@
+* {
+    background:     #1e1e2eee;
+    surface:        #242438ff;
+    surface-hover:  #45475aff;
+    foreground:     #cdd6f4ff;
+    muted:          #a6adc8ff;
+    accent:         #cba6f7ff;
+}
+
+window {
+    width: 38%;
+    border: 2px;
+    border-color: @accent;
+    border-radius: 12px;
+    background-color: @background;
+}
+
+mainbox {
+    padding: 14px;
+    spacing: 10px;
+    background-color: transparent;
+}
+
+inputbar {
+    padding: 10px;
+    border-radius: 8px;
+    background-color: @surface;
+    text-color: @foreground;
+}
+
+prompt, entry, case-indicator {
+    background-color: transparent;
+    text-color: @foreground;
+}
+
+listview {
+    lines: 8;
+    columns: 1;
+    spacing: 4px;
+    background-color: transparent;
+}
+
+element {
+    padding: 8px;
+    border-radius: 8px;
+    background-color: transparent;
+    text-color: @foreground;
+}
+
+element selected {
+    background-color: @accent;
+    text-color: @background;
+}
+
+element-icon {
+    size: 24px;
+    margin: 0 10px 0 0;
+}

@@ -1,20 +1,21 @@
 # Hyprland mínimo
 
-Configuración para Hyprland 0.56 o posterior. Mantiene el estilo Catppuccin,
-gaps, bordes redondeados, blur y animaciones, pero reduce la sesión a los
-componentes necesarios para trabajar.
+Configuración para Hyprland 0.56 o posterior. Adapta el diseño Catppuccin del
+repositorio de referencia a la configuración Lua actual y conserva únicamente
+los componentes necesarios para reproducir su aspecto.
 
 ## Componentes
 
 - Hyprland y UWSM: compositor y sesión.
-- Foot: terminal sencilla y confiable.
-- Rofi: launcher de aplicaciones.
-- Waybar: barra Catppuccin compacta incluida.
-- Awww: fondo Catppuccin oscuro y soporte para wallpapers.
+- Ghostty: terminal con JetBrains Mono Nerd Font y Tokyo Night.
+- Rofi: launcher Catppuccin con iconos Oranchelo.
+- HyprPanel: barra flotante con módulos Catppuccin.
+- Awww: carga el wallpaper Arch BSOD versionado en el repositorio.
+- Lexend y Bibata: tipografía de la barra y cursor.
 - Hyprpolkitagent: diálogos de permisos gráficos.
 
-No se inician aplicaciones personales, historial del portapapeles,
-notificaciones, OSD, bloqueo, suspensión automática ni servicios AUR.
+No se instalan Fish, Starship, Nitch, aplicaciones personales, historial del
+portapapeles, bloqueo ni suspensión automática.
 
 ## Instalación
 
@@ -29,7 +30,9 @@ El instalador:
 
 - instala exclusivamente los paquetes utilizados por esta configuración;
 - respalda configuraciones locales anteriores con el sufijo `.backup.FECHA`;
-- enlaza Hyprland, Foot, Rofi, Waybar y UWSM mediante Stow;
+- instala los paquetes AUR visuales solamente cuando faltan;
+- enlaza Hyprland, Ghostty, HyprPanel, Rofi, fuentes, wallpaper y UWSM mediante
+  Stow;
 - activa NetworkManager;
 - conserva el display manager existente o habilita SDDM si no existe uno.
 
@@ -46,16 +49,16 @@ bash install.sh
 ```
 
 El mismo script detecta los paquetes ya instalados y no vuelve a instalarlos.
-Si se ejecuta dentro de Hyprland, recarga la configuración y reinicia Waybar
-automáticamente; no hace falta ejecutar comandos adicionales ni reiniciar la
-sesión para cambios normales de configuración.
+Si se ejecuta dentro de Hyprland, recarga la configuración, reinicia HyprPanel
+y reaplica el wallpaper automáticamente; no hace falta ejecutar comandos
+adicionales ni reiniciar la sesión para cambios normales de configuración.
 
 ## Atajos
 
 | Atajo | Acción |
 | --- | --- |
-| `Ctrl + Alt + T` | Abrir Foot |
-| `Super + Enter` | Abrir Foot |
+| `Ctrl + Alt + T` | Abrir Ghostty |
+| `Super + Enter` | Abrir Ghostty |
 | `Alt + F2` | Abrir Rofi |
 | `Super + Space` | Abrir Rofi |
 | `Super + Q` | Cerrar ventana |
@@ -76,10 +79,12 @@ sesión para cambios normales de configuración.
     ├── core.lua
     ├── theme.lua
     └── binds.lua
-~/.config/foot/foot.ini
+~/.config/ghostty/config
+~/.config/hyprpanel/config.json
 ~/.config/rofi/config.rasi
-~/.config/waybar/config.jsonc
-~/.config/waybar/style.css
+~/.config/rofi/theme.rasi
+~/.config/wallpapers/arch-bsod.png
+~/.local/share/fonts/Lexend/
 ```
 
 `core.lua` configura monitor, entrada y procesos esenciales. `theme.lua`

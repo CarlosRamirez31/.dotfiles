@@ -3,10 +3,10 @@ local function run(keys, command)
 end
 
 -- Applications. CTRL+ALT+T does not depend on the host forwarding SUPER.
-run("CTRL + ALT + T", "foot")
-run("SUPER + Return", "foot")
-run("ALT + F2", "rofi -show drun")
-run("SUPER + Space", "rofi -show drun")
+run("CTRL + ALT + T", "uwsm app -- ghostty")
+run("SUPER + Return", "uwsm app -- ghostty")
+run("ALT + F2", "uwsm app -- rofi -show drun")
+run("SUPER + Space", "uwsm app -- rofi -show drun")
 
 -- Windows.
 hl.bind("SUPER + Q", hl.dsp.window.close())

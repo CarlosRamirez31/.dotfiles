@@ -9,8 +9,8 @@ componentes necesarios para trabajar.
 - Hyprland y UWSM: compositor y sesión.
 - Foot: terminal sencilla y confiable.
 - Rofi: launcher de aplicaciones.
-- Waybar: barra existente del usuario.
-- Awww: conserva el último wallpaper en caché.
+- Waybar: barra Catppuccin compacta incluida.
+- Awww: fondo Catppuccin oscuro y soporte para wallpapers.
 - Hyprpolkitagent: diálogos de permisos gráficos.
 
 No se inician aplicaciones personales, historial del portapapeles,
@@ -24,7 +24,8 @@ En Arch Linux:
 sudo pacman -Syu
 sudo pacman -S --needed \
   git stow hyprland uwsm xdg-desktop-portal-hyprland \
-  foot rofi-wayland waybar awww hyprpolkitagent
+  foot rofi-wayland waybar awww hyprpolkitagent \
+  pipewire-pulse ttf-jetbrains-mono-nerd
 ```
 
 Enlaza la configuración:
@@ -68,6 +69,8 @@ exec uwsm start hyprland.desktop
     ├── theme.lua
     └── binds.lua
 ~/.config/foot/foot.ini
+~/.config/waybar/config.jsonc
+~/.config/waybar/style.css
 ```
 
 `core.lua` configura monitor, entrada y procesos esenciales. `theme.lua`

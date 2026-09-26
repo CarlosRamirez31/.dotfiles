@@ -34,7 +34,7 @@ hl.gesture({
 })
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd("waybar")
+    hl.exec_cmd([[pkill waybar; waybar -c "$HOME/.config/waybar/config.jsonc" -s "$HOME/.config/waybar/style.css"]])
     hl.exec_cmd("awww-daemon & awww clear 11111b")
     hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
 end)

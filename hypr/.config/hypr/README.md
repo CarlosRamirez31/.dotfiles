@@ -18,29 +18,37 @@ notificaciones, OSD, bloqueo, suspensión automática ni servicios AUR.
 
 ## Instalación
 
-En Arch Linux:
+En una instalación de Arch Linux con conexión a Internet, ejecuta una sola vez:
 
 ```bash
-sudo pacman -Syu
-sudo pacman -S --needed \
-  git stow hyprland uwsm xdg-desktop-portal-hyprland \
-  foot rofi-wayland waybar awww hyprpolkitagent \
-  pipewire-pulse ttf-jetbrains-mono-nerd
+git clone https://github.com/CarlosRamirez31/.dotfiles.git ~/.dotfiles \
+  && bash ~/.dotfiles/install.sh
 ```
 
-Enlaza la configuración:
+El instalador:
+
+- instala exclusivamente los paquetes utilizados por esta configuración;
+- respalda configuraciones locales anteriores con el sufijo `.backup.FECHA`;
+- enlaza Hyprland, Foot, Rofi, Waybar y UWSM mediante Stow;
+- activa NetworkManager;
+- conserva el display manager existente o habilita SDDM si no existe uno.
+
+Después reinicia y selecciona `Hyprland (uwsm-managed)` en la pantalla de
+inicio. No es necesario ejecutar comandos para cargar la barra, el tema o el
+fondo.
+
+Para volver a aplicar una actualización futura:
 
 ```bash
-git clone https://github.com/CarlosRamirez31/.dotfiles.git ~/.dotfiles
 cd ~/.dotfiles
-stow --restow hypr
+git pull --ff-only
+bash install.sh
 ```
 
-En SDDM selecciona `Hyprland (uwsm-managed)`. Desde una TTY:
-
-```bash
-exec uwsm start hyprland.desktop
-```
+El mismo script detecta los paquetes ya instalados y no vuelve a instalarlos.
+Si se ejecuta dentro de Hyprland, recarga la configuración y reinicia Waybar
+automáticamente; no hace falta ejecutar comandos adicionales ni reiniciar la
+sesión para cambios normales de configuración.
 
 ## Atajos
 
@@ -69,6 +77,7 @@ exec uwsm start hyprland.desktop
     ├── theme.lua
     └── binds.lua
 ~/.config/foot/foot.ini
+~/.config/rofi/config.rasi
 ~/.config/waybar/config.jsonc
 ~/.config/waybar/style.css
 ```

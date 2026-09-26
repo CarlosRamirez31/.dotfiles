@@ -1,2 +1,1 @@
-export HYPRCURSOR_THEME=Bibata-Modern-Classic
-export HYPRCURSOR_SIZE=24
+# Hyprland-specific variables can be added here when needed.

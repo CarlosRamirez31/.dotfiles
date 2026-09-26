@@ -7,10 +7,28 @@
 # Read the wifi-mode alias from hyprlock.conf
 show_ssid=$(grep -oP '^\$wifi-mode\s*=\s*\K\S+' ~/.config/hypr/hyprlock.conf)
 
-# Check if the username was successfully extracted
+# Check if the setting was successfully extracted
 if [ -z "$show_ssid" ]; then
-  echo "Username not found in hyprlock.conf."
+  echo "Network"
   exit 1
+fi
+
+if ! command -v nmcli >/dev/null 2>&1; then
+  echo "󰤮  Network unavailable"
+  exit 0
+fi
+
+# Desktops may not have a Wi-Fi interface. In that case, report the wired
+# connection instead of showing a misleading Wi-Fi error.
+if ! nmcli -t -f TYPE device status | grep -qx 'wifi'; then
+  wired_connection=$(nmcli -t -f TYPE,STATE,CONNECTION device status \
+    | awk -F: '$1 == "ethernet" && $2 == "connected" { print $3; exit }')
+  if [ -n "$wired_connection" ]; then
+    echo "󰈀  $wired_connection"
+  else
+    echo "󰈂  Disconnected"
+  fi
+  exit 0
 fi
 
 # Get Wi-Fi connection status

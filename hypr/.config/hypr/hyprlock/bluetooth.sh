@@ -16,21 +16,18 @@ if [ "$bluetooth_status" != "yes" ]; then
 fi
 
 # Initialize connected devices
-connected_devices=$(echo "$connected_devices" | sed 's/[[:space:]]*$//')
+connected_devices=""
 
 # Process Bluetooth devices
 while read -r line; do
-    echo "Processing line: $line" >&2
     device_mac=$(echo "$line" | awk '{print $2}')
     device_name=$(echo "$line" | cut -d' ' -f3-)
-    echo "Device MAC: $device_mac" >&2
-    echo "Device Name: $device_name" >&2
     if bluetoothctl info "$device_mac" | grep -q "Connected: yes"; then
-        connected_devices+="$device_name "
+      connected_devices+="$device_name "
     fi
-    echo "Finished processing $device_mac" >&2
-    echo "---" >&2
 done < <(bluetoothctl devices)
+
+connected_devices=${connected_devices% }
 
 # If no connected devices, show "No Devices"
 if [ -z "$connected_devices" ]; then
@@ -44,4 +41,3 @@ if [ "$bt_mode" = "true" ]; then
 else
     echo "󰂯 Connected"
 fi
-

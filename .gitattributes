@@ -1,0 +1,9 @@
+* text=auto
+
+# These files run on Linux and must never be checked out with CRLF endings.
+*.sh text eol=lf
+*.lua text eol=lf
+*.conf text eol=lf
+*.md text eol=lf
+hypr/.config/uwsm/env text eol=lf
+hypr/.config/uwsm/env-hyprland text eol=lf

@@ -1,0 +1,6 @@
+export GDK_BACKEND=wayland,x11,*
+export MOZ_ENABLE_WAYLAND=1
+export ELECTRON_OZONE_PLATFORM_HINT=auto
+export GRIMBLAST_HIDE_CURSOR=0
+export XCURSOR_THEME=Bibata-Modern-Classic
+export XCURSOR_SIZE=24

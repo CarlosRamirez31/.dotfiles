@@ -28,9 +28,9 @@ hl.config({
         },
     },
     cursor = {
-        -- Let the VM transport its hardware cursor instead of baking a second
-        -- software cursor into the framebuffer. This avoids the two-pointer
-        -- effect with SPICE/QEMU and VirtualBox mouse integration.
+        -- VMware already draws the host pointer over the guest display. Hide
+        -- Hyprland's copy there so only one pointer remains visible.
+        invisible = hardware.vmware,
         no_hardware_cursors = 0,
         -- Bibata is installed as an XCursor theme. Keeping one cursor backend
         -- also prevents clients and Hyprland from selecting different sizes.

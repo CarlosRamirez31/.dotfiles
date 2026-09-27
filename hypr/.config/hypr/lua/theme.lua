@@ -1,3 +1,6 @@
+local hardware = require("lua.hardware")
+local effects_enabled = not hardware.vmware
+
 hl.config({
     general = {
         gaps_in = 3,
@@ -9,7 +12,7 @@ hl.config({
         },
     },
     decoration = {
-        rounding = 10,
+        rounding = effects_enabled and 10 or 0,
         shadow = {
             -- Shadows and blur are disproportionately expensive on virtual
             -- GPUs and do not improve usability.
@@ -20,7 +23,9 @@ hl.config({
         },
     },
     animations = {
-        enabled = true,
+        -- VMware's compositor path has very little frame-time headroom. Make
+        -- every action immediate there while retaining effects on real GPUs.
+        enabled = effects_enabled,
     },
 })
 
@@ -52,5 +57,5 @@ hl.window_rule({
     float = true,
     center = true,
     size = { "monitor_w * 0.72", "monitor_h * 0.72" },
-    rounding = 10,
+    rounding = effects_enabled and 10 or 0,
 })

@@ -30,3 +30,8 @@ instalan desde AUR con `paru`, `yay` o un `yay-bin` preparado por el script.
 La configuración y los estilos editables de HyprPanel viven en
 `templates/hyprpanel/`; el instalador crea copias de ejecución para que los
 archivos generados por el panel no modifiquen el repositorio.
+
+El instalador detecta VMware, VirtualBox, QEMU/KVM o hardware físico y aplica
+únicamente la integración correspondiente. Los ajustes de compatibilidad y
+latencia de VMware quedan limitados a la sesión de Hyprland; GNOME y otros
+escritorios instalados en paralelo conservan su configuración normal.

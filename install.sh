@@ -74,6 +74,21 @@ aur_packages=(
     oranchelo-icon-theme-git
 )
 
+# Install only the integration stack for the detected machine. These packages
+# are useful to every desktop session and do not couple GNOME to Hyprland.
+virtualization=$(systemd-detect-virt --vm 2>/dev/null || true)
+case $virtualization in
+    vmware)
+        packages+=(open-vm-tools)
+        ;;
+    oracle)
+        packages+=(virtualbox-guest-utils)
+        ;;
+    kvm|qemu)
+        packages+=(spice-vdagent)
+        ;;
+esac
+
 needs_display_manager=false
 if ! systemctl is-enabled display-manager.service >/dev/null 2>&1; then
     packages+=(sddm)
@@ -166,12 +181,20 @@ backup_unmanaged_path() {
 mkdir -p -- "$HOME/.config"
 
 for target in \
-    "$HOME/.config/hypr" \
-    "$HOME/.config/ghostty" \
-    "$HOME/.config/rofi" \
-    "$HOME/.config/uwsm" \
-    "$HOME/.config/wallpapers" \
-    "$HOME/.local/share/fonts/Lexend" \
+    "$HOME/.config/ghostty/config" \
+    "$HOME/.config/hypr/README.md" \
+    "$HOME/.config/hypr/hyprland.lua" \
+    "$HOME/.config/hypr/lua/binds.lua" \
+    "$HOME/.config/hypr/lua/core.lua" \
+    "$HOME/.config/hypr/lua/hardware.lua" \
+    "$HOME/.config/hypr/lua/theme.lua" \
+    "$HOME/.config/rofi/config.rasi" \
+    "$HOME/.config/rofi/theme.rasi" \
+    "$HOME/.config/uwsm/env" \
+    "$HOME/.config/uwsm/env-hyprland" \
+    "$HOME/.config/wallpapers/arch-bsod.png" \
+    "$HOME/.local/share/fonts/Lexend/Lexend-VariableFont_wght.ttf" \
+    "$HOME/.local/share/fonts/Lexend/OFL.txt" \
     "$HOME/.local/bin/dotfiles-app-launcher"; do
     backup_unmanaged_path "$target"
 done
@@ -185,7 +208,9 @@ if [[ -d $hyprpanel_runtime && ! -f $hyprpanel_marker ]]; then
 fi
 
 printf 'Linking the managed configuration...\n'
-stow --dir="$repo_root" --target="$HOME" --restow hypr
+# Keep shared directories such as ~/.local/bin real. Linking only their files
+# prevents unrelated per-machine tools from being created inside this repo.
+stow --dir="$repo_root" --target="$HOME" --no-folding --restow hypr
 
 # HyprPanel rewrites its configuration and creates generated module files.
 # Keep those runtime files outside the Git worktree.
@@ -208,6 +233,18 @@ if ! systemctl is-active NetworkManager.service >/dev/null 2>&1; then
     printf 'Starting NetworkManager...\n'
     sudo systemctl start NetworkManager.service
 fi
+
+case $virtualization in
+    vmware)
+        printf 'Enabling VMware guest integration...\n'
+        sudo systemctl enable --now vmtoolsd.service
+        sudo systemctl enable --now vmware-vmblock-fuse.service
+        ;;
+    oracle)
+        printf 'Enabling VirtualBox guest integration...\n'
+        sudo systemctl enable --now vboxservice.service
+        ;;
+esac
 
 if [[ $needs_display_manager == true ]]; then
     printf 'Enabling SDDM for the next boot...\n'
@@ -272,9 +309,12 @@ if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>
     systemctl --user stop waybar.service >/dev/null 2>&1 || true
     pkill -x waybar >/dev/null 2>&1 || true
 
-    pkill -x hyprpanel >/dev/null 2>&1 || true
-    pkill -f '/usr/share/hyprpanel/hyprpanel.js' >/dev/null 2>&1 || true
-    nohup uwsm app -- hyprpanel \
+    while read -r panel_unit _; do
+        [[ -n $panel_unit ]] || continue
+        systemctl --user stop "$panel_unit" >/dev/null 2>&1 || true
+    done < <(systemctl --user list-units --type=scope --all --no-legend \
+        'app-Hyprland-hyprpanel-*.scope')
+    nohup uwsm-app -- hyprpanel \
         >"${XDG_RUNTIME_DIR:-/tmp}/hyprpanel-dotfiles.log" 2>&1 &
 
     if ! pgrep -x awww-daemon >/dev/null 2>&1; then

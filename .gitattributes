@@ -2,6 +2,7 @@
 
 # These files run on Linux and must never be checked out with CRLF endings.
 *.sh text eol=lf
+hypr/.local/bin/* text eol=lf
 *.lua text eol=lf
 *.conf text eol=lf
 *.md text eol=lf

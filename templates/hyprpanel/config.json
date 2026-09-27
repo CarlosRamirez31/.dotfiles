@@ -35,7 +35,7 @@
     }
   },
   "bar.launcher.icon": "󰊠",
-  "bar.launcher.rightClick": "/usr/bin/rofi -show drun",
+  "bar.launcher.rightClick": "/usr/bin/bash -lc '$HOME/.local/bin/dotfiles-app-launcher'",
   "bar.launcher.middleClick": "/usr/bin/ghostty",
   "bar.clock.format": "%H:%M",
   "bar.clock.icon": "󰥔",

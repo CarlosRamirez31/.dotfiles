@@ -27,6 +27,11 @@ if [[ ! -f $package_root/.config/hypr/lua/binds.lua ]]; then
     exit 1
 fi
 
+if [[ ! -f $package_root/.local/bin/dotfiles-app-launcher ]]; then
+    printf 'The application launcher helper is missing from the repository.\n' >&2
+    exit 1
+fi
+
 if [[ ! -f $hyprpanel_template ]]; then
     printf 'The HyprPanel template was not found in %s.\n' "$hyprpanel_template" >&2
     exit 1
@@ -48,6 +53,8 @@ packages=(
     xorg-xwayland
     ghostty
     rofi
+    glib2
+    libnotify
     awww
     hypridle
     hyprpolkitagent
@@ -127,7 +134,7 @@ else
     printf 'All required AUR packages are already installed.\n'
 fi
 
-for required_command in ghostty rofi uwsm hyprpanel; do
+for required_command in ghostty rofi gio notify-send uwsm hyprpanel; do
     if ! command -v "$required_command" >/dev/null 2>&1; then
         printf 'Required command not found after installation: %s\n' "$required_command" >&2
         exit 1
@@ -165,7 +172,8 @@ for target in \
     "$HOME/.config/rofi" \
     "$HOME/.config/uwsm" \
     "$HOME/.config/wallpapers" \
-    "$HOME/.local/share/fonts/Lexend"; do
+    "$HOME/.local/share/fonts/Lexend" \
+    "$HOME/.local/bin/dotfiles-app-launcher"; do
     backup_unmanaged_path "$target"
 done
 

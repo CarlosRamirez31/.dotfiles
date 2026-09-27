@@ -21,6 +21,12 @@ hl.config({
             natural_scroll = true,
         },
     },
+    cursor = {
+        -- Virtual machines can expose the hardware cursor while Hyprland also
+        -- draws its software cursor, producing one large and one small arrow.
+        no_hardware_cursors = 1,
+        sync_gsettings_theme = true,
+    },
     misc = {
         disable_hyprland_logo = true,
         force_default_wallpaper = 0,

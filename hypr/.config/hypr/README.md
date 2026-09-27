@@ -83,7 +83,7 @@ adicionales ni reiniciar la sesión para cambios normales de configuración.
     ├── theme.lua
     └── binds.lua
 ~/.config/ghostty/config
-~/.config/hyprpanel/config.json
+~/.config/hyprpanel/config.json  # copia generada desde templates/hyprpanel/
 ~/.config/rofi/config.rasi
 ~/.config/rofi/theme.rasi
 ~/.config/wallpapers/arch-bsod.png
@@ -92,6 +92,8 @@ adicionales ni reiniciar la sesión para cambios normales de configuración.
 
 `core.lua` configura monitor, entrada y procesos esenciales. `theme.lua`
 contiene exclusivamente la apariencia. `binds.lua` contiene los atajos.
+HyprPanel escribe archivos durante su ejecución, por lo que su configuración
+versionada se conserva como plantilla fuera del paquete de Stow.
 
 ## Validación
 

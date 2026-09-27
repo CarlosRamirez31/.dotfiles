@@ -14,9 +14,15 @@ fi
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 package_root="$repo_root/hypr"
+hyprpanel_template="$repo_root/templates/hyprpanel/config.json"
 
 if [[ ! -d $package_root/.config/hypr ]]; then
     printf 'The Hyprland Stow package was not found in %s.\n' "$package_root" >&2
+    exit 1
+fi
+
+if [[ ! -f $hyprpanel_template ]]; then
+    printf 'The HyprPanel template was not found in %s.\n' "$hyprpanel_template" >&2
     exit 1
 fi
 
@@ -147,6 +153,16 @@ done
 
 printf 'Linking the managed configuration...\n'
 stow --dir="$repo_root" --target="$HOME" --restow hypr
+
+# HyprPanel rewrites its configuration and creates generated module files.
+# Keep those runtime files outside the Git worktree.
+hyprpanel_runtime="$HOME/.config/hyprpanel"
+if [[ -L $hyprpanel_runtime ]]; then
+    rm -- "$hyprpanel_runtime"
+fi
+mkdir -p -- "$hyprpanel_runtime"
+install -m 0644 -- "$hyprpanel_template" "$hyprpanel_runtime/config.json"
+
 fc-cache -f >/dev/null
 
 if ! systemctl is-enabled NetworkManager.service >/dev/null 2>&1; then

@@ -27,3 +27,6 @@ el display manager existente, reaplica los enlaces administrados y refresca
 Hyprland, HyprPanel y el wallpaper automáticamente cuando la sesión está
 activa. Los paquetes visuales que no están en los repositorios oficiales se
 instalan desde AUR con `paru`, `yay` o un `yay-bin` preparado por el script.
+La configuración editable de HyprPanel vive en
+`templates/hyprpanel/config.json`; el instalador crea una copia de ejecución
+para que los archivos generados por el panel no modifiquen el repositorio.

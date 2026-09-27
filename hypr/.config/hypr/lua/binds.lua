@@ -8,7 +8,9 @@ run("CTRL + ALT + T", "/usr/bin/ghostty")
 run("SUPER + Return", "/usr/bin/ghostty")
 local app_launcher = [[/usr/bin/rofi -show drun -run-command "/usr/bin/uwsm app -- {cmd}"]]
 run("ALT + F2", app_launcher)
-run("SUPER + space", app_launcher)
+hl.bind("SUPER + space", hl.dsp.exec_cmd(app_launcher), {
+    description = "Application launcher (Rofi)",
+})
 run("SUPER + D", app_launcher)
 
 -- Windows.

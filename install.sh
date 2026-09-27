@@ -211,9 +211,10 @@ if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>
         exit 1
     fi
 
-    registered_binds=$(hyprctl binds -j)
-    if ! grep -Eq '"key"[[:space:]]*:[[:space:]]*"space"' <<<"$registered_binds" \
-        || ! grep -q '/usr/bin/rofi -show drun' <<<"$registered_binds"; then
+    # Lua dispatchers are intentionally reported as "__lua" with an internal
+    # numeric argument, so validate this bind by its stable description.
+    registered_binds=$(hyprctl binds)
+    if ! grep -Fq 'description: Application launcher (Rofi)' <<<"$registered_binds"; then
         printf 'Hyprland did not register the Super+space application launcher.\n' >&2
         exit 1
     fi

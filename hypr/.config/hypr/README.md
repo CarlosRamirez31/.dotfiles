@@ -100,6 +100,7 @@ El clima, la batería y la suspensión automática están desactivados.
     └── binds.lua
 ~/.config/ghostty/config
 ~/.config/hyprpanel/config.json  # copia generada desde templates/hyprpanel/
+~/.config/hyprpanel/modules.scss # estilos personalizados de HyprPanel
 ~/.config/rofi/config.rasi
 ~/.config/rofi/theme.rasi
 ~/.config/wallpapers/arch-bsod.png

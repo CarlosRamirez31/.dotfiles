@@ -15,6 +15,7 @@ fi
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 package_root="$repo_root/hypr"
 hyprpanel_template="$repo_root/templates/hyprpanel/config.json"
+hyprpanel_modules_template="$repo_root/templates/hyprpanel/modules.scss"
 
 if [[ ! -d $package_root/.config/hypr ]]; then
     printf 'The Hyprland Stow package was not found in %s.\n' "$package_root" >&2
@@ -28,6 +29,12 @@ fi
 
 if [[ ! -f $hyprpanel_template ]]; then
     printf 'The HyprPanel template was not found in %s.\n' "$hyprpanel_template" >&2
+    exit 1
+fi
+
+if [[ ! -f $hyprpanel_modules_template ]]; then
+    printf 'The HyprPanel style template was not found in %s.\n' \
+        "$hyprpanel_modules_template" >&2
     exit 1
 fi
 
@@ -180,6 +187,7 @@ if [[ -L $hyprpanel_runtime ]]; then
 fi
 mkdir -p -- "$hyprpanel_runtime"
 install -m 0644 -- "$hyprpanel_template" "$hyprpanel_runtime/config.json"
+install -m 0644 -- "$hyprpanel_modules_template" "$hyprpanel_runtime/modules.scss"
 touch -- "$hyprpanel_marker"
 
 fc-cache -f >/dev/null

@@ -1,0 +1,81 @@
+// Notification overrides loaded after HyprPanel's built-in stylesheet.
+// Keep the stock layout, but replace the heavy close rail with compact cards.
+.notification-card-container.menu {
+    .notification-menu-controls {
+        margin: 0.8em;
+        padding: 0.55em 0.8em;
+        border: 1px solid #313244;
+        border-radius: 0.9em;
+        background: #1e1e2e;
+    }
+
+    .notification-card.menu {
+        margin: 0 0.8em 0.65em 0.8em;
+        border: 1px solid #45475a;
+        border-left: 3px solid #cba6f7;
+        border-radius: 0.85em;
+        background: #1e1e2e;
+    }
+
+    .notification-card-content {
+        padding: 0.65em 0.45em 0.55em 0.65em;
+        margin: 0;
+    }
+
+    .notification-card-header-label {
+        margin-bottom: 0.25em;
+        color: #cdd6f4;
+        font-weight: 600;
+    }
+
+    .notification-card-body-label {
+        margin-bottom: 0.4em;
+        color: #a6adc8;
+        font-weight: 500;
+    }
+
+    .notification-icon {
+        color: #89dceb;
+    }
+
+    .notification-time {
+        color: #6c7086;
+    }
+}
+
+.close-notification-button.menu {
+    min-width: 2.2em;
+    margin: 0.45em;
+    border-radius: 0.65em;
+    background: #313244;
+    color: #f38ba8;
+
+    label {
+        font-size: 1em;
+    }
+
+    &:hover {
+        background: #45475a;
+        color: #f5c2e7;
+    }
+}
+
+// Floating notifications use the same visual language as the history menu.
+.notification-card:not(.menu) {
+    border: 1px solid #45475a;
+    border-left: 3px solid #89dceb;
+    border-radius: 0.9em;
+    background: #1e1e2e;
+}
+
+.close-notification-button:not(.menu) {
+    min-width: 2.2em;
+    margin: 0.45em;
+    border-radius: 0.65em;
+    background: #313244;
+    color: #f38ba8;
+
+    label {
+        font-size: 1em;
+    }
+}

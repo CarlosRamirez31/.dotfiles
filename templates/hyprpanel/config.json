@@ -131,7 +131,7 @@
   "theme.bar.menus.progressbar.foreground": "#89dceb",
   "theme.bar.menus.progressbar.background": "#313244",
 
-  "theme.notification.scaling": 90,
+  "theme.notification.scaling": 105,
   "theme.notification.background": "#1e1e2e",
   "theme.notification.opacity": 96,
   "theme.notification.label": "#cba6f7",
@@ -148,8 +148,8 @@
   "theme.notification.close_button.background": "#f38ba8",
   "theme.notification.close_button.label": "#11111b",
 
-  "theme.bar.menus.menu.notifications.scaling": 90,
-  "theme.bar.menus.menu.notifications.height": "38em",
+  "theme.bar.menus.menu.notifications.scaling": 115,
+  "theme.bar.menus.menu.notifications.height": "40em",
   "theme.bar.menus.menu.notifications.label": "#cba6f7",
   "theme.bar.menus.menu.notifications.no_notifications_label": "#585b70",
   "theme.bar.menus.menu.notifications.background": "#11111b",

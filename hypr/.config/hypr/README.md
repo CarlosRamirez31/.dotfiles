@@ -17,6 +17,9 @@ los componentes necesarios para reproducir su aspecto.
 No se instalan Fish, Starship, Nitch, aplicaciones personales, historial del
 portapapeles, bloqueo ni suspensión automática.
 
+Ghostty abre centrado y flotante al 72 % del monitor. Puede alternarse a modo
+mosaico con `Super + V`.
+
 ## Instalación
 
 En una instalación de Arch Linux con conexión a Internet, ejecuta una sola vez:

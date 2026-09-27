@@ -36,3 +36,15 @@ hl.curve("smooth", {
 hl.animation({ leaf = "windows", enabled = true, speed = 4, bezier = "smooth", style = "popin 85%" })
 hl.animation({ leaf = "fade", enabled = true, speed = 4, bezier = "smooth" })
 hl.animation({ leaf = "workspaces", enabled = true, speed = 4, bezier = "smooth", style = "slide" })
+
+-- Keep the terminal usable without letting a single window cover the wallpaper.
+hl.window_rule({
+    name = "floating-ghostty",
+    match = {
+        class = "^com.mitchellh.ghostty$",
+    },
+    float = true,
+    center = true,
+    size = { "monitor_w * 0.72", "monitor_h * 0.72" },
+    rounding = 10,
+})

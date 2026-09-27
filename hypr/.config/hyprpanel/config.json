@@ -1,7 +1,7 @@
 {
   "bar.layouts": {
     "0": {
-      "left": ["dashboard", "windowtitle", "media", "systray", "updates"],
+      "left": ["dashboard", "windowtitle", "media", "updates"],
       "middle": ["workspaces"],
       "right": ["volume", "network", "battery", "cpu", "clock", "hypridle", "notifications"]
     },

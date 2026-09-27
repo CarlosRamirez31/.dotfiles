@@ -21,6 +21,11 @@ if [[ ! -d $package_root/.config/hypr ]]; then
     exit 1
 fi
 
+if [[ ! -f $package_root/.config/hypr/lua/binds.lua ]]; then
+    printf 'The Hyprland bindings file is missing from the repository.\n' >&2
+    exit 1
+fi
+
 if [[ ! -f $hyprpanel_template ]]; then
     printf 'The HyprPanel template was not found in %s.\n' "$hyprpanel_template" >&2
     exit 1
@@ -203,6 +208,13 @@ if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>
     config_errors=$(hyprctl configerrors)
     if [[ -n $config_errors ]]; then
         printf 'Hyprland reported configuration errors:\n%s\n' "$config_errors" >&2
+        exit 1
+    fi
+
+    registered_binds=$(hyprctl binds -j)
+    if ! grep -Eq '"key"[[:space:]]*:[[:space:]]*"space"' <<<"$registered_binds" \
+        || ! grep -q '/usr/bin/rofi -show drun' <<<"$registered_binds"; then
+        printf 'Hyprland did not register the Super+space application launcher.\n' >&2
         exit 1
     fi
 

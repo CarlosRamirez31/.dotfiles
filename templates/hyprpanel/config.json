@@ -5,26 +5,30 @@
   "menus.transitionTime": 160,
   "menus.dashboard.shortcuts.enabled": false,
   "menus.dashboard.directories.enabled": false,
+  "menus.dashboard.controls.enabled": true,
+  "menus.dashboard.stats.enabled": true,
   "menus.dashboard.stats.enable_gpu": false,
   "menus.clock.weather.enabled": false,
   "bar.layouts": {
     "0": {
       "left": ["dashboard", "windowtitle"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     },
     "1": {
       "left": ["dashboard", "windowtitle"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     },
     "2": {
       "left": ["dashboard", "windowtitle"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     }
   },
   "bar.launcher.icon": "󰊠",
+  "bar.launcher.rightClick": "/usr/bin/rofi -show drun -run-command \"/usr/bin/uwsm app -- {cmd}\"",
+  "bar.launcher.middleClick": "/usr/bin/ghostty",
   "bar.clock.format": "%H:%M:%S",
   "bar.clock.icon": "󰥔",
   "bar.network.showWifiInfo": true,
@@ -38,6 +42,15 @@
   "bar.workspaces.numbered_active_indicator": "underline",
   "bar.workspaces.spacing": 1.2,
   "bar.workspaces.scroll_speed": 2,
+  "bar.customModules.ram.label": true,
+  "bar.customModules.ram.labelType": "percentage",
+  "bar.customModules.ram.round": true,
+  "bar.customModules.ram.pollingInterval": 2000,
+  "bar.customModules.ram.leftClick": "menu:dashboard",
+  "bar.customModules.cpu.label": true,
+  "bar.customModules.cpu.round": true,
+  "bar.customModules.cpu.pollingInterval": 2000,
+  "bar.customModules.cpu.leftClick": "menu:dashboard",
   "theme.font.name": "Lexend",
   "theme.font.label": "Lexend",
   "theme.font.size": "1em",
@@ -72,6 +85,12 @@
   "theme.bar.buttons.network.background": "#242438",
   "theme.bar.buttons.network.text": "#cba6f7",
   "theme.bar.buttons.network.icon": "#cba6f7",
+  "theme.bar.buttons.modules.ram.background": "#242438",
+  "theme.bar.buttons.modules.ram.text": "#f9e2af",
+  "theme.bar.buttons.modules.ram.icon": "#f9e2af",
+  "theme.bar.buttons.modules.cpu.background": "#242438",
+  "theme.bar.buttons.modules.cpu.text": "#f38ba8",
+  "theme.bar.buttons.modules.cpu.icon": "#f38ba8",
   "theme.bar.buttons.clock.background": "#242438",
   "theme.bar.buttons.clock.text": "#f5c2e7",
   "theme.bar.buttons.clock.icon": "#f5c2e7",

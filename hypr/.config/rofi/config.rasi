@@ -3,7 +3,7 @@ configuration {
     show-icons: true;
     icon-theme: "Oranchelo";
     terminal: "/usr/bin/ghostty";
-    run-command: "uwsm app -- {cmd}";
+    run-command: "/usr/bin/uwsm app -- {cmd}";
     display-drun: "";
     matching: "fuzzy";
     sort: true;

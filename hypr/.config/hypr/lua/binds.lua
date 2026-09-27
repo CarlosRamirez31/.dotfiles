@@ -6,8 +6,10 @@ end
 -- work when a freshly installed session has a minimal PATH.
 run("CTRL + ALT + T", "/usr/bin/ghostty")
 run("SUPER + Return", "/usr/bin/ghostty")
-run("ALT + F2", "/usr/bin/rofi -show drun")
-run("SUPER + Space", "/usr/bin/rofi -show drun")
+local app_launcher = [[/usr/bin/rofi -show drun -run-command "/usr/bin/uwsm app -- {cmd}"]]
+run("ALT + F2", app_launcher)
+run("SUPER + space", app_launcher)
+run("SUPER + D", app_launcher)
 
 -- Windows.
 hl.bind("SUPER + Q", hl.dsp.window.close())

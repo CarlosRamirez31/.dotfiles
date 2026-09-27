@@ -65,9 +65,11 @@ También valida la configuración activa de Hyprland y la presencia de Ghostty,
 Rofi, UWSM e HyprPanel antes de completar.
 
 La barra evita indicadores sin utilidad en una máquina virtual. El título de
-la ventana es informativo; dashboard, workspaces, volumen, red, reloj y
-notificaciones sí responden al clic. El clima, los accesos a aplicaciones no
-instaladas y las tarjetas de batería o suspensión están desactivados.
+la ventana es informativo; dashboard, workspaces, volumen, red, RAM, CPU,
+reloj y notificaciones responden al clic. RAM y CPU abren el dashboard de
+rendimiento. En el icono izquierdo, el clic principal abre el dashboard, el
+clic derecho abre el buscador de aplicaciones y el clic central abre Ghostty.
+El clima, la batería y la suspensión automática están desactivados.
 
 ## Atajos
 
@@ -77,6 +79,7 @@ instaladas y las tarjetas de batería o suspensión están desactivados.
 | `Super + Enter` | Abrir Ghostty |
 | `Alt + F2` | Abrir Rofi |
 | `Super + Space` | Abrir Rofi |
+| `Super + D` | Abrir Rofi (alternativo) |
 | `Super + Q` | Cerrar ventana |
 | `Super + F` | Pantalla completa |
 | `Super + V` | Alternar ventana flotante |

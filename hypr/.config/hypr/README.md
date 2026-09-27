@@ -4,6 +4,10 @@ Configuración para Hyprland 0.56 o posterior. Adapta el diseño Catppuccin del
 repositorio de referencia a la configuración Lua actual y conserva únicamente
 los componentes necesarios para reproducir su aspecto.
 
+La salida virtual utiliza 1920×1080 a 60 Hz, posición 0×0 y escala 1 para
+evitar que una resolución invitada de 1280×800 quede rodeada por franjas negras
+en la consola de la máquina virtual.
+
 ## Componentes
 
 - Hyprland y UWSM: compositor y sesión.

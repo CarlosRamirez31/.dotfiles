@@ -2,11 +2,16 @@ configuration {
     modi: "drun";
     show-icons: true;
     icon-theme: "Oranchelo";
-    display-drun: "Applications";
+    terminal: "/usr/bin/ghostty";
+    run-command: "uwsm app -- {cmd}";
+    display-drun: "";
+    matching: "fuzzy";
+    sort: true;
+    sorting-method: "fzf";
 }
 
 * {
-    font: "JetBrainsMono Nerd Font 11";
+    font: "Lexend 11";
 }
 
 @theme "theme"

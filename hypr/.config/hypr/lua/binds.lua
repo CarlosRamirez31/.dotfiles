@@ -2,11 +2,12 @@ local function run(keys, command)
     hl.bind(keys, hl.dsp.exec_cmd(command))
 end
 
--- Applications. CTRL+ALT+T does not depend on the host forwarding SUPER.
-run("CTRL + ALT + T", "uwsm app -- ghostty")
-run("SUPER + Return", "uwsm app -- ghostty")
-run("ALT + F2", "uwsm app -- rofi -show drun")
-run("SUPER + Space", "uwsm app -- rofi -show drun")
+-- Applications. Use absolute paths for the two recovery shortcuts so they also
+-- work when a freshly installed session has a minimal PATH.
+run("CTRL + ALT + T", "/usr/bin/ghostty")
+run("SUPER + Return", "/usr/bin/ghostty")
+run("ALT + F2", "/usr/bin/rofi -show drun")
+run("SUPER + Space", "/usr/bin/rofi -show drun")
 
 -- Windows.
 hl.bind("SUPER + Q", hl.dsp.window.close())

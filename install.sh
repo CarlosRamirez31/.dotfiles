@@ -115,6 +115,13 @@ else
     printf 'All required AUR packages are already installed.\n'
 fi
 
+for required_command in ghostty rofi uwsm hyprpanel; do
+    if ! command -v "$required_command" >/dev/null 2>&1; then
+        printf 'Required command not found after installation: %s\n' "$required_command" >&2
+        exit 1
+    fi
+done
+
 backup_stamp=$(date +%Y%m%d-%H%M%S)
 
 is_managed_link() {
@@ -143,7 +150,6 @@ mkdir -p -- "$HOME/.config"
 for target in \
     "$HOME/.config/hypr" \
     "$HOME/.config/ghostty" \
-    "$HOME/.config/hyprpanel" \
     "$HOME/.config/rofi" \
     "$HOME/.config/uwsm" \
     "$HOME/.config/wallpapers" \
@@ -151,17 +157,30 @@ for target in \
     backup_unmanaged_path "$target"
 done
 
+# HyprPanel owns generated files in this directory. Back up a pre-existing
+# foreign configuration once, then update our template in place on later runs.
+hyprpanel_runtime="$HOME/.config/hyprpanel"
+hyprpanel_marker="$hyprpanel_runtime/.managed-by-dotfiles"
+if [[ -d $hyprpanel_runtime && ! -f $hyprpanel_marker ]]; then
+    backup_unmanaged_path "$hyprpanel_runtime"
+fi
+
 printf 'Linking the managed configuration...\n'
 stow --dir="$repo_root" --target="$HOME" --restow hypr
 
 # HyprPanel rewrites its configuration and creates generated module files.
 # Keep those runtime files outside the Git worktree.
-hyprpanel_runtime="$HOME/.config/hyprpanel"
 if [[ -L $hyprpanel_runtime ]]; then
     rm -- "$hyprpanel_runtime"
 fi
 mkdir -p -- "$hyprpanel_runtime"
 install -m 0644 -- "$hyprpanel_template" "$hyprpanel_runtime/config.json"
+touch -- "$hyprpanel_marker"
+
+if ! rofi -rasi-validate "$HOME/.config/rofi/config.rasi" >/dev/null; then
+    printf 'The Rofi configuration is invalid.\n' >&2
+    exit 1
+fi
 
 fc-cache -f >/dev/null
 
@@ -217,4 +236,4 @@ fi
 
 printf '\nSetup complete.\n'
 printf 'On a fresh installation, reboot and select "Hyprland (uwsm-managed)".\n'
-printf 'Terminal: Ctrl+Alt+T | Launcher: Alt+F2\n'
+printf 'Terminal: Ctrl+Alt+T or Super+Enter | Launcher: Super+Space or Alt+F2\n'

@@ -9,16 +9,17 @@ hl.config({
         },
     },
     decoration = {
-        rounding = 0,
+        rounding = 10,
         shadow = {
             enabled = true,
-            range = 30,
+            range = 24,
+            render_power = 3,
             color = 0x44000000,
         },
         blur = {
             enabled = true,
-            size = 4,
-            passes = 4,
+            size = 5,
+            passes = 3,
             new_optimizations = true,
             ignore_opacity = true,
         },
@@ -28,14 +29,24 @@ hl.config({
     },
 })
 
-hl.curve("smooth", {
+hl.curve("ease-out", {
     type = "bezier",
-    points = {{0.2, 0}, {0, 1}},
+    points = {{0.22, 1}, {0.36, 1}},
 })
 
-hl.animation({ leaf = "windows", enabled = true, speed = 4, bezier = "smooth", style = "popin 85%" })
-hl.animation({ leaf = "fade", enabled = true, speed = 4, bezier = "smooth" })
-hl.animation({ leaf = "workspaces", enabled = true, speed = 4, bezier = "smooth", style = "slide" })
+hl.curve("ease-in-out", {
+    type = "bezier",
+    points = {{0.65, 0}, {0.35, 1}},
+})
+
+-- Short, calm transitions: noticeable enough to feel polished without slowing
+-- down keyboard-driven navigation.
+hl.animation({ leaf = "windows", enabled = true, speed = 2.5, bezier = "ease-out", style = "popin 92%" })
+hl.animation({ leaf = "windowsMove", enabled = true, speed = 2.5, bezier = "ease-in-out" })
+hl.animation({ leaf = "fade", enabled = true, speed = 2, bezier = "ease-out" })
+hl.animation({ leaf = "layers", enabled = true, speed = 2.5, bezier = "ease-out", style = "slide top" })
+hl.animation({ leaf = "border", enabled = true, speed = 2.5, bezier = "ease-out" })
+hl.animation({ leaf = "workspaces", enabled = true, speed = 3, bezier = "ease-in-out", style = "slide" })
 
 -- Keep the terminal usable without letting a single window cover the wallpaper.
 hl.window_rule({

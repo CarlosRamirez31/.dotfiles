@@ -13,7 +13,8 @@ en la consola de la máquina virtual.
 - Hyprland y UWSM: compositor y sesión.
 - Ghostty: terminal con JetBrains Mono Nerd Font y Tokyo Night.
 - Rofi: launcher Catppuccin con iconos Oranchelo.
-- HyprPanel: barra flotante con módulos Catppuccin.
+- HyprPanel: barra flotante con dashboard, workspaces, audio, red, reloj y
+  notificaciones.
 - Awww: carga el wallpaper Arch BSOD versionado en el repositorio.
 - Lexend y Bibata: tipografía de la barra y cursor.
 - Hyprpolkitagent: diálogos de permisos gráficos.
@@ -38,8 +39,9 @@ El instalador:
 - instala exclusivamente los paquetes utilizados por esta configuración;
 - respalda configuraciones locales anteriores con el sufijo `.backup.FECHA`;
 - instala los paquetes AUR visuales solamente cuando faltan;
-- enlaza Hyprland, Ghostty, HyprPanel, Rofi, fuentes, wallpaper y UWSM mediante
-  Stow;
+- enlaza Hyprland, Ghostty, Rofi, fuentes, wallpaper y UWSM mediante Stow;
+- copia la plantilla versionada de HyprPanel a su directorio de ejecución y lo
+  marca como administrado para evitar respaldos repetidos;
 - activa NetworkManager;
 - conserva el display manager existente o habilita SDDM si no existe uno.
 
@@ -59,6 +61,13 @@ El mismo script detecta los paquetes ya instalados y no vuelve a instalarlos.
 Si se ejecuta dentro de Hyprland, recarga la configuración, reinicia HyprPanel
 y reaplica el wallpaper automáticamente; no hace falta ejecutar comandos
 adicionales ni reiniciar la sesión para cambios normales de configuración.
+También valida la sintaxis de Rofi, la configuración de Hyprland y la presencia
+de Ghostty, UWSM e HyprPanel antes de completar.
+
+La barra evita indicadores sin utilidad en una máquina virtual. El título de
+la ventana es informativo; dashboard, workspaces, volumen, red, reloj y
+notificaciones sí responden al clic. El clima, los accesos a aplicaciones no
+instaladas y las tarjetas de batería o suspensión están desactivados.
 
 ## Atajos
 

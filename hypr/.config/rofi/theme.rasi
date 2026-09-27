@@ -1,49 +1,66 @@
 * {
-    background:     #1e1e2eee;
-    surface:        #242438ff;
-    surface-hover:  #45475aff;
-    foreground:     #cdd6f4ff;
-    muted:          #a6adc8ff;
-    accent:         #cba6f7ff;
+    background:       #11111bf2;
+    surface:          #1e1e2eff;
+    surface-alt:      #242438ff;
+    surface-hover:    #45475aff;
+    foreground:       #cdd6f4ff;
+    muted:            #a6adc8ff;
+    accent:           #cba6f7ff;
+    accent-secondary: #89dcebff;
 }
 
 window {
-    width: 38%;
+    width: 720px;
     border: 2px;
     border-color: @accent;
-    border-radius: 12px;
+    border-radius: 20px;
     background-color: @background;
 }
 
 mainbox {
-    padding: 14px;
-    spacing: 10px;
+    padding: 20px;
+    spacing: 16px;
     background-color: transparent;
 }
 
 inputbar {
-    padding: 10px;
-    border-radius: 8px;
+    padding: 14px 18px;
+    spacing: 12px;
+    border: 1px;
+    border-color: @surface-hover;
+    border-radius: 14px;
     background-color: @surface;
     text-color: @foreground;
+    children: [ prompt, entry ];
 }
 
-prompt, entry, case-indicator {
+prompt {
+    str: "";
+    text-color: @accent;
+}
+
+entry {
+    placeholder: "Buscar una aplicación...";
+    placeholder-color: @muted;
+}
+
+prompt, entry {
     background-color: transparent;
-    text-color: @foreground;
 }
 
 listview {
-    lines: 8;
-    columns: 1;
-    spacing: 4px;
+    lines: 5;
+    columns: 2;
+    fixed-columns: true;
+    spacing: 8px;
     background-color: transparent;
 }
 
 element {
-    padding: 8px;
-    border-radius: 8px;
-    background-color: transparent;
+    padding: 12px;
+    spacing: 10px;
+    border-radius: 12px;
+    background-color: @surface-alt;
     text-color: @foreground;
 }
 
@@ -53,6 +70,12 @@ element selected {
 }
 
 element-icon {
-    size: 24px;
-    margin: 0 10px 0 0;
+    size: 30px;
+    background-color: transparent;
+}
+
+element-text {
+    vertical-align: 0.5;
+    background-color: transparent;
+    text-color: inherit;
 }

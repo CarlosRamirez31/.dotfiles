@@ -143,13 +143,13 @@ done
 
 backup_stamp=$(date +%Y%m%d-%H%M%S)
 
-is_managed_link() {
+is_managed_path() {
     local target=$1
     local resolved
 
-    [[ -L $target ]] || return 1
+    [[ -e $target || -L $target ]] || return 1
     resolved=$(readlink -f -- "$target")
-    [[ $resolved == "$package_root"/* ]]
+    [[ $resolved == "$package_root" || $resolved == "$package_root"/* ]]
 }
 
 backup_unmanaged_path() {
@@ -157,7 +157,7 @@ backup_unmanaged_path() {
     local backup
 
     [[ -e $target || -L $target ]] || return 0
-    is_managed_link "$target" && return 0
+    is_managed_path "$target" && return 0
 
     backup="${target}.backup.${backup_stamp}"
     printf 'Backing up %s to %s\n' "$target" "$backup"

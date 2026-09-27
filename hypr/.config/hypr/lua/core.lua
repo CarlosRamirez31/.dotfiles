@@ -24,6 +24,9 @@ hl.config({
     misc = {
         disable_hyprland_logo = true,
         force_default_wallpaper = 0,
+        -- Git updates several Lua files in sequence. Reload only after the
+        -- installer has finished, never while the tree is half updated.
+        disable_autoreload = true,
     },
 })
 

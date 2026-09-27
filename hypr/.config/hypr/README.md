@@ -61,8 +61,8 @@ El mismo script detecta los paquetes ya instalados y no vuelve a instalarlos.
 Si se ejecuta dentro de Hyprland, recarga la configuración, reinicia HyprPanel
 y reaplica el wallpaper automáticamente; no hace falta ejecutar comandos
 adicionales ni reiniciar la sesión para cambios normales de configuración.
-También valida la sintaxis de Rofi, la configuración de Hyprland y la presencia
-de Ghostty, UWSM e HyprPanel antes de completar.
+También valida la configuración activa de Hyprland y la presencia de Ghostty,
+Rofi, UWSM e HyprPanel antes de completar.
 
 La barra evita indicadores sin utilidad en una máquina virtual. El título de
 la ventana es informativo; dashboard, workspaces, volumen, red, reloj y

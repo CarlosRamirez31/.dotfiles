@@ -177,11 +177,6 @@ mkdir -p -- "$hyprpanel_runtime"
 install -m 0644 -- "$hyprpanel_template" "$hyprpanel_runtime/config.json"
 touch -- "$hyprpanel_marker"
 
-if ! rofi -rasi-validate "$HOME/.config/rofi/config.rasi" >/dev/null; then
-    printf 'The Rofi configuration is invalid.\n' >&2
-    exit 1
-fi
-
 fc-cache -f >/dev/null
 
 if ! systemctl is-enabled NetworkManager.service >/dev/null 2>&1; then

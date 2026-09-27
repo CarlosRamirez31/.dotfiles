@@ -203,7 +203,7 @@ fi
 
 if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>&1; then
     printf 'Refreshing the active Hyprland session...\n'
-    hyprctl reload full-reset
+    hyprctl reload
 
     config_errors=$(hyprctl configerrors)
     if [[ -n $config_errors ]]; then

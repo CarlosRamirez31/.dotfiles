@@ -10,7 +10,7 @@ font-feature = -calt
 
 theme = tokyonight_night
 background-opacity = 0.94
-background-blur = 20
+background-blur = 8
 
 window-padding-x = 7
 window-padding-y = 7

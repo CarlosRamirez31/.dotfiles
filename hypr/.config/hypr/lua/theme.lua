@@ -12,14 +12,14 @@ hl.config({
         rounding = 10,
         shadow = {
             enabled = true,
-            range = 24,
-            render_power = 3,
+            range = 14,
+            render_power = 2,
             color = 0x44000000,
         },
         blur = {
             enabled = true,
-            size = 5,
-            passes = 3,
+            size = 3,
+            passes = 2,
             new_optimizations = true,
             ignore_opacity = true,
         },

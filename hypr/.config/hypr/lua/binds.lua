@@ -6,7 +6,10 @@ end
 -- work when a freshly installed session has a minimal PATH.
 run("CTRL + ALT + T", "/usr/bin/ghostty")
 run("SUPER + Return", "/usr/bin/ghostty")
-local app_launcher = [[/usr/bin/rofi -show drun -run-command "/usr/bin/uwsm app -- {cmd}"]]
+-- Rofi executes the selected Desktop Entry directly. Wrapping every Exec line
+-- in `uwsm app` prevents several GNOME and D-Bus activated applications from
+-- starting in this virtual-machine session.
+local app_launcher = "/usr/bin/rofi -show drun"
 run("ALT + F2", app_launcher)
 hl.bind("SUPER + space", hl.dsp.exec_cmd(app_launcher), {
     description = "Application launcher (Rofi)",

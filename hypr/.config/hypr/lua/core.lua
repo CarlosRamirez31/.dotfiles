@@ -37,6 +37,10 @@ hl.gesture({
 })
 
 hl.on("hyprland.start", function()
+    -- GNOME applications commonly use D-Bus activation instead of keeping the
+    -- process spawned by Rofi. Export the live Wayland display before starting
+    -- any desktop components so those services can create visible windows.
+    hl.exec_cmd("uwsm finalize XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE HYPRCURSOR_THEME HYPRCURSOR_SIZE")
     hl.exec_cmd("uwsm app -- hyprpanel")
     hl.exec_cmd([[pgrep -x awww-daemon >/dev/null || awww-daemon & sleep 1; awww img "$HOME/.config/wallpapers/arch-bsod.png" --transition-type none]])
     hl.exec_cmd("hyprctl setcursor Bibata-Modern-Classic 24")

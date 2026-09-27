@@ -211,6 +211,36 @@ if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>
         exit 1
     fi
 
+    printf 'Synchronizing the Wayland activation environment...\n'
+    export XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP:-Hyprland}
+    export XDG_SESSION_DESKTOP=${XDG_SESSION_DESKTOP:-Hyprland}
+    export XDG_SESSION_TYPE=${XDG_SESSION_TYPE:-wayland}
+
+    activation_variables=(
+        WAYLAND_DISPLAY
+        HYPRLAND_INSTANCE_SIGNATURE
+        XDG_CURRENT_DESKTOP
+        XDG_SESSION_DESKTOP
+        XDG_SESSION_TYPE
+        XCURSOR_THEME
+        XCURSOR_SIZE
+        HYPRCURSOR_THEME
+        HYPRCURSOR_SIZE
+    )
+    systemctl --user import-environment "${activation_variables[@]}"
+    if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+        dbus-update-activation-environment --systemd "${activation_variables[@]}"
+    fi
+
+    user_environment=$(systemctl --user show-environment)
+    for required_variable in WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE; do
+        if ! grep -q "^${required_variable}=" <<<"$user_environment"; then
+            printf 'The graphical activation environment is missing %s.\n' \
+                "$required_variable" >&2
+            exit 1
+        fi
+    done
+
     # Lua dispatchers are intentionally reported as "__lua" with an internal
     # numeric argument, so validate this bind by its stable description.
     registered_binds=$(hyprctl binds)

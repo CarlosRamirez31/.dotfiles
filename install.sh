@@ -53,7 +53,6 @@ packages=(
     xorg-xwayland
     ghostty
     rofi
-    glib2
     libnotify
     awww
     hypridle
@@ -134,7 +133,7 @@ else
     printf 'All required AUR packages are already installed.\n'
 fi
 
-for required_command in ghostty rofi gio notify-send uwsm hyprpanel; do
+for required_command in ghostty rofi notify-send uwsm uwsm-app hyprpanel; do
     if ! command -v "$required_command" >/dev/null 2>&1; then
         printf 'Required command not found after installation: %s\n' "$required_command" >&2
         exit 1
@@ -235,6 +234,10 @@ if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>
     activation_variables=(
         WAYLAND_DISPLAY
         HYPRLAND_INSTANCE_SIGNATURE
+        GDK_BACKEND
+        GSK_RENDERER
+        MOZ_ENABLE_WAYLAND
+        ELECTRON_OZONE_PLATFORM_HINT
         XDG_CURRENT_DESKTOP
         XDG_SESSION_DESKTOP
         XDG_SESSION_TYPE

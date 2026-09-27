@@ -6,8 +6,8 @@ end
 -- work when a freshly installed session has a minimal PATH.
 run("CTRL + ALT + T", "/usr/bin/ghostty")
 run("SUPER + Return", "/usr/bin/ghostty")
--- Rofi only selects an entry. The helper launches its real Desktop Entry with
--- GIO so D-Bus activated applications work just like they do under GNOME.
+-- Rofi is short-lived and can start directly. Selected applications are still
+-- placed in UWSM's graphical slice by the launcher itself.
 local app_launcher = [[/usr/bin/bash "$HOME/.local/bin/dotfiles-app-launcher"]]
 run("ALT + F2", app_launcher)
 hl.bind("SUPER + space", hl.dsp.exec_cmd(app_launcher), {

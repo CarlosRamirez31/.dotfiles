@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+identity_file=${XDG_CONFIG_HOME:-$HOME/.config}/git/identity
+
+usage() {
+    printf 'Usage: %s {setup NAME EMAIL [SSH_PUBLIC_KEY]|status}\n' "${0##*/}"
+}
+
+case ${1:-} in
+    setup)
+        name=${2:-}
+        email=${3:-}
+        signing_key=${4:-}
+        [[ -n $name && -n $email ]] || { usage >&2; exit 2; }
+        if [[ -n $signing_key && ! -f $signing_key ]]; then
+            printf 'SSH public key not found: %s\n' "$signing_key" >&2
+            exit 1
+        fi
+        mkdir -p -- "$(dirname -- "$identity_file")"
+        umask 077
+        : >"$identity_file"
+        git config --file "$identity_file" user.name "$name"
+        git config --file "$identity_file" user.email "$email"
+        if [[ -n $signing_key ]]; then
+            git config --file "$identity_file" user.signingKey "$signing_key"
+            git config --file "$identity_file" commit.gpgSign true
+            git config --file "$identity_file" tag.gpgSign true
+        fi
+        chmod 600 "$identity_file"
+        printf 'Git identity configured outside the repository.\n'
+        ;;
+    status)
+        git config --get user.name || true
+        git config --get user.email || true
+        signing_key=$(git config --get user.signingkey || true)
+        if [[ -n $signing_key ]]; then
+            printf 'Signing key: %s\n' "$signing_key"
+        else
+            printf 'Commit signing is not configured.\n'
+        fi
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

@@ -1,0 +1,31 @@
+[include]
+	path = ~/.config/git/identity
+
+[init]
+	defaultBranch = main
+
+[pull]
+	ff = only
+
+[push]
+	default = current
+	autoSetupRemote = true
+
+[fetch]
+	prune = true
+	pruneTags = true
+
+[rebase]
+	autoStash = true
+
+[diff]
+	algorithm = histogram
+
+[merge]
+	conflictStyle = zdiff3
+
+[commit]
+	verbose = true
+
+[gpg]
+	format = ssh

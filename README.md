@@ -111,8 +111,9 @@ dotfiles-doctor              # comprobar toda la instalación
 dotfiles-maintain check      # servicios, disco y actualizaciones
 dotfiles-maintain clean      # caché segura y journal de usuario
 dotfiles-backup run          # ejecutar respaldo ya configurado
-dotfiles-box enter dev       # entrar al entorno de desarrollo
-dotfiles-box enter pentest   # entrar al entorno Kali aislado
+distrobox enter dev         # entrar al entorno de desarrollo
+distrobox enter kalilinux   # entrar al entorno Kali
+distrobox enter parrotos    # entrar al entorno ParrotOS, si fue creado
 sysinfo                      # información visual del sistema
 ```
 
@@ -175,9 +176,10 @@ Los contenedores no se crean automáticamente ni consumen espacio hasta que los
 pidas:
 
 ```bash
-dotfiles-box create dev
-dotfiles-box create pentest
-dotfiles-box list
+distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name dev
+distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name kalilinux
+distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name parrotos
+distrobox list
 ```
 
 Podman funciona rootless. Distrobox integra el home, pero mantiene compiladores

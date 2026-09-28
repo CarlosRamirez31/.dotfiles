@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_config="$HOME/.config/dotfiles/nftables.conf"
+system_config=/etc/nftables.conf
+
+usage() {
+    printf 'Usage: %s {enable|disable|status|lab-open|lab-close} [tcp|udp] [PORT]\n' "${0##*/}"
+}
+
+validate_protocol_port() {
+    protocol=${1:-}
+    port=${2:-}
+    [[ $protocol == tcp || $protocol == udp ]] || {
+        printf 'Protocol must be tcp or udp.\n' >&2
+        exit 2
+    }
+    [[ $port =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || {
+        printf 'Port must be between 1 and 65535.\n' >&2
+        exit 2
+    }
+}
+
+case ${1:-} in
+    enable)
+        [[ -r $source_config ]] || {
+            printf 'Missing firewall template: %s\n' "$source_config" >&2
+            exit 1
+        }
+        sudo nft --check --file "$source_config"
+        if sudo test -e "$system_config" && ! sudo cmp --silent "$source_config" "$system_config"; then
+            backup="${system_config}.backup.$(date +%Y%m%d-%H%M%S)"
+            sudo cp --preserve=mode,ownership,timestamps "$system_config" "$backup"
+            printf 'Previous firewall configuration saved as %s\n' "$backup"
+        fi
+        sudo install -Dm600 "$source_config" "$system_config"
+        sudo systemctl enable --now nftables.service
+        sudo systemctl restart nftables.service
+        printf 'Firewall enabled: unsolicited inbound traffic is blocked.\n'
+        ;;
+    disable)
+        sudo systemctl disable --now nftables.service
+        sudo nft delete table inet dotfiles_filter 2>/dev/null || true
+        printf 'Dotfiles firewall disabled.\n'
+        ;;
+    status)
+        systemctl --no-pager --full status nftables.service || true
+        sudo nft list table inet dotfiles_filter
+        ;;
+    lab-open)
+        validate_protocol_port "${2:-}" "${3:-}"
+        sudo nft add element inet dotfiles_filter "lab_${protocol}_ports" "{ $port }"
+        printf 'Opened %s/%s on VPN interfaces until reload or reboot.\n' "$port" "$protocol"
+        ;;
+    lab-close)
+        validate_protocol_port "${2:-}" "${3:-}"
+        sudo nft delete element inet dotfiles_filter "lab_${protocol}_ports" "{ $port }"
+        printf 'Closed %s/%s on VPN interfaces.\n' "$port" "$protocol"
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

@@ -19,3 +19,9 @@ export EDITOR="${EDITOR:-nvim}"
 export VISUAL="${VISUAL:-nvim}"
 export PAGER="${PAGER:-less}"
 export LESS='-R --mouse'
+
+# GNOME Keyring exposes an SSH agent through the user runtime directory. This
+# keeps Git/SSH credentials available to both terminals and graphical tools.
+if [[ -n ${XDG_RUNTIME_DIR:-} && -S $XDG_RUNTIME_DIR/gcr/ssh ]]; then
+    export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/gcr/ssh"
+fi

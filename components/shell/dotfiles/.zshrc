@@ -46,7 +46,7 @@ setopt INTERACTIVE_COMMENTS
 export EZA_ICONS_AUTO=1
 export BAT_THEME='TwoDark'
 if (( $+commands[vivid] )); then
-    export LS_COLORS="$(vivid generate ansi)"
+    export LS_COLORS="$(vivid generate tokyonight-night)"
 fi
 
 # Rich, case-insensitive completion menus.
@@ -74,10 +74,20 @@ fi
 source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/aliases.zsh"
 source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/functions.zsh"
 
-if [[ -r /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+zsh_autosuggestions=''
+for plugin_file in \
+    /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh \
+    /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+do
+    if [[ -r $plugin_file ]]; then
+        zsh_autosuggestions=$plugin_file
+        break
+    fi
+done
+if [[ -n $zsh_autosuggestions ]]; then
     ZSH_AUTOSUGGEST_STRATEGY=(history completion)
     ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#565f89'
-    source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+    source "$zsh_autosuggestions"
 fi
 
 if [[ -r /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh ]]; then
@@ -97,6 +107,16 @@ if (( $+commands[fastfetch] )) && [[ -o interactive && -t 1 && ${DOTFILES_FASTFE
 fi
 
 # Syntax highlighting must remain the final sourced plugin.
-if [[ -r /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
-    source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+zsh_syntax_highlighting=''
+for plugin_file in \
+    /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+    /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+do
+    if [[ -r $plugin_file ]]; then
+        zsh_syntax_highlighting=$plugin_file
+        break
+    fi
+done
+if [[ -n $zsh_syntax_highlighting ]]; then
+    source "$zsh_syntax_highlighting"
 fi

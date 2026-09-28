@@ -25,11 +25,33 @@ dotfiles-box enter dev
 dotfiles-box stop dev
 dotfiles-box remove dev
 dotfiles-box create pentest
+dotfiles-box setup pentest
 dotfiles-box enter pentest
 dotfiles-box list
 ```
 
-`create` descarga la imagen si hace falta y crea el nombre fijo. `enter` abre shell, `stop` detiene, `list` delega a Distrobox y `remove` solicita confirmación `[y/N]` antes de borrar el contenedor y sus paquetes instalados. Datos guardados directamente en el home compartido no se eliminan con el contenedor.
+`create pentest` descarga Kali, completa su inicialización y ejecuta el setup
+entero; al terminar el contenedor ya está listo. `setup pentest` es idempotente:
+sirve para completar, reparar o actualizar un contenedor existente. `enter`
+abre shell, `stop` detiene, `list` delega a Distrobox y `remove` solicita
+confirmación `[y/N]` antes de borrar el contenedor y sus paquetes instalados.
+Datos guardados directamente en el home compartido no se eliminan con el
+contenedor.
+
+Para el perfil Kali, `create` también enmascara dentro del contenedor las
+reglas `tmp.conf` y `x11.conf` de `systemd-tmpfiles`. Distrobox comparte el
+`/tmp` del host y una instalación rootless no puede cambiar su propietario;
+Arch ya administra esas rutas compartidas. Sin esta compatibilidad, el primer
+`enter` puede terminar con `fchownat() of /tmp failed` y código 100 de `dpkg`.
+La corrección no desactiva systemd ni cambia permisos del `/tmp` de Arch.
+
+El setup instala el entorno de terminal (Zsh, Starship, Fastfetch, eza, FZF,
+Zoxide y plugins), Neovim con sus dependencias de compilación y plugins, y una
+base de laboratorio: Nmap, Ffuf, Gobuster, Feroxbuster, SQLmap, Nikto,
+WhatWeb, Netcat, Socat, utilidades DNS/Whois, clientes SMB, Enum4linux-ng,
+SecLists y Wordlists. No instala metapaquetes Kali completos, Metasploit ni
+herramientas de cracking pesadas; esas se agregan conscientemente cuando un
+laboratorio las requiera.
 
 ## Dentro del contenedor
 

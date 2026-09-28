@@ -35,8 +35,8 @@ for key, direction in pairs(directions) do
     hl.bind("SUPER + SHIFT + " .. key, hl.dsp.window.move({ direction = direction }))
 end
 
--- Workspaces.
-for workspace = 1, 9 do
+-- Four dedicated workspaces, matching the four icons shown by HyprPanel.
+for workspace = 1, 4 do
     hl.bind("SUPER + " .. workspace, hl.dsp.focus({ workspace = workspace }))
     hl.bind("SUPER + SHIFT + " .. workspace, hl.dsp.window.move({
         workspace = workspace,

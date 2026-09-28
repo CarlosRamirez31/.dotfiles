@@ -79,3 +79,49 @@
         font-size: 1em;
     }
 }
+
+// Workspace state indicators: the current workspace gets an underline, while
+// an occupied background workspace gets one compact dotted marker.
+.workspaces label.workspace-icon {
+    border-top: 0.12em solid transparent;
+    border-bottom: 0.12em solid transparent;
+
+    &.occupied {
+        border-bottom: 0.12em dotted #f2cdcd;
+    }
+
+    &.active {
+        border-bottom: 0.12em solid #f5c2e7;
+    }
+}
+
+// HyprPanel normally draws the underline on hover too. Preserve each actual
+// state instead: empty, occupied-dot, or active-underline.
+.workspace-button:hover label.workspace-icon {
+    border-bottom: 0.12em solid transparent;
+
+    &.occupied {
+        border-bottom: 0.12em dotted #f2cdcd;
+    }
+
+    &.active {
+        border-bottom: 0.12em solid #f5c2e7;
+    }
+}
+
+// Hack The Box connection status. The cube mirrors HTB's visual identity and
+// uses its signature acid green while the IP stays readable in Catppuccin.
+.bar_item_box_visible.cmodule-htb {
+    background: #242438;
+}
+
+.module-icon.cmodule-htb {
+    color: #9fef00;
+    font-size: 1.15em;
+}
+
+.module-label.cmodule-htb {
+    margin-left: 0.5em;
+    color: #cdd6f4;
+    font-weight: 600;
+}

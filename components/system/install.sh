@@ -14,6 +14,7 @@ packages=(
     pipewire-pulse
     wireplumber
     networkmanager
+    openvpn
     brightnessctl
     pacman-contrib
     playerctl

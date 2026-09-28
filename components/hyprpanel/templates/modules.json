@@ -1,0 +1,10 @@
+{
+  "custom/htb": {
+    "icon": "",
+    "label": "{ip}",
+    "tooltip": "Hack The Box · {status}\nVPN: {vpn_ip}\nInterfaz: {interface}",
+    "execute": "$HOME/.local/bin/dotfiles-htb-vpn-status",
+    "interval": 2000,
+    "hideOnEmpty": true
+  }
+}

@@ -6,6 +6,8 @@ source "$component_root/../../scripts/lib.sh"
 
 require_arch_user
 install_aur_packages ags-hyprpanel-git
+install_packages openvpn
+stow_component "$component_root"
 
 runtime_dir="$HOME/.config/hyprpanel"
 marker="$runtime_dir/.managed-by-dotfiles"
@@ -17,6 +19,7 @@ fi
 
 mkdir -p -- "$runtime_dir"
 install -m 0644 -- "$component_root/templates/config.json" "$runtime_dir/config.json"
+install -m 0644 -- "$component_root/templates/modules.json" "$runtime_dir/modules.json"
 install -m 0644 -- "$component_root/templates/modules.scss" "$runtime_dir/modules.scss"
 touch -- "$marker"
 

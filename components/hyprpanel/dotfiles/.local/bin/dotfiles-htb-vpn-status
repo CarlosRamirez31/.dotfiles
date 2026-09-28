@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+# HyprPanel prints nothing for a hidden custom module. Only a tunnel carrying
+# the private ranges used by Hack The Box is considered an HTB connection, so
+# an unrelated corporate or personal VPN does not light up this indicator.
+command -v ip >/dev/null 2>&1 || exit 0
+
+state_root=${XDG_STATE_HOME:-"$HOME/.local/state"}
+target_file="$state_root/dotfiles/htb-target"
+
+while read -r interface vpn_ip; do
+    [[ $interface =~ ^(tun|tap)[[:alnum:]_.-]*$ ]] || continue
+    [[ $vpn_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || continue
+
+    routes=$(ip -o -4 route show dev "$interface" 2>/dev/null || true)
+    if [[ $vpn_ip != 10.10.* && $vpn_ip != 10.129.* ]] ||
+        [[ $routes != *"10.10."* && $routes != *"10.129."* ]]; then
+        continue
+    fi
+
+    display_ip=$vpn_ip
+    status='VPN conectada'
+    if [[ -r $target_file ]]; then
+        IFS= read -r target_ip < "$target_file" || true
+        if [[ $target_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            display_ip=$target_ip
+            status='Objetivo activo'
+        fi
+    fi
+
+    printf '{"ip":"%s","vpn_ip":"%s","interface":"%s","status":"%s"}\n' \
+        "$display_ip" "$vpn_ip" "$interface" "$status"
+    exit 0
+done < <(
+    ip -o -4 address show up 2>/dev/null |
+        awk '$2 ~ /^(tun|tap)[[:alnum:]_.-]*$/ { split($4, address, "/"); print $2, address[1] }'
+)
+
+exit 0

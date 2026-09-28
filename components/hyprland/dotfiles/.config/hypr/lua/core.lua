@@ -38,6 +38,11 @@ hl.config({
         enable_hyprcursor = false,
         sync_gsettings_theme = true,
     },
+    gestures = {
+        -- Workspaces 1-4 are the complete set; swiping at either end must not
+        -- create an additional workspace.
+        workspace_swipe_create_new = false,
+    },
     render = {
         -- Avoid the extra queued frame introduced by triple buffering. This
         -- measured lower CPU usage and input latency on vmwgfx.
@@ -53,6 +58,15 @@ hl.config({
         disable_autoreload = true,
     },
 })
+
+-- Keep all four workspaces alive even while they are empty. Together with the
+-- gesture setting above, workspace navigation stays bounded to this set.
+for workspace = 1, 4 do
+    hl.workspace_rule({
+        workspace = tostring(workspace),
+        persistent = true,
+    })
+end
 
 hl.gesture({
     fingers = 3,

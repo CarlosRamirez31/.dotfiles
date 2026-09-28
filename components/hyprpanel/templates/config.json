@@ -19,17 +19,17 @@
   "menus.clock.weather.enabled": false,
   "bar.layouts": {
     "0": {
-      "left": ["dashboard", "windowtitle"],
+      "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
       "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     },
     "1": {
-      "left": ["dashboard", "windowtitle"],
+      "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
       "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     },
     "2": {
-      "left": ["dashboard", "windowtitle"],
+      "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
       "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     }
@@ -44,12 +44,32 @@
   "bar.windowtitle.icon": true,
   "bar.windowtitle.truncation": true,
   "bar.windowtitle.truncation_size": 20,
-  "bar.workspaces.workspaces": 5,
+  "bar.workspaces.workspaces": 4,
   "bar.workspaces.hideUnoccupied": false,
   "bar.workspaces.showWsIcons": true,
+  "bar.workspaces.workspaceIconMap": {
+    "1": {
+      "icon": "",
+      "color": "#fab387"
+    },
+    "2": {
+      "icon": "",
+      "color": "#89dceb"
+    },
+    "3": {
+      "icon": "",
+      "color": "#cba6f7"
+    },
+    "4": {
+      "icon": "",
+      "color": "#a6e3a1"
+    }
+  },
   "bar.workspaces.numbered_active_indicator": "underline",
   "bar.workspaces.spacing": 1.2,
   "bar.workspaces.scroll_speed": 2,
+  "theme.bar.buttons.workspaces.fontSize": "1.3em",
+  "theme.bar.buttons.workspaces.numbered_active_underline_color": "#f5c2e7",
   "bar.customModules.ram.label": true,
   "bar.customModules.ram.labelType": "percentage",
   "bar.customModules.ram.round": true,

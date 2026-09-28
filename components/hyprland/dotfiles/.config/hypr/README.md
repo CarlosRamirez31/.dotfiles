@@ -27,8 +27,8 @@ módulos bajo `components/`; no se administran desde este directorio.
 | `Super + V` | Alternar ventana flotante |
 | `Super + H/J/K/L` | Cambiar el foco |
 | `Super + Shift + H/J/K/L` | Mover ventana |
-| `Super + 1..9` | Cambiar de workspace |
-| `Super + Shift + 1..9` | Mover ventana al workspace |
+| `Super + 1..4` | Cambiar de workspace |
+| `Super + Shift + 1..4` | Mover ventana al workspace |
 | `Super + Shift + E` | Cerrar la sesión |
 
 Instalación independiente:

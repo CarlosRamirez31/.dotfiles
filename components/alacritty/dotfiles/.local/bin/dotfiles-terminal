@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# VMware's Wayland buffer protocol can reject GPU-backed surfaces after a
+# display mode change. Keep the native Wayland backend but render through
+# llvmpipe on VMware; physical machines and other VMs retain GPU acceleration.
+if [[ -r /sys/class/dmi/id/sys_vendor ]] \
+    && grep -qi vmware /sys/class/dmi/id/sys_vendor; then
+    exec env LIBGL_ALWAYS_SOFTWARE=1 alacritty "$@"
+fi
+
+exec alacritty "$@"

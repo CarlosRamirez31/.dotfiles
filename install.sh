@@ -1,335 +1,83 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
-if [[ ${EUID} -eq 0 ]]; then
-    printf 'Run this installer as your regular user, not as root.\n' >&2
-    exit 1
-fi
-
-if ! command -v pacman >/dev/null 2>&1; then
-    printf 'This installer supports Arch Linux and pacman only.\n' >&2
-    exit 1
-fi
-
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-package_root="$repo_root/hypr"
-hyprpanel_template="$repo_root/templates/hyprpanel/config.json"
-hyprpanel_modules_template="$repo_root/templates/hyprpanel/modules.scss"
 
-if [[ ! -d $package_root/.config/hypr ]]; then
-    printf 'The Hyprland Stow package was not found in %s.\n' "$package_root" >&2
-    exit 1
-fi
-
-if [[ ! -f $package_root/.config/hypr/lua/binds.lua ]]; then
-    printf 'The Hyprland bindings file is missing from the repository.\n' >&2
-    exit 1
-fi
-
-if [[ ! -f $package_root/.local/bin/dotfiles-app-launcher ]]; then
-    printf 'The application launcher helper is missing from the repository.\n' >&2
-    exit 1
-fi
-
-if [[ ! -f $hyprpanel_template ]]; then
-    printf 'The HyprPanel template was not found in %s.\n' "$hyprpanel_template" >&2
-    exit 1
-fi
-
-if [[ ! -f $hyprpanel_modules_template ]]; then
-    printf 'The HyprPanel style template was not found in %s.\n' \
-        "$hyprpanel_modules_template" >&2
-    exit 1
-fi
-
-packages=(
-    git
-    stow
-    hyprland
+# This order is intentional: system services first, visual assets second,
+# applications third, and the compositor last so every referenced command is
+# ready when Hyprland reloads.
+available_components=(
+    system
+    themes
+    fonts
     uwsm
-    xdg-desktop-portal-hyprland
-    xdg-desktop-portal-gtk
-    xorg-xwayland
-    ghostty
+    alacritty
     rofi
-    libnotify
-    awww
-    hypridle
-    hyprpolkitagent
-    pipewire
-    pipewire-pulse
-    wireplumber
-    networkmanager
-    brightnessctl
-    pacman-contrib
-    playerctl
-    upower
-    ttf-jetbrains-mono-nerd
+    wallpaper
+    hyprpanel
+    hyprland
 )
 
-aur_packages=(
-    ags-hyprpanel-git
-    bibata-cursor-theme
-    oranchelo-icon-theme-git
-)
-
-# Install only the integration stack for the detected machine. These packages
-# are useful to every desktop session and do not couple GNOME to Hyprland.
-virtualization=$(systemd-detect-virt --vm 2>/dev/null || true)
-case $virtualization in
-    vmware)
-        packages+=(open-vm-tools)
-        ;;
-    oracle)
-        packages+=(virtualbox-guest-utils)
-        ;;
-    kvm|qemu)
-        packages+=(spice-vdagent)
-        ;;
-esac
-
-needs_display_manager=false
-if ! systemctl is-enabled display-manager.service >/dev/null 2>&1; then
-    packages+=(sddm)
-    needs_display_manager=true
-fi
-
-missing_packages=()
-for package in "${packages[@]}"; do
-    if ! pacman -Q "$package" >/dev/null 2>&1; then
-        missing_packages+=("$package")
-    fi
-done
-
-missing_aur_packages=()
-for package in "${aur_packages[@]}"; do
-    if ! pacman -Q "$package" >/dev/null 2>&1; then
-        missing_aur_packages+=("$package")
-    fi
-done
-
-aur_helper=""
-if command -v paru >/dev/null 2>&1; then
-    aur_helper=paru
-elif command -v yay >/dev/null 2>&1; then
-    aur_helper=yay
-fi
-
-if (( ${#missing_aur_packages[@]} > 0 )) && [[ -z $aur_helper ]]; then
-    if ! pacman -Q base-devel >/dev/null 2>&1; then
-        missing_packages+=(base-devel)
-    fi
-fi
-
-if (( ${#missing_packages[@]} > 0 )); then
-    printf 'Installing missing packages: %s\n' "${missing_packages[*]}"
-    sudo pacman -Syu --needed "${missing_packages[@]}"
-else
-    printf 'All required packages are already installed.\n'
-fi
-
-if (( ${#missing_aur_packages[@]} > 0 )); then
-    if [[ -z $aur_helper ]]; then
-        build_root=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-yay.XXXXXX")
-        printf 'Installing the AUR helper yay-bin...\n'
-        git clone --depth=1 https://aur.archlinux.org/yay-bin.git "$build_root/yay-bin"
-        (
-            cd "$build_root/yay-bin"
-            makepkg -si --needed --noconfirm
-        )
-        rm -rf -- "$build_root"
-        aur_helper=yay
-    fi
-
-    printf 'Installing missing AUR packages: %s\n' "${missing_aur_packages[*]}"
-    "$aur_helper" -S --needed --noconfirm "${missing_aur_packages[@]}"
-else
-    printf 'All required AUR packages are already installed.\n'
-fi
-
-for required_command in ghostty rofi notify-send uwsm uwsm-app hyprpanel; do
-    if ! command -v "$required_command" >/dev/null 2>&1; then
-        printf 'Required command not found after installation: %s\n' "$required_command" >&2
-        exit 1
-    fi
-done
-
-backup_stamp=$(date +%Y%m%d-%H%M%S)
-
-is_managed_path() {
-    local target=$1
-    local resolved
-
-    [[ -e $target || -L $target ]] || return 1
-    resolved=$(readlink -f -- "$target")
-    [[ $resolved == "$package_root" || $resolved == "$package_root"/* ]]
+usage() {
+    printf 'Usage: %s [all|COMPONENT ...]\n' "${0##*/}"
+    printf 'Components (default order): %s\n' "${available_components[*]}"
 }
 
-backup_unmanaged_path() {
-    local target=$1
-    local backup
-
-    [[ -e $target || -L $target ]] || return 0
-    is_managed_path "$target" && return 0
-
-    backup="${target}.backup.${backup_stamp}"
-    printf 'Backing up %s to %s\n' "$target" "$backup"
-    mv -- "$target" "$backup"
+component_exists() {
+    local requested=$1
+    local component
+    for component in "${available_components[@]}"; do
+        [[ $component == "$requested" ]] && return 0
+    done
+    return 1
 }
 
-mkdir -p -- "$HOME/.config"
-
-for target in \
-    "$HOME/.config/ghostty/config" \
-    "$HOME/.config/hypr/README.md" \
-    "$HOME/.config/hypr/hyprland.lua" \
-    "$HOME/.config/hypr/lua/binds.lua" \
-    "$HOME/.config/hypr/lua/core.lua" \
-    "$HOME/.config/hypr/lua/hardware.lua" \
-    "$HOME/.config/hypr/lua/theme.lua" \
-    "$HOME/.config/rofi/config.rasi" \
-    "$HOME/.config/rofi/theme.rasi" \
-    "$HOME/.config/uwsm/env" \
-    "$HOME/.config/uwsm/env-hyprland" \
-    "$HOME/.config/wallpapers/arch-bsod.png" \
-    "$HOME/.local/share/fonts/Lexend/Lexend-VariableFont_wght.ttf" \
-    "$HOME/.local/share/fonts/Lexend/OFL.txt" \
-    "$HOME/.local/bin/dotfiles-app-launcher"; do
-    backup_unmanaged_path "$target"
-done
-
-# HyprPanel owns generated files in this directory. Back up a pre-existing
-# foreign configuration once, then update our template in place on later runs.
-hyprpanel_runtime="$HOME/.config/hyprpanel"
-hyprpanel_marker="$hyprpanel_runtime/.managed-by-dotfiles"
-if [[ -d $hyprpanel_runtime && ! -f $hyprpanel_marker ]]; then
-    backup_unmanaged_path "$hyprpanel_runtime"
+if (( $# == 1 )) && [[ $1 == --help || $1 == -h ]]; then
+    usage
+    exit 0
 fi
 
-printf 'Linking the managed configuration...\n'
-# Keep shared directories such as ~/.local/bin real. Linking only their files
-# prevents unrelated per-machine tools from being created inside this repo.
-stow --dir="$repo_root" --target="$HOME" --no-folding --restow hypr
-
-# HyprPanel rewrites its configuration and creates generated module files.
-# Keep those runtime files outside the Git worktree.
-if [[ -L $hyprpanel_runtime ]]; then
-    rm -- "$hyprpanel_runtime"
-fi
-mkdir -p -- "$hyprpanel_runtime"
-install -m 0644 -- "$hyprpanel_template" "$hyprpanel_runtime/config.json"
-install -m 0644 -- "$hyprpanel_modules_template" "$hyprpanel_runtime/modules.scss"
-touch -- "$hyprpanel_marker"
-
-fc-cache -f >/dev/null
-
-if ! systemctl is-enabled NetworkManager.service >/dev/null 2>&1; then
-    printf 'Enabling NetworkManager...\n'
-    sudo systemctl enable NetworkManager.service
-fi
-
-if ! systemctl is-active NetworkManager.service >/dev/null 2>&1; then
-    printf 'Starting NetworkManager...\n'
-    sudo systemctl start NetworkManager.service
-fi
-
-case $virtualization in
-    vmware)
-        printf 'Enabling VMware guest integration...\n'
-        sudo systemctl enable --now vmtoolsd.service
-        sudo systemctl enable --now vmware-vmblock-fuse.service
-        ;;
-    oracle)
-        printf 'Enabling VirtualBox guest integration...\n'
-        sudo systemctl enable --now vboxservice.service
-        ;;
-esac
-
-if [[ $needs_display_manager == true ]]; then
-    printf 'Enabling SDDM for the next boot...\n'
-    sudo systemctl enable sddm.service
+if (( $# == 0 )) || { (( $# == 1 )) && [[ $1 == all ]]; }; then
+    selected_components=("${available_components[@]}")
 else
-    printf 'Keeping the currently enabled display manager.\n'
-fi
-
-if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>&1; then
-    printf 'Refreshing the active Hyprland session...\n'
-    hyprctl reload
-
-    config_errors=$(hyprctl configerrors)
-    if [[ -n $config_errors ]]; then
-        printf 'Hyprland reported configuration errors:\n%s\n' "$config_errors" >&2
-        exit 1
-    fi
-
-    printf 'Synchronizing the Wayland activation environment...\n'
-    export XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP:-Hyprland}
-    export XDG_SESSION_DESKTOP=${XDG_SESSION_DESKTOP:-Hyprland}
-    export XDG_SESSION_TYPE=${XDG_SESSION_TYPE:-wayland}
-
-    activation_variables=(
-        WAYLAND_DISPLAY
-        HYPRLAND_INSTANCE_SIGNATURE
-        GDK_BACKEND
-        GSK_RENDERER
-        MOZ_ENABLE_WAYLAND
-        ELECTRON_OZONE_PLATFORM_HINT
-        XDG_CURRENT_DESKTOP
-        XDG_SESSION_DESKTOP
-        XDG_SESSION_TYPE
-        XCURSOR_THEME
-        XCURSOR_SIZE
-        HYPRCURSOR_THEME
-        HYPRCURSOR_SIZE
-    )
-    systemctl --user import-environment "${activation_variables[@]}"
-    if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-        dbus-update-activation-environment --systemd "${activation_variables[@]}"
-    fi
-
-    user_environment=$(systemctl --user show-environment)
-    for required_variable in WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE; do
-        if ! grep -q "^${required_variable}=" <<<"$user_environment"; then
-            printf 'The graphical activation environment is missing %s.\n' \
-                "$required_variable" >&2
-            exit 1
+    requested_components=("$@")
+    for requested in "${requested_components[@]}"; do
+        if ! component_exists "$requested"; then
+            printf 'Unknown component: %s\n' "$requested" >&2
+            usage >&2
+            exit 2
         fi
     done
 
-    # Lua dispatchers are intentionally reported as "__lua" with an internal
-    # numeric argument, so validate this bind by its stable description.
-    registered_binds=$(hyprctl binds)
-    if ! grep -Fq 'description: Application launcher (Rofi)' <<<"$registered_binds"; then
-        printf 'Hyprland did not register the Super+space application launcher.\n' >&2
+    # Normalize a partial installation to the same dependency-safe order used
+    # by a full installation, regardless of the argument order.
+    selected_components=()
+    for component in "${available_components[@]}"; do
+        for requested in "${requested_components[@]}"; do
+            if [[ $component == "$requested" ]]; then
+                selected_components+=("$component")
+                break
+            fi
+        done
+    done
+fi
+
+for component in "${selected_components[@]}"; do
+    if ! component_exists "$component"; then
+        printf 'Unknown component: %s\n' "$component" >&2
+        usage >&2
+        exit 2
+    fi
+
+    installer="$repo_root/components/$component/install.sh"
+    if [[ ! -x $installer ]]; then
+        printf 'Component installer is missing or not executable: %s\n' "$installer" >&2
         exit 1
     fi
 
-    # Stop the old panel if this machine used an earlier revision.
-    systemctl --user stop waybar.service >/dev/null 2>&1 || true
-    pkill -x waybar >/dev/null 2>&1 || true
-
-    while read -r panel_unit _; do
-        [[ -n $panel_unit ]] || continue
-        systemctl --user stop "$panel_unit" >/dev/null 2>&1 || true
-    done < <(systemctl --user list-units --type=scope --all --no-legend \
-        'app-Hyprland-hyprpanel-*.scope')
-    nohup uwsm-app -- hyprpanel \
-        >"${XDG_RUNTIME_DIR:-/tmp}/hyprpanel-dotfiles.log" 2>&1 &
-
-    if ! pgrep -x awww-daemon >/dev/null 2>&1; then
-        nohup awww-daemon \
-            >"${XDG_RUNTIME_DIR:-/tmp}/awww-dotfiles.log" 2>&1 &
-    fi
-    awww img "$HOME/.config/wallpapers/arch-bsod.png" \
-        --transition-type none >/dev/null 2>&1 || true
-
-    hyprctl setcursor Bibata-Modern-Classic 24 >/dev/null 2>&1 || true
-
-    printf 'Hyprland, HyprPanel and the wallpaper were refreshed.\n'
-else
-    printf 'The configuration will load on the next Hyprland login.\n'
-fi
+    printf '\n==> Installing %s\n' "$component"
+    "$installer"
+done
 
 printf '\nSetup complete.\n'
 printf 'On a fresh installation, reboot and select "Hyprland (uwsm-managed)".\n'

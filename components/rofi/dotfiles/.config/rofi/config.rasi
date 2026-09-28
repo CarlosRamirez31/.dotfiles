@@ -1,0 +1,17 @@
+configuration {
+    modi: "drun";
+    show-icons: true;
+    icon-theme: "Oranchelo";
+    terminal: "dotfiles-terminal";
+    run-command: "{cmd}";
+    display-drun: "";
+    matching: "fuzzy";
+    sort: true;
+    sorting-method: "fzf";
+}
+
+* {
+    font: "Lexend 11";
+}
+
+@theme "theme"

@@ -1,13 +1,34 @@
 # Fonts
 
-Instala JetBrainsMono Nerd Font para terminal, editor e iconos. También aporta
-Lexend, usada por la interfaz cuando está incluida en los recursos del módulo.
-Al terminar reconstruye la caché de Fontconfig.
+Este componente instala las dos familias tipográficas que sostienen la interfaz: JetBrainsMono Nerd Font para terminal/código/iconos y Lexend para HyprPanel. Tenerlas en un módulo temprano evita cuadros vacíos y cambios de medida durante el resto de la instalación.
+
+## Contenido
+
+| Fuente | Procedencia | Uso |
+| --- | --- | --- |
+| JetBrainsMono Nerd Font | Paquete Arch `ttf-jetbrains-mono-nerd` | Alacritty, Hyprlock, Starship e iconos Nerd Font. |
+| Lexend Variable | Archivo versionado bajo `.local/share/fonts/Lexend` | Texto y controles de HyprPanel. |
+
+El archivo `OFL.txt` conserva la licencia de Lexend junto a la fuente. El instalador añade `fontconfig`, enlaza los archivos y fuerza `fc-cache -f` para que aplicaciones ya instaladas puedan descubrirlos.
+
+## Instalación y comprobación
 
 ```bash
 ./install.sh fonts
 fc-match "JetBrainsMono Nerd Font"
+fc-match Lexend
+fc-list | rg 'JetBrains|Lexend'
 ```
 
-La terminal conserva esta fuente para que todos los glifos de Starship y del
-panel se representen correctamente.
+`fc-match` debe devolver la familia solicitada y no una sustitución como DejaVu Sans. Después de instalar, aplicaciones antiguas pueden necesitar reiniciarse para reconstruir sus propias cachés.
+
+## Relaciones y personalización
+
+Alacritty solicita estilos SemiBold/Bold de JetBrainsMono; Hyprlock la usa para reloj e iconos; HyprPanel solicita Lexend de peso 500. Cambiar el nombre o retirar una familia exige actualizar esas configuraciones para evitar fallback inconsistente.
+
+Si aparecen glifos cuadrados, verifica primero que el proceso use esta cuenta de usuario y ejecuta:
+
+```bash
+fc-cache -rv
+fc-match -v "JetBrainsMono Nerd Font" | less
+```

@@ -1,24 +1,56 @@
 # Security
 
-Configura GNOME Keyring, el agente SSH de GCR y un firewall nftables para una
-estación de trabajo. Se aceptan conexiones establecidas, loopback, DHCP e ICMP;
-las conexiones entrantes nuevas se bloquean.
+Este componente configura almacenamiento de credenciales, agente SSH y un firewall nftables de estación de trabajo. La política permite uso normal saliente y bloquea conexiones entrantes nuevas, con una excepción temporal y limitada para laboratorios por VPN.
 
-Durante una instalación por SSH el firewall no se activa automáticamente, para
-no cortar la sesión. La configuración anterior de `/etc/nftables.conf` se
-respalda antes de reemplazarla.
+## Credenciales y agente SSH
 
-## HTB y laboratorios
-
-Las conexiones que tú inicias hacia HTB funcionan sin cambios. Solo abre un
-puerto cuando la máquina remota deba conectarse de vuelta, y únicamente quedará
-expuesto en interfaces VPN `tun*`:
+Instala GNOME Keyring, libsecret, Seahorse y GCR 4. Habilita los sockets de usuario `gnome-keyring-daemon.socket` y `gcr-ssh-agent.socket`; `shell` y `uwsm` exportan `SSH_AUTH_SOCK=$XDG_RUNTIME_DIR/gcr/ssh`.
 
 ```bash
-dotfiles-firewall lab-open tcp 4444
-dotfiles-firewall lab-close tcp 4444
-dotfiles-firewall status
+systemctl --user status gnome-keyring-daemon.socket gcr-ssh-agent.socket
+ssh-add -L
+seahorse
 ```
 
-Los puertos de laboratorio son temporales y desaparecen al reiniciar o recargar
-el firewall. `dotfiles-firewall enable` lo instala/activa localmente.
+Seahorse permite inspeccionar credenciales; este componente no crea llaves ni contraseñas automáticamente.
+
+## Política del firewall
+
+La tabla `inet dotfiles_filter` aplica:
+
+- input con política `drop`;
+- descarte de estados inválidos;
+- aceptación de tráfico establecido/relacionado y loopback;
+- ICMP/ICMPv6 para diagnóstico y operación de red;
+- respuestas DHCP IPv4/IPv6;
+- output y forward permitidos;
+- puertos de laboratorio solo en interfaces cuyo nombre empieza por `tun`.
+
+## Comandos
+
+```bash
+dotfiles-firewall enable
+dotfiles-firewall status
+dotfiles-firewall disable
+dotfiles-firewall lab-open tcp 4444
+dotfiles-firewall lab-close tcp 4444
+```
+
+`enable` valida la sintaxis con `nft --check`, respalda `/etc/nftables.conf` si difiere, instala el archivo con modo `0600`, habilita el servicio y lo reinicia. `disable` apaga el servicio y elimina únicamente la tabla administrada.
+
+`lab-open` acepta `tcp` o `udp` y puertos 1–65535. La apertura solo recibe tráfico por `tun*`; no expone el listener en Wi-Fi/Ethernet. Los sets son efímeros y se vacían tras recargar nftables o reiniciar.
+
+## Seguridad de instalación remota
+
+Durante una instalación detectada mediante `$SSH_CONNECTION`, los archivos se instalan pero el firewall no se activa para evitar cortar acceso remoto. Revísalo y ejecuta `dotfiles-firewall enable` localmente.
+
+## Diagnóstico y recuperación
+
+```bash
+sudo nft list ruleset
+sudo nft --check --file ~/.config/dotfiles/nftables.conf
+systemctl status nftables.service
+journalctl -u nftables.service -b
+```
+
+Antes de cambiar reglas en un host remoto mantén una segunda vía de acceso. Los backups de `/etc/nftables.conf` llevan fecha/hora y no se eliminan automáticamente.

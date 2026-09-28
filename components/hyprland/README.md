@@ -1,48 +1,79 @@
 # Hyprland
 
-Contiene el compositor y la gramática común de teclado del escritorio. La
-configuración Lua está dividida en núcleo, apariencia, hardware y atajos. Solo
-existen cuatro workspaces persistentes para coincidir con HyprPanel.
+Este componente define el compositor, el modelo de ventanas, monitores, arranque de la sesión gráfica y la gramática global del teclado. Se instala al final porque sus atajos llaman comandos aportados por casi todos los módulos anteriores.
 
-## Gramática de ventanas estilo Vim
+## Paquetes
+
+| Paquete | Función |
+| --- | --- |
+| `hyprland` | Compositor Wayland y cliente `hyprctl`. |
+| `xdg-desktop-portal-hyprland` | Captura de pantalla y portales específicos del compositor. |
+| `xorg-xwayland` | Compatibilidad con aplicaciones X11. |
+| `hypridle` | Backend de inactividad configurado por `session`. |
+| `hyprpolkitagent` | Diálogos gráficos de autorización. |
+
+## Diseño de la configuración
+
+`hyprland.lua` carga tres módulos:
+
+- `lua/core.lua`: monitores, entrada, cursor, cuatro workspaces y arranque;
+- `lua/theme.lua`: bordes, espacios y animaciones;
+- `lua/binds.lua`: aplicaciones, ventanas, multimedia y sesión.
+
+`lua/hardware.lua` detecta VMware. Allí usa 1920×1080@60, cursor por software, desactiva animaciones/redondeado y evita pipelines gráficos costosos; en hardware normal usa modo preferido y efectos completos. El layout es `dwindle`, teclado `us`, touchpad con desplazamiento natural y cuatro workspaces persistentes.
+
+Al iniciar, finaliza variables UWSM, arranca HyprPanel, Awww, agente Polkit, servicios Cliphist y applet Bluetooth. La autorecarga se deshabilita para no leer archivos Lua a medio actualizar; el instalador ejecuta `hyprctl reload` cuando corresponde.
+
+## Atajos de aplicaciones
 
 | Atajo | Acción |
 | --- | --- |
-| `Alt+H/J/K/L` | enfocar izquierda/abajo/arriba/derecha |
-| `Alt+Shift+H/J/K/L` | mover la ventana en esa dirección |
-| `Alt+Ctrl+H/J/K/L` | redimensionar en esa dirección |
-| `Alt+1..4` | cambiar de workspace |
-| `Alt+Shift+1..4` | mover al workspace y seguir la ventana |
-| `Alt+Q` | cerrar ventana |
-| `Alt+F` | pantalla completa |
-| `Alt+V` | alternar flotante |
+| `Alt+Enter`, `Ctrl+Alt+T` | Terminal. |
+| `Alt+Space`, `Alt+D`, `Alt+F2` | Rofi. |
+| `Alt+B` | Firefox. |
+| `Alt+E` | Thunar. |
+| `Alt+C` | Historial del portapapeles. |
+| `Ctrl+Shift+B` | Bloquear. |
+| `Alt+Shift+E` | Finalizar sesión UWSM. |
 
-La lógica refleja Neovim: `H/J/K/L` expresa dirección, `Shift` mueve y `Ctrl`
-modifica el tamaño. Se usa `Alt` en vez de `Super` para evitar atajos del
-Windows anfitrión en una VM.
-
-## Aplicaciones y sesión
+## Ventanas y workspaces
 
 | Atajo | Acción |
 | --- | --- |
-| `Alt+Enter` / `Ctrl+Alt+T` | terminal |
-| `Alt+Space` / `Alt+D` / `Alt+F2` | lanzador |
-| `Alt+B` | navegador |
-| `Alt+E` | archivos |
-| `Alt+C` | portapapeles |
-| `Ctrl+Shift+B` | bloqueo |
-| `Alt+Shift+E` | cerrar sesión |
+| `Alt+H/J/K/L` | Enfocar izquierda/abajo/arriba/derecha. |
+| `Alt+Shift+H/J/K/L` | Mover ventana. |
+| `Alt+Ctrl+H/J/K/L` | Redimensionar en pasos de 30 px. |
+| `Alt+1..4` | Cambiar de workspace. |
+| `Alt+Shift+1..4` | Mover ventana y seguirla. |
+| `Alt+Q` | Cerrar. |
+| `Alt+F` | Pantalla completa. |
+| `Alt+V` | Alternar flotante. |
+| `Alt` + botón izquierdo/derecho | Arrastrar/redimensionar. |
+| Gesto horizontal de tres dedos | Cambiar workspace sin crear nuevos. |
 
-Las capturas y grabación se documentan en `desktop-tools` y `desktop-extras`.
+Se usa `Alt` en vez de `Super` para no interceptar atajos del Windows anfitrión en VM.
 
-## Monitores y validación
+## Captura, color y multimedia
 
-La regla general usa el modo preferido. Para un equipo específico copia
-`~/.config/hypr/local.lua.example` a `~/.config/hypr/local.lua`; el archivo
-local se ignora en Git.
+`Print`, `Alt+Print` y `Alt+Shift+S` capturan completa, región y región editable. `Alt+Shift+R` graba región y `Alt+Shift+C` copia un color. Teclas XF86 controlan volumen, mute, micrófono, brillo y reproducción incluso con la sesión bloqueada.
+
+## Monitores por máquina
 
 ```bash
 hyprctl monitors all
+cp ~/.config/hypr/local.lua.example ~/.config/hypr/local.lua
+```
+
+Edita `local.lua` con reglas `hl.monitor`; está ignorado por Git y se carga después de la regla portable. Esto evita subir nombres físicos como `eDP-1` o `DP-1`.
+
+## Instalación y diagnóstico
+
+```bash
+./install.sh hyprland
 hyprctl reload
 hyprctl configerrors
+hyprctl clients
+journalctl --user -b | rg -i 'hyprland|portal|polkit'
 ```
+
+El instalador valida errores si Hyprland está activo; fuera de sesión, la configuración carga en el próximo login. Una configuración local errónea puede aislarse renombrando `local.lua` y recargando.

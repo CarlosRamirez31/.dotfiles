@@ -1,30 +1,54 @@
 # Workbench
 
-Instala Podman rootless y Distrobox para separar dependencias de proyectos y
-herramientas de laboratorio del sistema Arch principal. No crea ni descarga
-contenedores durante la instalación.
+Este componente instala Podman rootless y Distrobox para mantener compiladores, dependencias de proyectos y herramientas de laboratorio fuera del Arch principal. La instalación no descarga imágenes ni crea contenedores; el espacio solo se consume al pedir un perfil.
 
-El instalador selecciona `crun` explícitamente como runtime OCI para que Pacman
-no pregunte entre `crun`, `krun` y `runc`. Es una opción ligera y adecuada para
-Podman rootless; `krun` solo resulta necesario cuando se busca aislamiento KVM.
+## Paquetes y diseño
 
-Hay dos perfiles intencionales:
+Instala `podman`, `distrobox` y selecciona `crun` explícitamente como runtime OCI. Así Pacman no pregunta entre proveedores. `crun` es ligero y apropiado para rootless; `krun` solo sería necesario para aislamiento KVM adicional.
 
-- `dev`: Arch limpio para compiladores o dependencias de un proyecto.
-- `pentest`: Kali Rolling para herramientas de laboratorios autorizados.
+Habilita `podman.socket` como servicio de usuario. Rootless requiere rangos en `/etc/subuid` y `/etc/subgid`; el instalador advierte si faltan y puede ser necesario cerrar sesión después de corregirlos.
 
-## Comandos
+## Perfiles
+
+| Perfil | Nombre | Imagen | Uso previsto |
+| --- | --- | --- | --- |
+| `dev` | `dotfiles-dev` | `archlinux:latest` | Compiladores y dependencias de proyectos. |
+| `pentest` | `dotfiles-pentest` | `kalilinux/kali-rolling:latest` | Laboratorios de seguridad autorizados. |
+
+Distrobox integra home, terminal y aplicaciones del usuario; esa comodidad significa que un contenedor no es una frontera para archivos personales. Sirve para aislar paquetes, no secretos hostiles.
+
+## Referencia de comandos
 
 ```bash
 dotfiles-box create dev
 dotfiles-box enter dev
+dotfiles-box stop dev
+dotfiles-box remove dev
 dotfiles-box create pentest
 dotfiles-box enter pentest
 dotfiles-box list
-dotfiles-box stop pentest
-dotfiles-box remove pentest
 ```
 
-`remove` siempre solicita confirmación. Tus directorios personales se integran
-mediante Distrobox; los paquetes instalados dentro del contenedor no ensucian
-Arch.
+`create` descarga la imagen si hace falta y crea el nombre fijo. `enter` abre shell, `stop` detiene, `list` delega a Distrobox y `remove` solicita confirmación `[y/N]` antes de borrar el contenedor y sus paquetes instalados. Datos guardados directamente en el home compartido no se eliminan con el contenedor.
+
+## Dentro del contenedor
+
+```bash
+sudo pacman -S paquete       # perfil dev
+sudo apt update              # perfil pentest
+sudo apt install paquete
+exit
+```
+
+## Estado y diagnóstico
+
+```bash
+./install.sh workbench
+systemctl --user status podman.socket
+podman info
+podman ps -a
+distrobox list
+grep "^$(id -un):" /etc/subuid /etc/subgid
+```
+
+Si Podman informa que faltan rangos subordinados, configúralos mediante las herramientas del sistema y vuelve a iniciar sesión. Para liberar imágenes no usadas, revisa primero `podman system df`; el componente no ejecuta podas automáticas ni destructivas.

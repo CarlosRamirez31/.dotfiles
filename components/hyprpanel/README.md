@@ -1,22 +1,49 @@
 # HyprPanel
 
-Proporciona barra, bandeja, menús rápidos y notificaciones. Muestra siempre los
-cuatro workspaces generales y distingue vacío, ocupado y activo. También añade
-el estado HTB verde con dirección IP cuando una VPN compatible está conectada.
+HyprPanel proporciona barra, bandeja, menús rápidos, estadísticas, controles de energía y notificaciones. También integra un indicador específico de Hack The Box sin confundir cualquier VPN con una red HTB.
 
-## HTB
+## Instalación y disposición
 
-El panel detecta OpenVPN y la interfaz `tun*`. Para asociar manualmente la IP
-de una máquina objetivo:
+Instala `ags-hyprpanel-git` desde AUR y `openvpn`. Las plantillas se copian a `~/.config/hyprpanel` porque HyprPanel necesita archivos reales mutables, no enlaces Stow. Un marcador `.managed-by-dotfiles` identifica el directorio; si encuentra uno ajeno, lo mueve a `.backup.FECHA-HORA` antes de administrarlo.
+
+La barra muestra:
+
+- izquierda: dashboard, título de ventana e indicador HTB;
+- centro: cuatro workspaces siempre visibles;
+- derecha: volumen, red, RAM, CPU, reloj y notificaciones.
+
+Click derecho del launcher abre Rofi y click central abre terminal. El panel usa Lexend, paleta Catppuccin, barra flotante y notificaciones arriba a la derecha. Sleep ejecuta `dotfiles-sleep`, respetando la protección de VMs del componente `session`.
+
+## Estado HTB
+
+`dotfiles-htb-vpn-status` revisa interfaces `tun*`/`tap*`, dirección IPv4 y rutas `10.10.*` o `10.129.*`. Solo entonces produce JSON para el módulo. De esta forma una VPN de trabajo normal no aparece como HTB.
 
 ```bash
+dotfiles-htb-vpn-status
 dotfiles-htb-target 10.10.11.20
+dotfiles-htb-target
 dotfiles-htb-target clear
 ```
 
+El objetivo se valida como IPv4 y se guarda en el estado local del usuario. Cuando existe, el panel muestra esa IP como “Objetivo activo”; de lo contrario muestra la IP VPN. `clear` elimina únicamente el objetivo, no desconecta OpenVPN.
+
+## Archivos
+
+| Archivo | Función |
+| --- | --- |
+| `templates/config.json` | Layout, menús, notificaciones, tema y acciones. |
+| `templates/modules.json` | Definición del módulo HTB y sondeo. |
+| `templates/modules.scss` | Apariencia del módulo personalizado. |
+| `.local/bin/dotfiles-htb-vpn-status` | Detección VPN/HTB y salida JSON. |
+| `.local/bin/dotfiles-htb-target` | Gestión del objetivo local. |
+
+## Reinicio y diagnóstico
+
 ```bash
 ./install.sh hyprpanel
+pkill -x hyprpanel
+uwsm-app -- hyprpanel
+tail -f "${XDG_RUNTIME_DIR:-/tmp}/hyprpanel-dotfiles.log"
 ```
 
-Las plantillas están en `templates/`; el instalador las copia al directorio de
-ejecución de HyprPanel y reinicia solamente el panel activo.
+Durante una sesión activa el instalador detiene Waybar, cierra HyprPanel y lo inicia mediante UWSM cuando está disponible. Si falta el indicador, comprueba `ip -br address`, `ip route`, el estado JSON y que la VPN realmente tenga rutas HTB.

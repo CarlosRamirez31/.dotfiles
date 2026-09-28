@@ -1,10 +1,17 @@
 # Dotfiles
 
-Escritorio Hyprland mínimo y reproducible para Arch Linux. Cada programa tiene
-su configuración y su instalador independiente; el instalador raíz solamente
-los orquesta en un orden seguro.
+Escritorio Arch Linux reproducible para programación, uso diario y laboratorios
+de seguridad autorizados. El conjunto usa Hyprland, HyprPanel, Alacritty, Zsh y
+Neovim con una apariencia coherente y módulos instalables por separado.
 
-## Instalación completa
+La configuración prioriza cuatro ideas:
+
+- instalar solamente lo que cada módulo necesita;
+- no reinstalar paquetes que ya existen;
+- respaldar archivos ajenos antes de enlazar los administrados;
+- mantener identidades, contraseñas y ajustes por máquina fuera de Git.
+
+## Instalación
 
 ```bash
 git clone https://github.com/CarlosRamirez31/.dotfiles.git ~/.dotfiles
@@ -12,175 +19,203 @@ cd ~/.dotfiles
 ./install.sh
 ```
 
-El orden de la instalación completa es:
+El instalador requiere Arch Linux, se ejecuta como usuario normal y solicita
+`sudo` solamente para paquetes o servicios del sistema. Al terminar, reinicia y
+selecciona `Hyprland (uwsm-managed)` en SDDM.
 
-1. `system`: servicios base, audio, red y soporte de la máquina virtual.
-2. `themes`: cursor Bibata e iconos Oranchelo.
-3. `fonts`: Lexend para el panel y JetBrainsMono Nerd Font para la terminal.
-4. `shell`: Zsh, Oh My Zsh, Starship, historial y herramientas de terminal.
-5. `fastfetch`: tarjeta visual con la información importante del sistema.
-6. `session`: bloqueo, inactividad, pantalla y energía segura.
-7. `desktop-tools`: capturas, editor, portapapeles y teclas multimedia.
-8. `files`: Thunar, USB/MTP, miniaturas y aplicaciones predeterminadas.
-9. `hardware`: Bluetooth y Blueman.
-10. `security`: keyring, agente SSH y firewall para estación de trabajo/lab.
-11. `uwsm`: variables de la sesión Wayland.
-12. `alacritty`: terminal y su configuración visual.
-13. `nvim`: Neovim, LazyVim, herramientas de desarrollo y plugins bloqueados.
-14. `rofi`: lanzador de aplicaciones y su script auxiliar.
-15. `wallpaper`: fondo y `awww`.
-16. `hyprpanel`: barra, menús y notificaciones.
-17. `hyprland`: compositor, atajos, reglas y tema de ventanas.
-18. `doctor`: validación final de comandos, enlaces, servicios y Hyprland.
-
-Los paquetes ya instalados se omiten mediante `pacman -Q` y `pacman --needed`.
-Los archivos existentes que no pertenecen a este repositorio se renombran con
-el sufijo `.backup.FECHA-HORA` antes de crear los enlaces administrados.
-
-## Instalar solo una parte
-
-Cada módulo funciona directamente:
+Para instalar componentes concretos:
 
 ```bash
-./components/alacritty/install.sh
-./components/shell/install.sh
-./components/hyprland/install.sh
-./components/nvim/install.sh
-```
-
-También se pueden pedir varios al orquestador. El orden escrito no importa: el
-script siempre los reordena según sus dependencias.
-
-```bash
-./install.sh hyprland alacritty rofi
-```
-
-Para ver los nombres disponibles:
-
-```bash
+./install.sh shell nvim hyprland
 ./install.sh --help
 ```
 
-## Estructura
+El orden escrito no importa: el orquestador siempre respeta las dependencias.
 
-```text
-components/
-  alacritty/   # ~/.config/alacritty
-  fastfetch/   # tarjeta de información del sistema
-  session/     # bloqueo, idle y suspensión segura
-  desktop-tools/ # capturas y portapapeles
-  files/       # gestor de archivos y asociaciones
-  hardware/    # Bluetooth
-  security/    # credenciales y firewall
-  doctor/      # diagnóstico final
-  fonts/       # ~/.local/share/fonts
-  hyprland/    # ~/.config/hypr
-  hyprpanel/   # plantilla copiada al directorio de ejecución
-  nvim/        # configuración LazyVim importada y portable
-  rofi/        # ~/.config/rofi y lanzador
-  shell/       # Zsh, Starship, aliases y herramientas interactivas
-  system/      # paquetes y servicios del sistema
-  themes/      # temas instalados desde AUR
-  uwsm/        # ~/.config/uwsm
-  wallpaper/   # ~/.config/wallpapers
-scripts/
-  lib.sh       # funciones compartidas por los instaladores
-install.sh     # orquestador
+## Módulos
+
+| Módulo | Para qué existe |
+| --- | --- |
+| [`system`](components/system/README.md) | red, audio, portales, OpenVPN, SDDM y soporte de VM |
+| [`themes`](components/themes/README.md) | cursor Bibata e iconos Oranchelo |
+| [`fonts`](components/fonts/README.md) | JetBrainsMono Nerd Font y Lexend |
+| [`shell`](components/shell/README.md) | Zsh, Starship, historial, navegación y herramientas de red |
+| [`fastfetch`](components/fastfetch/README.md) | resumen visual del sistema al abrir terminal |
+| [`maintenance`](components/maintenance/README.md) | revisión segura, caché de Pacman y TRIM |
+| [`git-security`](components/git-security/README.md) | Git portable, identidad privada y firma SSH opcional |
+| [`backup`](components/backup/README.md) | copias cifradas y verificables con Restic |
+| [`workbench`](components/workbench/README.md) | entornos rootless de desarrollo y pentesting |
+| [`desktop-extras`](components/desktop-extras/README.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
+| [`session`](components/session/README.md) | bloqueo, inactividad, suspensión y energía |
+| [`desktop-tools`](components/desktop-tools/README.md) | capturas e historial del portapapeles |
+| [`files`](components/files/README.md) | Thunar, medios removibles, visores y asociaciones |
+| [`hardware`](components/hardware/README.md) | Bluetooth y, en equipos físicos, firmware/SMART |
+| [`security`](components/security/README.md) | keyring, agente SSH y firewall nftables |
+| [`uwsm`](components/uwsm/README.md) | sesión Wayland administrada por systemd |
+| [`alacritty`](components/alacritty/README.md) | terminal gráfica y registro XDG |
+| [`nvim`](components/nvim/README.md) | editor LazyVim para todos los lenguajes usados |
+| [`rofi`](components/rofi/README.md) | lanzador de aplicaciones |
+| [`wallpaper`](components/wallpaper/README.md) | fondo administrado por Awww |
+| [`hyprpanel`](components/hyprpanel/README.md) | barra, notificaciones, workspaces y estado HTB |
+| [`hyprland`](components/hyprland/README.md) | compositor, ventanas, monitores y atajos |
+| [`doctor`](components/doctor/README.md) | diagnóstico final de toda la instalación |
+
+Cada README enlazado explica sus archivos, decisiones y los pocos comandos que
+realmente forman parte de su uso.
+
+## Gramática del teclado
+
+El escritorio copia la lógica direccional de Vim/Neovim para reducir memoria
+muscular duplicada:
+
+| Atajo | Acción |
+| --- | --- |
+| `Super+H/J/K/L` | enfocar izquierda/abajo/arriba/derecha |
+| `Super+Shift+H/J/K/L` | mover ventana |
+| `Super+Ctrl+H/J/K/L` | redimensionar ventana |
+| `Super+1..4` | cambiar entre los cuatro workspaces |
+| `Super+Shift+1..4` | mover ventana al workspace |
+| `Super+Q` | cerrar ventana |
+| `Super+F` | pantalla completa |
+| `Super+V` | alternar flotante |
+
+Aplicaciones y sesión:
+
+| Atajo | Acción |
+| --- | --- |
+| `Super+Enter` / `Ctrl+Alt+T` | terminal |
+| `Super+Space` / `Super+D` / `Alt+F2` | aplicaciones |
+| `Super+B` | Firefox |
+| `Super+E` | Thunar |
+| `Super+C` | historial del portapapeles |
+| `Super+L` | bloquear |
+| `Super+Shift+E` | cerrar sesión |
+
+Captura y utilidades:
+
+| Atajo | Acción |
+| --- | --- |
+| `Print` | capturar pantalla completa |
+| `Super+Print` | capturar región |
+| `Super+Shift+S` | capturar región y editar |
+| `Super+Shift+R` | iniciar/detener grabación de región |
+| `Super+Shift+C` | copiar color de la pantalla |
+
+Las teclas físicas controlan volumen, micrófono, brillo y reproducción incluso
+con la pantalla bloqueada.
+
+## Comandos cotidianos
+
+```bash
+dotfiles-doctor              # comprobar toda la instalación
+dotfiles-maintain check      # servicios, disco y actualizaciones
+dotfiles-maintain clean      # caché segura y journal de usuario
+dotfiles-backup run          # ejecutar respaldo ya configurado
+dotfiles-box enter dev       # entrar al entorno de desarrollo
+dotfiles-box enter pentest   # entrar al entorno Kali aislado
+sysinfo                      # información visual del sistema
 ```
 
-## Terminal y shell
+Los comandos especializados restantes están en el README de su módulo; no se
+repiten aquí para mantener una referencia corta.
 
-El componente `shell` instala Zsh con Oh My Zsh y un prompt Starship de dos
-líneas basado en Tokyo Night. Incluye iconos y estado Git, usuario/equipo,
-directorio, duración, hora y código de salida. `eza`, `vivid` y `bat` mejoran la
-vista de directorios y archivos; `fzf` permite buscar el historial con
-`Ctrl+R`, archivos con `Ctrl+T` y directorios con `Alt+C`; `zoxide` aprende las
-rutas frecuentes mediante `z` y `zi`.
+## Configuración privada posterior
 
-También se instalan sugerencias mientras se escribe, resaltado de sintaxis,
-completado adicional, historial compartido de 100 000 entradas y utilidades
-generales para programación, redes y pruebas autorizadas. Puede instalarse de
-forma independiente con `./install.sh shell` o como parte de `./install.sh`.
-Alacritty abre `/usr/bin/zsh` explícitamente para que una sesión gráfica antigua
-no siga reutilizando el valor anterior de `SHELL`.
+La instalación general queda funcional, pero estas dos decisiones no deben
+inventarse ni publicarse en el repositorio.
 
-La apariencia se cambia principalmente en `components/shell/dotfiles/.config/starship.toml`.
-Los alias están en `.config/zsh/aliases.zsh` y las funciones propias en
-`.config/zsh/functions.zsh`. Al terminar la instalación hay que abrir una
-terminal nueva para que el cambio de shell tenga efecto.
+Identidad Git:
 
-Alacritty y el prompt conservan `JetBrainsMono Nerd Font`, la fuente actual de
-la terminal. El componente `fonts` también instala su paquete para que los
-iconos se vean correctamente en una instalación nueva.
+```bash
+dotfiles-git-identity setup "Tu Nombre" correo@example.com
+```
 
-## Información del sistema
+Para firmar commits con una llave SSH pública:
 
-`fastfetch` reemplaza a Neofetch con una tarjeta más rápida y mantenida. Se
-muestra automáticamente al abrir una terminal Zsh e incluye el logo completo
-de Arch, sistema, kernel, Hyprland, terminal y fuente, CPU/GPU, memoria, disco,
-IP local y batería cuando está disponible. También puede ejecutarse con
-`fastfetch` o `sysinfo`, e instalarse por separado con `./install.sh fastfetch`.
+```bash
+dotfiles-git-identity setup "Tu Nombre" correo@example.com ~/.ssh/id_ed25519.pub
+```
 
-Su aspecto y módulos se cambian en
-`components/fastfetch/dotfiles/.config/fastfetch/config.jsonc`. Para ocultarlo
-al iniciar Zsh sin desinstalarlo, define `DOTFILES_FASTFETCH=0`.
+Destino cifrado de respaldo:
 
-La configuración de Neovim se importó desde
-`CarlosRamirez31/nvim-config` sin su historial Git anidado, por lo que ahora
-forma parte del historial único de este repositorio. En Arch se instala con el
-`install.sh` general. En Windows, desde PowerShell:
+```bash
+dotfiles-backup setup /ruta/al/repositorio-restic
+dotfiles-backup run
+```
+
+`backup.conf`, la contraseña de Restic, la identidad Git y `local.lua` están
+ignorados por Git.
+
+## HTB y OpenVPN
+
+HyprPanel muestra el icono verde de HTB y la IP cuando detecta la VPN. Puedes
+fijar la máquina objetivo con:
+
+```bash
+dotfiles-htb-target 10.10.11.20
+dotfiles-htb-target clear
+```
+
+Ping, Nmap, HTTP y SSH hacia HTB funcionan normalmente. Solo hace falta una
+regla extra cuando la máquina remota inicia una conexión nueva hacia tu
+listener:
+
+```bash
+dotfiles-firewall lab-open tcp 4444
+rlwrap nc -lvnp 4444
+dotfiles-firewall lab-close tcp 4444
+```
+
+Ese puerto solo se expone en interfaces VPN `tun*` y desaparece al reiniciar o
+recargar nftables.
+
+## Contenedores de trabajo
+
+Los contenedores no se crean automáticamente ni consumen espacio hasta que los
+pidas:
+
+```bash
+dotfiles-box create dev
+dotfiles-box create pentest
+dotfiles-box list
+```
+
+Podman funciona rootless. Distrobox integra el home, pero mantiene compiladores
+y herramientas específicas fuera del sistema Arch principal.
+
+## Monitores por máquina
+
+La base usa el modo preferido y funciona con una o varias pantallas. Para
+posiciones específicas:
+
+```bash
+cp ~/.config/hypr/local.lua.example ~/.config/hypr/local.lua
+hyprctl monitors all
+```
+
+Edita `local.lua` con los nombres reales; el archivo no se sube al repositorio.
+
+## Windows y Neovim
+
+El módulo Neovim conserva instalación independiente para Windows:
 
 ```powershell
 .\components\nvim\install.ps1
 ```
 
-El arranque instala parsers de Tree-sitter para C#, Python, Rust, Dart/Flutter,
-Lua, JavaScript, TypeScript/TSX (React Native) y formatos generales de web,
-shell, bases de datos, Git, configuración y documentación.
+La configuración de Flutter detecta Android SDK y emuladores mediante variables
+y rutas estándar en Windows, Linux y macOS; no depende de un nombre de usuario.
 
-Flutter detecta el Android SDK mediante `ANDROID_SDK_ROOT`, `ANDROID_HOME` o
-las rutas estándar de Windows, Linux y macOS; ya no contiene un nombre de
-usuario fijo.
+## Mantenimiento del repositorio
 
-Alacritty es el terminal predeterminado para `Ctrl+Alt+T`, `Super+Enter` y el
-clic central del panel. Se abre sin barra de título ni decoración del sistema,
-con el mismo estilo limpio de la configuración anterior.
+Los paquetes existentes se omiten mediante `pacman -Q` y `pacman --needed`.
+GNU Stow crea enlaces hacia el repositorio; si encuentra un archivo ajeno, lo
+renombra con `.backup.FECHA-HORA`. Las configuraciones locales y secretos nunca
+se reemplazan deliberadamente.
 
-Después de una instalación limpia, reinicia y selecciona
-`Hyprland (uwsm-managed)` en la pantalla de inicio.
-
-## Escritorio diario y atajos
-
-La sesión se bloquea con `Super+L` y automáticamente tras diez minutos. La
-pantalla se apaga un minuto después y el equipo físico puede suspenderse a los
-30 minutos; las máquinas virtuales y los equipos con una conexión SSH entrante
-activa no se suspenden. `Super+E` abre Thunar.
-
-- `Print`: captura la pantalla completa.
-- `Super+Print`: selecciona un área.
-- `Super+Shift+S`: selecciona un área y la abre en Swappy.
-- `Super+C`: busca el historial del portapapeles con Rofi.
-- `Super+L`: bloquea inmediatamente con Hyprlock.
-
-Los monitores usan una regla portable. Para una máquina concreta copia
-`~/.config/hypr/local.lua.example` como `~/.config/hypr/local.lua` y agrega las
-salidas indicadas por `hyprctl monitors all`; ese archivo queda fuera de Git.
-
-## Seguridad y laboratorios
-
-GNOME Keyring guarda secretos y proporciona el agente SSH. El firewall bloquea
-conexiones entrantes no solicitadas, pero permite respuestas, DHCP e ICMP. Para
-un listener de un laboratorio autorizado abre temporalmente un puerto solo en
-interfaces VPN `tun*`:
+Después de cualquier cambio importante:
 
 ```bash
-dotfiles-firewall lab-open tcp 4444
-dotfiles-firewall lab-close tcp 4444
-dotfiles-firewall status
+dotfiles-doctor
+git status
 ```
-
-Esos puertos se cierran al reiniciar o recargar el firewall. Si la instalación
-general se ejecuta mediante SSH, el firewall se instala pero no se activa para
-evitar cortar la sesión; se activa localmente con
-`dotfiles-firewall enable`. Ejecuta `dotfiles-doctor` cuando quieras revisar el
-estado completo del escritorio.

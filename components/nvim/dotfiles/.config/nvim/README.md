@@ -1,4 +1,7 @@
-# 💤 LazyVim
+# Configuración activa de Neovim
 
-A starter template for [LazyVim](https://github.com/LazyVim/LazyVim).
-Refer to the [documentation](https://lazyvim.github.io/installation) to get started.
+La documentación de lenguajes, instalación, movimiento y comandos está en
+[`components/nvim/README.md`](../../../README.md).
+
+Este directorio contiene la configuración LazyVim que se enlaza tanto en Linux
+como, mediante el instalador PowerShell, en Windows.

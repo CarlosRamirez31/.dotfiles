@@ -22,6 +22,7 @@ printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
 
 essential_commands=(hyprland uwsm zsh alacritty nvim rofi hyprpanel hyprlock hypridle)
 optional_commands=(fastfetch thunar grim slurp swappy cliphist wl-copy blueman-manager nft openvpn)
+optional_commands+=(restic podman distrobox firefox keepassxc btop wf-recorder hyprpicker trash-put)
 
 for command_name in "${essential_commands[@]}"; do
     if command -v "$command_name" >/dev/null 2>&1; then
@@ -71,6 +72,14 @@ for service in NetworkManager.service nftables.service; do
     fi
 done
 
+for timer in paccache.timer fstrim.timer; do
+    if systemctl is-enabled --quiet "$timer" 2>/dev/null; then
+        ok "$timer enabled"
+    else
+        warn "$timer is not enabled"
+    fi
+done
+
 virtualization=$(systemd-detect-virt --vm 2>/dev/null || true)
 if [[ $virtualization == none ]]; then
     if systemctl is-enabled --quiet bluetooth.service 2>/dev/null; then
@@ -89,6 +98,24 @@ for socket in gnome-keyring-daemon.socket gcr-ssh-agent.socket; do
         warn "$socket is not enabled"
     fi
 done
+
+if systemctl --user is-enabled --quiet podman.socket 2>/dev/null; then
+    ok 'podman.socket enabled'
+else
+    warn 'podman.socket is not enabled'
+fi
+
+if [[ -s $HOME/.config/dotfiles/backup.conf ]]; then
+    ok 'Restic backup destination configured'
+else
+    printf '· Restic awaits a destination: dotfiles-backup setup REPOSITORY\n'
+fi
+
+if git config --global --get user.email >/dev/null 2>&1; then
+    ok 'Private Git identity configured'
+else
+    printf '· Git identity remains private and awaits setup.\n'
+fi
 
 if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
     config_errors=$(hyprctl configerrors 2>/dev/null || true)

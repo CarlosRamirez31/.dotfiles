@@ -12,6 +12,11 @@ available_components=(
     fonts
     shell
     fastfetch
+    maintenance
+    git-security
+    backup
+    workbench
+    desktop-extras
     session
     desktop-tools
     files

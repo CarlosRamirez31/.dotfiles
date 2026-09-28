@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    printf 'Usage: %s {create|enter|stop|remove|list} [dev|pentest]\n' "${0##*/}"
+}
+
+profile=${2:-dev}
+case $profile in
+    dev)
+        name=dotfiles-dev
+        image=docker.io/library/archlinux:latest
+        ;;
+    pentest)
+        name=dotfiles-pentest
+        image=docker.io/kalilinux/kali-rolling:latest
+        ;;
+    *)
+        printf 'Profile must be dev or pentest.\n' >&2
+        exit 2
+        ;;
+esac
+
+case ${1:-} in
+    create)
+        distrobox create --yes --name "$name" --image "$image"
+        printf 'Container ready. Enter it with: dotfiles-box enter %s\n' "$profile"
+        ;;
+    enter)
+        distrobox enter "$name"
+        ;;
+    stop)
+        distrobox stop --yes "$name"
+        ;;
+    remove)
+        read -rp "Remove $name and its installed packages? [y/N] " answer
+        [[ $answer == [yY] ]] || exit 0
+        distrobox rm --yes "$name"
+        ;;
+    list)
+        distrobox list
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

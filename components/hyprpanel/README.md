@@ -12,7 +12,7 @@ La barra muestra:
 - centro: cuatro workspaces siempre visibles;
 - derecha: volumen, red, RAM, CPU, reloj y notificaciones.
 
-Click derecho del launcher abre Rofi y click central abre terminal. El panel usa Lexend, paleta Catppuccin, barra flotante y notificaciones arriba a la derecha. Sleep ejecuta `dotfiles-sleep`, respetando la protección de VMs del componente `session`.
+Click derecho del launcher abre Rofi y click central abre terminal. El panel usa Lexend, paleta Catppuccin, barra flotante y notificaciones arriba a la derecha. Los menús desplegables aparecen sin animaciones ni sombras y usan superficies oscuras translúcidas, tarjetas con contraste, borde discreto, separación respecto a los bordes superiores y laterales de la pantalla y acentos de color por función sin alterar la apariencia de la barra. El menú multimedia reduce sus márgenes y relleno para dedicar más superficie al contenido y los controles. Sleep ejecuta `dotfiles-sleep`, respetando la protección de VMs del componente `session`.
 
 ## Estado HTB
 

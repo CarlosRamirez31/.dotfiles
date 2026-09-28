@@ -80,6 +80,43 @@
     }
 }
 
+// Preserve breathing room around dropdowns even when menu shadows are off.
+// HyprPanel normally removes this outer margin together with the shadow.
+.dropdown-content {
+    margin: 0.55em 0.65em 0 0.65em;
+}
+
+// Keep the media popup information-dense: artwork and controls should use the
+// available surface instead of being surrounded by oversized empty gutters.
+.menu-items-container.media {
+    .menu-section-container {
+        margin: 0.45em 0;
+    }
+
+    .menu-content {
+        padding: 0.6em;
+    }
+
+    .media-indicator-current-song-name,
+    .media-indicator-current-song-author {
+        margin-bottom: 0.4rem;
+    }
+
+    .media-indicator-current-controls {
+        margin-top: 0.75rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .media-indicator-control-button {
+        margin: 0 0.3rem;
+    }
+
+    .menu-slider.media.progress {
+        margin-top: 0.6em;
+        margin-bottom: 0.6em;
+    }
+}
+
 // Workspace state indicators: the current workspace gets an underline, while
 // an occupied background workspace gets one compact dotted marker.
 .workspaces label.workspace-icon {

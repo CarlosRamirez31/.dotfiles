@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    printf 'Usage: %s {check|clean|orphans}\n' "${0##*/}"
+}
+
+case ${1:-} in
+    check)
+        printf '== Failed system services ==\n'
+        systemctl --failed --no-pager || true
+        printf '\n== Failed user services ==\n'
+        systemctl --user --failed --no-pager || true
+        printf '\n== Storage ==\n'
+        df -hT / "$HOME"
+        printf '\n== Available package updates ==\n'
+        checkupdates || status=$?
+        [[ ${status:-0} -eq 2 ]] || exit "${status:-0}"
+        ;;
+    clean)
+        sudo paccache --remove --keep 3
+        journalctl --user --vacuum-time=14d
+        printf 'Package cache and old user journal entries cleaned.\n'
+        ;;
+    orphans)
+        orphans=$(pacman -Qtdq 2>/dev/null || true)
+        if [[ -n $orphans ]]; then
+            printf '%s\n' "$orphans"
+            printf '\nReview this list; nothing was removed automatically.\n'
+        else
+            printf 'No orphan packages found.\n'
+        fi
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

@@ -12,6 +12,15 @@ hl.monitor({
     scale = 1,
 })
 
+-- A machine may add private monitor rules without changing the portable base.
+-- Copy local.lua.example to local.lua; the installer deliberately ignores it.
+local local_config = os.getenv("HOME") .. "/.config/hypr/local.lua"
+local local_file = io.open(local_config, "r")
+if local_file then
+    local_file:close()
+    dofile(local_config)
+end
+
 hl.config({
     general = {
         layout = "dwindle",
@@ -80,9 +89,11 @@ hl.on("hyprland.start", function()
     -- any desktop components so those services can create visible windows.
     -- Start UWSM's lightweight application daemon in the background now. Its
     -- shell client is much faster than importing the Python CLI on every app.
-    hl.exec_cmd("uwsm finalize PATH GDK_BACKEND GSK_RENDERER MOZ_ENABLE_WAYLAND ELECTRON_OZONE_PLATFORM_HINT TERMINAL XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE HYPRCURSOR_THEME HYPRCURSOR_SIZE && uwsm-app -- true")
+    hl.exec_cmd("uwsm finalize PATH GDK_BACKEND GSK_RENDERER MOZ_ENABLE_WAYLAND ELECTRON_OZONE_PLATFORM_HINT TERMINAL XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE HYPRCURSOR_THEME HYPRCURSOR_SIZE SSH_AUTH_SOCK && uwsm-app -- true")
     hl.exec_cmd("uwsm-app -- hyprpanel")
     hl.exec_cmd([[pgrep -x awww-daemon >/dev/null || awww-daemon & sleep 1; awww img "$HOME/.config/wallpapers/arch-bsod.png" --transition-type none]])
     hl.exec_cmd("hyprctl setcursor Bibata-Modern-Classic 24")
     hl.exec_cmd("systemctl --user start hyprpolkitagent.service")
+    hl.exec_cmd("systemctl --user start dotfiles-cliphist-text.service dotfiles-cliphist-image.service")
+    hl.exec_cmd("command -v blueman-applet >/dev/null && uwsm-app -- blueman-applet")
 end)

@@ -12,6 +12,11 @@ available_components=(
     fonts
     shell
     fastfetch
+    session
+    desktop-tools
+    files
+    hardware
+    security
     uwsm
     alacritty
     nvim
@@ -19,6 +24,7 @@ available_components=(
     wallpaper
     hyprpanel
     hyprland
+    doctor
 )
 
 usage() {
@@ -85,3 +91,4 @@ done
 printf '\nSetup complete.\n'
 printf 'On a fresh installation, reboot and select "Hyprland (uwsm-managed)".\n'
 printf 'Terminal: Ctrl+Alt+T or Super+Enter | Launcher: Super+Space or Alt+F2\n'
+printf 'Validate later with: dotfiles-doctor\n'

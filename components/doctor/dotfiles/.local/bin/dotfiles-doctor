@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+errors=0
+warnings=0
+
+if [[ -t 1 ]]; then
+    green=$'\e[32m'
+    yellow=$'\e[33m'
+    red=$'\e[31m'
+    bold=$'\e[1m'
+    reset=$'\e[0m'
+else
+    green='' yellow='' red='' bold='' reset=''
+fi
+
+ok() { printf '%s✓%s %s\n' "$green" "$reset" "$*"; }
+warn() { printf '%s!%s %s\n' "$yellow" "$reset" "$*"; warnings=$((warnings + 1)); }
+fail() { printf '%s✗%s %s\n' "$red" "$reset" "$*"; errors=$((errors + 1)); }
+
+printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
+
+essential_commands=(hyprland uwsm zsh alacritty nvim rofi hyprpanel hyprlock hypridle)
+optional_commands=(fastfetch thunar grim slurp swappy cliphist wl-copy blueman-manager nft openvpn)
+
+for command_name in "${essential_commands[@]}"; do
+    if command -v "$command_name" >/dev/null 2>&1; then
+        ok "$command_name available"
+    else
+        fail "$command_name is missing"
+    fi
+done
+
+for command_name in "${optional_commands[@]}"; do
+    if command -v "$command_name" >/dev/null 2>&1; then
+        ok "$command_name available"
+    else
+        warn "$command_name is not installed"
+    fi
+done
+
+current_shell=$(getent passwd "$(id -un)" | cut -d: -f7)
+if [[ ${current_shell##*/} == zsh ]]; then
+    ok "Zsh is the login shell"
+else
+    fail "Login shell is $current_shell (expected Zsh)"
+fi
+
+managed_paths=(
+    "$HOME/.zshrc"
+    "$HOME/.config/hypr/hyprland.lua"
+    "$HOME/.config/alacritty/alacritty.toml"
+    "$HOME/.config/nvim/init.lua"
+    "$HOME/.config/fastfetch/config.jsonc"
+)
+for managed_path in "${managed_paths[@]}"; do
+    if [[ -L $managed_path && -e $managed_path ]]; then
+        ok "Managed link: ${managed_path#$HOME/}"
+    elif [[ -e $managed_path ]]; then
+        warn "Not managed by Stow: ${managed_path#$HOME/}"
+    else
+        fail "Missing config: ${managed_path#$HOME/}"
+    fi
+done
+
+for service in NetworkManager.service nftables.service; do
+    if systemctl is-enabled --quiet "$service" 2>/dev/null; then
+        ok "$service enabled"
+    else
+        warn "$service is not enabled"
+    fi
+done
+
+virtualization=$(systemd-detect-virt --vm 2>/dev/null || true)
+if [[ $virtualization == none ]]; then
+    if systemctl is-enabled --quiet bluetooth.service 2>/dev/null; then
+        ok 'bluetooth.service enabled'
+    else
+        warn 'bluetooth.service is not enabled'
+    fi
+else
+    ok "Bluetooth service optional in VM ($virtualization)"
+fi
+
+for socket in gnome-keyring-daemon.socket gcr-ssh-agent.socket; do
+    if systemctl --user is-enabled --quiet "$socket" 2>/dev/null; then
+        ok "$socket enabled"
+    else
+        warn "$socket is not enabled"
+    fi
+done
+
+if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+    config_errors=$(hyprctl configerrors 2>/dev/null || true)
+    if [[ -n $config_errors ]]; then
+        fail "Hyprland configuration errors:\n$config_errors"
+    else
+        ok 'Active Hyprland configuration has no errors'
+    fi
+
+    for service in dotfiles-cliphist-text.service dotfiles-cliphist-image.service; do
+        if systemctl --user is-active --quiet "$service"; then
+            ok "$service active"
+        else
+            warn "$service is not active"
+        fi
+    done
+    if systemctl --user is-active --quiet dotfiles-hypridle.service; then
+        ok 'dotfiles-hypridle.service active'
+    else
+        warn 'dotfiles-hypridle.service is not active'
+    fi
+else
+    warn 'Hyprland is not active; live compositor checks were skipped'
+fi
+
+printf '\n%sResult:%s %d error(s), %d warning(s).\n' "$bold" "$reset" "$errors" "$warnings"
+if (( errors > 0 )); then
+    printf 'Fix the errors above, then run dotfiles-doctor again.\n'
+    exit 1
+fi
+printf 'The essential desktop configuration is ready.\n'

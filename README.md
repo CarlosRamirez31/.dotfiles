@@ -19,13 +19,19 @@ El orden de la instalación completa es:
 3. `fonts`: Lexend para el panel y JetBrainsMono Nerd Font para la terminal.
 4. `shell`: Zsh, Oh My Zsh, Starship, historial y herramientas de terminal.
 5. `fastfetch`: tarjeta visual con la información importante del sistema.
-6. `uwsm`: variables de la sesión Wayland.
-7. `alacritty`: terminal y su configuración visual.
-8. `nvim`: Neovim, LazyVim, herramientas de desarrollo y plugins bloqueados.
-9. `rofi`: lanzador de aplicaciones y su script auxiliar.
-10. `wallpaper`: fondo y `awww`.
-11. `hyprpanel`: barra, menús y notificaciones.
-12. `hyprland`: compositor, atajos, reglas y tema de ventanas.
+6. `session`: bloqueo, inactividad, pantalla y energía segura.
+7. `desktop-tools`: capturas, editor, portapapeles y teclas multimedia.
+8. `files`: Thunar, USB/MTP, miniaturas y aplicaciones predeterminadas.
+9. `hardware`: Bluetooth y Blueman.
+10. `security`: keyring, agente SSH y firewall para estación de trabajo/lab.
+11. `uwsm`: variables de la sesión Wayland.
+12. `alacritty`: terminal y su configuración visual.
+13. `nvim`: Neovim, LazyVim, herramientas de desarrollo y plugins bloqueados.
+14. `rofi`: lanzador de aplicaciones y su script auxiliar.
+15. `wallpaper`: fondo y `awww`.
+16. `hyprpanel`: barra, menús y notificaciones.
+17. `hyprland`: compositor, atajos, reglas y tema de ventanas.
+18. `doctor`: validación final de comandos, enlaces, servicios y Hyprland.
 
 Los paquetes ya instalados se omiten mediante `pacman -Q` y `pacman --needed`.
 Los archivos existentes que no pertenecen a este repositorio se renombran con
@@ -61,6 +67,12 @@ Para ver los nombres disponibles:
 components/
   alacritty/   # ~/.config/alacritty
   fastfetch/   # tarjeta de información del sistema
+  session/     # bloqueo, idle y suspensión segura
+  desktop-tools/ # capturas y portapapeles
+  files/       # gestor de archivos y asociaciones
+  hardware/    # Bluetooth
+  security/    # credenciales y firewall
+  doctor/      # diagnóstico final
   fonts/       # ~/.local/share/fonts
   hyprland/    # ~/.config/hypr
   hyprpanel/   # plantilla copiada al directorio de ejecución
@@ -136,3 +148,39 @@ con el mismo estilo limpio de la configuración anterior.
 
 Después de una instalación limpia, reinicia y selecciona
 `Hyprland (uwsm-managed)` en la pantalla de inicio.
+
+## Escritorio diario y atajos
+
+La sesión se bloquea con `Super+L` y automáticamente tras diez minutos. La
+pantalla se apaga un minuto después y el equipo físico puede suspenderse a los
+30 minutos; las máquinas virtuales y los equipos con una conexión SSH entrante
+activa no se suspenden. `Super+E` abre Thunar.
+
+- `Print`: captura la pantalla completa.
+- `Super+Print`: selecciona un área.
+- `Super+Shift+S`: selecciona un área y la abre en Swappy.
+- `Super+C`: busca el historial del portapapeles con Rofi.
+- `Super+L`: bloquea inmediatamente con Hyprlock.
+
+Los monitores usan una regla portable. Para una máquina concreta copia
+`~/.config/hypr/local.lua.example` como `~/.config/hypr/local.lua` y agrega las
+salidas indicadas por `hyprctl monitors all`; ese archivo queda fuera de Git.
+
+## Seguridad y laboratorios
+
+GNOME Keyring guarda secretos y proporciona el agente SSH. El firewall bloquea
+conexiones entrantes no solicitadas, pero permite respuestas, DHCP e ICMP. Para
+un listener de un laboratorio autorizado abre temporalmente un puerto solo en
+interfaces VPN `tun*`:
+
+```bash
+dotfiles-firewall lab-open tcp 4444
+dotfiles-firewall lab-close tcp 4444
+dotfiles-firewall status
+```
+
+Esos puertos se cierran al reiniciar o recargar el firewall. Si la instalación
+general se ejecuta mediante SSH, el firewall se instala pero no se activa para
+evitar cortar la sesión; se activa localmente con
+`dotfiles-firewall enable`. Ejecuta `dotfiles-doctor` cuando quieras revisar el
+estado completo del escritorio.

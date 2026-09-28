@@ -21,7 +21,7 @@ while read -r interface vpn_ip; do
     display_ip=$vpn_ip
     status='VPN conectada'
     if [[ -r $target_file ]]; then
-        IFS= read -r target_ip < "$target_file" || true
+        IFS= read -r target_ip <"$target_file" || true
         if [[ $target_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
             display_ip=$target_ip
             status='Objetivo activo'

@@ -38,7 +38,7 @@ fi
 
 # The former standalone nvim-config checkout has its own .git directory. Move
 # the whole tree aside so this installation has only the dotfiles history.
-if [[ ( -e $runtime_dir || -L $runtime_dir ) && $resolved_init != "$managed_init" ]]; then
+if [[ (-e $runtime_dir || -L $runtime_dir) && $resolved_init != "$managed_init" ]]; then
     backup="${runtime_dir}.backup.$(date +%Y%m%d-%H%M%S)"
     printf 'Backing up %s to %s\n' "$runtime_dir" "$backup"
     mv -- "$runtime_dir" "$backup"

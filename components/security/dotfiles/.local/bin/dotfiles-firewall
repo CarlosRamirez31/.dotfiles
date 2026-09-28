@@ -15,10 +15,10 @@ validate_protocol_port() {
         printf 'Protocol must be tcp or udp.\n' >&2
         exit 2
     }
-    [[ $port =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || {
+    if [[ ! $port =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
         printf 'Port must be between 1 and 65535.\n' >&2
         exit 2
-    }
+    fi
 }
 
 case ${1:-} in

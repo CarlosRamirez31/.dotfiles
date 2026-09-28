@@ -15,8 +15,14 @@ else
 fi
 
 ok() { printf '%s✓%s %s\n' "$green" "$reset" "$*"; }
-warn() { printf '%s!%s %s\n' "$yellow" "$reset" "$*"; warnings=$((warnings + 1)); }
-fail() { printf '%s✗%s %s\n' "$red" "$reset" "$*"; errors=$((errors + 1)); }
+warn() {
+    printf '%s!%s %s\n' "$yellow" "$reset" "$*"
+    warnings=$((warnings + 1))
+}
+fail() {
+    printf '%s✗%s %s\n' "$red" "$reset" "$*"
+    errors=$((errors + 1))
+}
 
 printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
 
@@ -56,11 +62,11 @@ managed_paths=(
 )
 for managed_path in "${managed_paths[@]}"; do
     if [[ -L $managed_path && -e $managed_path ]]; then
-        ok "Managed link: ${managed_path#$HOME/}"
+        ok "Managed link: ${managed_path#"$HOME"/}"
     elif [[ -e $managed_path ]]; then
-        warn "Not managed by Stow: ${managed_path#$HOME/}"
+        warn "Not managed by Stow: ${managed_path#"$HOME"/}"
     else
-        fail "Missing config: ${managed_path#$HOME/}"
+        fail "Missing config: ${managed_path#"$HOME"/}"
     fi
 done
 
@@ -142,7 +148,7 @@ else
 fi
 
 printf '\n%sResult:%s %d error(s), %d warning(s).\n' "$bold" "$reset" "$errors" "$warnings"
-if (( errors > 0 )); then
+if ((errors > 0)); then
     printf 'Fix the errors above, then run dotfiles-doctor again.\n'
     exit 1
 fi

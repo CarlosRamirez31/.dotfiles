@@ -25,7 +25,7 @@ virtualization=$(systemd-detect-virt --vm 2>/dev/null || true)
 case $virtualization in
     vmware) packages+=(open-vm-tools) ;;
     oracle) packages+=(virtualbox-guest-utils) ;;
-    kvm|qemu) packages+=(spice-vdagent) ;;
+    kvm | qemu) packages+=(spice-vdagent) ;;
 esac
 
 needs_display_manager=false

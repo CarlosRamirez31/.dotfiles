@@ -11,7 +11,7 @@ stow_component "$component_root"
 
 runtime_dir="$HOME/.config/hyprpanel"
 marker="$runtime_dir/.managed-by-dotfiles"
-if [[ ( -e $runtime_dir || -L $runtime_dir ) && ! -f $marker ]]; then
+if [[ (-e $runtime_dir || -L $runtime_dir) && ! -f $marker ]]; then
     backup="${runtime_dir}.backup.$(date +%Y%m%d-%H%M%S)"
     printf 'Backing up %s to %s\n' "$runtime_dir" "$backup"
     mv -- "$runtime_dir" "$backup"

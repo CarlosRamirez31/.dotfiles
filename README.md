@@ -42,6 +42,7 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | [`shell`](components/shell/README.md) | Zsh, Starship, historial, navegación y herramientas de red |
 | [`fastfetch`](components/fastfetch/README.md) | resumen visual del sistema al abrir terminal |
 | [`maintenance`](components/maintenance/README.md) | revisión segura, caché de Pacman y TRIM |
+| [`quality`](components/quality/README.md) | validación reproducible de Bash, Zsh, JSON y Lua |
 | [`git-security`](components/git-security/README.md) | Git portable, identidad privada y firma SSH opcional |
 | [`backup`](components/backup/README.md) | copias cifradas y verificables con Restic |
 | [`workbench`](components/workbench/README.md) | entornos rootless de desarrollo y pentesting |
@@ -107,10 +108,10 @@ con la pantalla bloqueada.
 ## Comandos cotidianos
 
 ```bash
-dotfiles-doctor              # comprobar toda la instalación
-dotfiles-maintain check      # servicios, disco y actualizaciones
-dotfiles-maintain clean      # caché segura y journal de usuario
-dotfiles-backup run          # ejecutar respaldo ya configurado
+doctor                       # comprobar toda la instalación
+maintain check               # servicios, disco y actualizaciones
+maintain clean               # caché segura y journal de usuario
+backup run                   # ejecutar respaldo ya configurado
 distrobox enter dev         # entrar al entorno de desarrollo
 distrobox enter kalilinux   # entrar al entorno Kali
 distrobox enter parrotos    # entrar al entorno ParrotOS, si fue creado
@@ -128,20 +129,20 @@ inventarse ni publicarse en el repositorio.
 Identidad Git:
 
 ```bash
-dotfiles-git-identity setup "Tu Nombre" correo@example.com
+git identity setup "Tu Nombre" correo@example.com
 ```
 
 Para firmar commits con una llave SSH pública:
 
 ```bash
-dotfiles-git-identity setup "Tu Nombre" correo@example.com ~/.ssh/id_ed25519.pub
+git identity setup "Tu Nombre" correo@example.com ~/.ssh/id_ed25519.pub
 ```
 
 Destino cifrado de respaldo:
 
 ```bash
-dotfiles-backup setup /ruta/al/repositorio-restic
-dotfiles-backup run
+backup setup /ruta/al/repositorio-restic
+backup run
 ```
 
 `backup.conf`, la contraseña de Restic, la identidad Git y `local.lua` están
@@ -153,8 +154,8 @@ HyprPanel muestra el icono verde de HTB y la IP cuando detecta la VPN. Puedes
 fijar la máquina objetivo con:
 
 ```bash
-dotfiles-htb-target 10.10.11.20
-dotfiles-htb-target clear
+htb-target 10.10.11.20
+htb-target clear
 ```
 
 Ping, Nmap, HTTP y SSH hacia HTB funcionan normalmente. Solo hace falta una
@@ -162,9 +163,9 @@ regla extra cuando la máquina remota inicia una conexión nueva hacia tu
 listener:
 
 ```bash
-dotfiles-firewall lab-open tcp 4444
+lab-firewall lab-open tcp 4444
 rlwrap nc -lvnp 4444
-dotfiles-firewall lab-close tcp 4444
+lab-firewall lab-close tcp 4444
 ```
 
 Ese puerto solo se expone en interfaces VPN `tun*` y desaparece al reiniciar o
@@ -218,6 +219,7 @@ se reemplazan deliberadamente.
 Después de cualquier cambio importante:
 
 ```bash
-dotfiles-doctor
+./check.sh
+doctor
 git status
 ```

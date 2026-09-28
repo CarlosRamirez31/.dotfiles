@@ -25,7 +25,7 @@ install_packages() {
         pacman -Q "$package" >/dev/null 2>&1 || missing+=("$package")
     done
 
-    if (( ${#missing[@]} == 0 )); then
+    if ((${#missing[@]} == 0)); then
         printf 'Packages already installed: %s\n' "$*"
         return
     fi
@@ -58,7 +58,7 @@ ensure_aur_helper() {
     build_root=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-yay.XXXXXX")
     git clone --depth=1 https://aur.archlinux.org/yay-bin.git "$build_root/yay-bin"
     (
-        cd -- "$build_root/yay-bin"
+        cd -- "$build_root/yay-bin" || exit
         makepkg -si --needed --noconfirm
     )
     rm -rf -- "$build_root"
@@ -73,7 +73,7 @@ install_aur_packages() {
         pacman -Q "$package" >/dev/null 2>&1 || missing+=("$package")
     done
 
-    if (( ${#missing[@]} == 0 )); then
+    if ((${#missing[@]} == 0)); then
         printf 'AUR packages already installed: %s\n' "$*"
         return
     fi

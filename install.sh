@@ -13,6 +13,7 @@ available_components=(
     shell
     fastfetch
     maintenance
+    quality
     git-security
     backup
     workbench
@@ -46,12 +47,12 @@ component_exists() {
     return 1
 }
 
-if (( $# == 1 )) && [[ $1 == --help || $1 == -h ]]; then
+if (($# == 1)) && [[ $1 == --help || $1 == -h ]]; then
     usage
     exit 0
 fi
 
-if (( $# == 0 )) || { (( $# == 1 )) && [[ $1 == all ]]; }; then
+if (($# == 0)) || { (($# == 1)) && [[ $1 == all ]]; }; then
     selected_components=("${available_components[@]}")
 else
     requested_components=("$@")
@@ -96,4 +97,4 @@ done
 printf '\nSetup complete.\n'
 printf 'On a fresh installation, reboot and select "Hyprland (uwsm-managed)".\n'
 printf 'Terminal: Ctrl+Alt+T or Alt+Enter | Launcher: Alt+Space or Alt+F2\n'
-printf 'Validate later with: dotfiles-doctor\n'
+printf 'Validate later with: doctor\n'

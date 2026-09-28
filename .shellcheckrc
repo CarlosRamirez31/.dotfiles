@@ -1,0 +1,4 @@
+# Component installers resolve scripts/lib.sh from their own absolute runtime
+# directory. ShellCheck cannot follow that computed path statically.
+disable=SC1091
+external-sources=true

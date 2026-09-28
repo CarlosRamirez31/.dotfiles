@@ -24,7 +24,7 @@ load_config() {
     export RESTIC_REPOSITORY RESTIC_PASSWORD_FILE
     if ! declare -p BACKUP_PATHS >/dev/null 2>&1; then
         BACKUP_PATHS=("$HOME")
-    elif (( ${#BACKUP_PATHS[@]} == 0 )); then
+    elif ((${#BACKUP_PATHS[@]} == 0)); then
         BACKUP_PATHS=("$HOME")
     fi
 }
@@ -32,7 +32,10 @@ load_config() {
 case ${1:-} in
     setup)
         repository=${2:-}
-        [[ -n $repository ]] || { usage >&2; exit 2; }
+        [[ -n $repository ]] || {
+            usage >&2
+            exit 2
+        }
         mkdir -p -- "$config_dir"
         umask 077
         read -rsp 'Nueva contraseña de respaldo: ' password
@@ -80,7 +83,10 @@ case ${1:-} in
     restore)
         snapshot=${2:-latest}
         target=${3:-}
-        [[ -n $target ]] || { usage >&2; exit 2; }
+        [[ -n $target ]] || {
+            usage >&2
+            exit 2
+        }
         load_config
         mkdir -p -- "$target"
         restic restore "$snapshot" --target "$target"

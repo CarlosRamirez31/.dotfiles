@@ -1,0 +1,121 @@
+add_newline = true
+command_timeout = 1200
+palette = "tokyo_night"
+
+format = """
+$os$username$hostname$directory$git_branch$git_status$docker_context$package$c$cmake$dart$dotnet$golang$java$kotlin$lua$nodejs$php$python$rust$swift$fill$cmd_duration$jobs$time
+$character"""
+
+right_format = "$status"
+
+[palettes.tokyo_night]
+background = "#1a1b26"
+surface = "#24283b"
+muted = "#565f89"
+foreground = "#c0caf5"
+red = "#f7768e"
+green = "#9ece6a"
+yellow = "#e0af68"
+blue = "#7aa2f7"
+purple = "#bb9af7"
+cyan = "#7dcfff"
+
+[os]
+disabled = false
+style = "bold blue"
+format = "[$symbol]($style)"
+
+[os.symbols]
+Arch = "  "
+Linux = "  "
+Windows = "  "
+
+[username]
+show_always = true
+style_user = "bold purple"
+style_root = "bold red"
+format = "[$user]($style)"
+
+[hostname]
+ssh_only = false
+style = "bold cyan"
+format = "[@$hostname]($style) "
+
+[directory]
+style = "bold blue"
+read_only = " "
+truncation_length = 4
+truncate_to_repo = true
+format = "[  $path]($style)[$read_only]($read_only_style) "
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = " "
+"Pictures" = " "
+"Projects" = "󰲋 "
+
+[git_branch]
+symbol = " "
+style = "bold purple"
+format = "[$symbol$branch(:$remote_branch)]($style) "
+
+[git_status]
+style = "bold yellow"
+format = "([$all_status$ahead_behind]($style))"
+
+[fill]
+symbol = " "
+
+[cmd_duration]
+min_time = 1000
+show_milliseconds = false
+style = "bold yellow"
+format = "[󰔟 $duration]($style) "
+
+[jobs]
+symbol = " "
+style = "bold cyan"
+format = "[$symbol$number]($style) "
+
+[time]
+disabled = false
+time_format = "%H:%M"
+style = "muted"
+format = "[ $time]($style)"
+
+[status]
+disabled = false
+map_symbol = true
+pipestatus = true
+style = "bold red"
+format = "[$symbol$status]($style)"
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold blue)"
+
+[package]
+symbol = "󰏗 "
+
+[nodejs]
+symbol = " "
+
+[python]
+symbol = " "
+
+[rust]
+symbol = " "
+
+[lua]
+symbol = " "
+
+[dart]
+symbol = " "
+
+[dotnet]
+symbol = "󰪮 "
+
+[docker_context]
+symbol = " "

@@ -4,6 +4,10 @@ live_config_reload = true
 [env]
 TERM = "xterm-256color"
 
+[terminal.shell]
+program = "/usr/bin/zsh"
+args = ["--login"]
+
 [window]
 decorations = "None"
 opacity = 0.94

@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_dir=${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles
+config_file="$config_dir/backup.conf"
+password_file="$config_dir/restic-password"
+exclude_file="$config_dir/backup-excludes"
+
+usage() {
+    printf 'Usage: %s {setup REPOSITORY|run|snapshots|check|restore [SNAPSHOT] TARGET}\n' "${0##*/}"
+}
+
+load_config() {
+    if [[ ! -s $config_file ]]; then
+        printf 'Backup is not configured. Run: dotfiles-backup setup REPOSITORY\n' >&2
+        exit 1
+    fi
+    # This is a private, user-owned shell configuration so arrays and $HOME
+    # remain usable without introducing a second configuration language.
+    # shellcheck disable=SC1090
+    source "$config_file"
+    : "${RESTIC_REPOSITORY:?RESTIC_REPOSITORY is missing}"
+    : "${RESTIC_PASSWORD_FILE:?RESTIC_PASSWORD_FILE is missing}"
+    export RESTIC_REPOSITORY RESTIC_PASSWORD_FILE
+    if ! declare -p BACKUP_PATHS >/dev/null 2>&1; then
+        BACKUP_PATHS=("$HOME")
+    elif (( ${#BACKUP_PATHS[@]} == 0 )); then
+        BACKUP_PATHS=("$HOME")
+    fi
+}
+
+case ${1:-} in
+    setup)
+        repository=${2:-}
+        [[ -n $repository ]] || { usage >&2; exit 2; }
+        mkdir -p -- "$config_dir"
+        umask 077
+        read -rsp 'Nueva contraseña de respaldo: ' password
+        printf '\n'
+        read -rsp 'Repite la contraseña: ' confirmation
+        printf '\n'
+        [[ -n $password && $password == "$confirmation" ]] || {
+            printf 'Las contraseñas no coinciden o están vacías.\n' >&2
+            exit 1
+        }
+        printf '%s\n' "$password" >"$password_file"
+        unset password confirmation
+        {
+            printf 'RESTIC_REPOSITORY=%q\n' "$repository"
+            printf 'RESTIC_PASSWORD_FILE=%q\n' "$password_file"
+            printf 'BACKUP_PATHS=(%q)\n' "$HOME"
+        } >"$config_file"
+        chmod 600 "$config_file" "$password_file"
+        load_config
+        restic init
+        systemctl --user daemon-reload
+        systemctl --user enable --now dotfiles-backup.timer
+        printf 'Backup configured. Start the first copy with: dotfiles-backup run\n'
+        ;;
+    run)
+        load_config
+        extra_excludes=()
+        if [[ $RESTIC_REPOSITORY == "$HOME"/* ]]; then
+            extra_excludes+=(--exclude "$RESTIC_REPOSITORY")
+        fi
+        restic backup "${BACKUP_PATHS[@]}" \
+            --exclude-caches \
+            --exclude-file "$exclude_file" \
+            "${extra_excludes[@]}"
+        restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+        ;;
+    snapshots)
+        load_config
+        restic snapshots
+        ;;
+    check)
+        load_config
+        restic check
+        ;;
+    restore)
+        snapshot=${2:-latest}
+        target=${3:-}
+        [[ -n $target ]] || { usage >&2; exit 2; }
+        load_config
+        mkdir -p -- "$target"
+        restic restore "$snapshot" --target "$target"
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

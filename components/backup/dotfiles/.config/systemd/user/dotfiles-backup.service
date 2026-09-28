@@ -1,0 +1,10 @@
+[Unit]
+Description=Encrypted Restic home backup
+ConditionPathExists=%h/.config/dotfiles/backup.conf
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/dotfiles-backup run
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

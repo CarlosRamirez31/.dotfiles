@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly encrypted Restic backup
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=30m
+Unit=dotfiles-backup.service
+
+[Install]
+WantedBy=timers.target

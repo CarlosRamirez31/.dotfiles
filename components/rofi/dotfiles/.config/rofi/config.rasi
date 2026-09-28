@@ -10,8 +10,4 @@ configuration {
     sorting-method: "fzf";
 }
 
-* {
-    font: "Lexend Medium 11";
-}
-
 @theme "theme"

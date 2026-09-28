@@ -1,0 +1,28 @@
+[Default Applications]
+inode/directory=thunar.desktop
+application/pdf=org.pwmt.zathura.desktop
+image/bmp=imv.desktop
+image/gif=imv.desktop
+image/jpeg=imv.desktop
+image/png=imv.desktop
+image/svg+xml=imv.desktop
+image/webp=imv.desktop
+audio/flac=mpv.desktop
+audio/mpeg=mpv.desktop
+audio/ogg=mpv.desktop
+video/mp4=mpv.desktop
+video/webm=mpv.desktop
+video/x-matroska=mpv.desktop
+application/zip=org.gnome.FileRoller.desktop
+application/x-7z-compressed=org.gnome.FileRoller.desktop
+application/x-rar=org.gnome.FileRoller.desktop
+application/x-tar=org.gnome.FileRoller.desktop
+
+[Added Associations]
+inode/directory=thunar.desktop;
+application/pdf=org.pwmt.zathura.desktop;
+image/jpeg=imv.desktop;
+image/png=imv.desktop;
+video/mp4=mpv.desktop;
+video/x-matroska=mpv.desktop;
+application/zip=org.gnome.FileRoller.desktop;

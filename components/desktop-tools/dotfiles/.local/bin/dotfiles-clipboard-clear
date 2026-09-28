@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+answer=$(printf 'No\nSí\n' | rofi -dmenu -p '¿Limpiar historial?') || exit 0
+[[ $answer == Sí ]] || exit 0
+cliphist wipe
+notify-send -a Clipboard 'Historial del portapapeles eliminado'

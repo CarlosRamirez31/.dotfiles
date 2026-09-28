@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode=${1:-full}
+pictures_dir=$(xdg-user-dir PICTURES 2>/dev/null || true)
+[[ -n $pictures_dir ]] || pictures_dir="$HOME/Pictures"
+output_dir="$pictures_dir/Screenshots"
+output="$output_dir/$(date +%Y-%m-%d_%H-%M-%S).png"
+mkdir -p -- "$output_dir"
+
+case $mode in
+    full)
+        grim "$output"
+        ;;
+    area)
+        geometry=$(slurp) || exit 0
+        [[ -n $geometry ]] || exit 0
+        grim -g "$geometry" "$output"
+        ;;
+    edit)
+        geometry=$(slurp) || exit 0
+        [[ -n $geometry ]] || exit 0
+        temporary=$(mktemp --suffix=.png "${XDG_RUNTIME_DIR:-/tmp}/dotfiles-shot.XXXXXX")
+        trap 'rm -f -- "$temporary"' EXIT
+        grim -g "$geometry" "$temporary"
+        swappy -f "$temporary" -o "$output"
+        [[ -s $output ]] || exit 0
+        ;;
+    *)
+        printf 'Usage: %s {full|area|edit}\n' "${0##*/}" >&2
+        exit 2
+        ;;
+esac
+
+wl-copy --type image/png <"$output"
+notify-send -a Screenshot -i "$output" 'Captura guardada' "$output"

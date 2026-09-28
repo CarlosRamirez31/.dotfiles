@@ -7,9 +7,9 @@ imágenes mediante dos servicios de usuario.
 ## Atajos
 
 - `Print`: pantalla completa y copia al portapapeles.
-- `Super+Print`: elegir región.
-- `Super+Shift+S`: elegir región y editarla.
-- `Super+C`: buscar el historial con Rofi.
+- `Alt+Print`: elegir región.
+- `Alt+Shift+S`: elegir región y editarla.
+- `Alt+C`: buscar el historial con Rofi.
 
 Las capturas se guardan en `Pictures/Screenshots`. Para borrar el historial de
 forma confirmada:

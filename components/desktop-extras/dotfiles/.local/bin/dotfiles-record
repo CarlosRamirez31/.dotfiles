@@ -30,4 +30,4 @@ fi
 
 nohup wf-recorder "${recorder_args[@]}" >"$runtime_dir/dotfiles-wf-recorder.log" 2>&1 &
 printf '%s\n' "$!" >"$pid_file"
-notify-send -a Recorder 'Grabación iniciada' 'Usa Super+Shift+R para detenerla.'
+notify-send -a Recorder 'Grabación iniciada' 'Usa Alt+Shift+R para detenerla.'

@@ -65,41 +65,41 @@ realmente forman parte de su uso.
 
 ## Gramática del teclado
 
-El escritorio copia la lógica direccional de Vim/Neovim para reducir memoria
-muscular duplicada:
+Los atajos evitan `Super` para no activar combinaciones del Windows anfitrión
+cuando el escritorio se ejecuta dentro de una máquina virtual:
 
 | Atajo | Acción |
 | --- | --- |
-| `Super+H/J/K/L` | enfocar izquierda/abajo/arriba/derecha |
-| `Super+Shift+H/J/K/L` | mover ventana |
-| `Super+Ctrl+H/J/K/L` | redimensionar ventana |
-| `Super+1..4` | cambiar entre los cuatro workspaces |
-| `Super+Shift+1..4` | mover ventana al workspace |
-| `Super+Q` | cerrar ventana |
-| `Super+F` | pantalla completa |
-| `Super+V` | alternar flotante |
+| `Alt+H/J/K/L` | enfocar izquierda/abajo/arriba/derecha |
+| `Alt+Shift+H/J/K/L` | mover ventana |
+| `Alt+Ctrl+H/J/K/L` | redimensionar ventana |
+| `Alt+1..4` | cambiar entre los cuatro workspaces |
+| `Alt+Shift+1..4` | mover ventana al workspace |
+| `Alt+Q` | cerrar ventana |
+| `Alt+F` | pantalla completa |
+| `Alt+V` | alternar flotante |
 
 Aplicaciones y sesión:
 
 | Atajo | Acción |
 | --- | --- |
-| `Super+Enter` / `Ctrl+Alt+T` | terminal |
-| `Super+Space` / `Super+D` / `Alt+F2` | aplicaciones |
-| `Super+B` | Firefox |
-| `Super+E` | Thunar |
-| `Super+C` | historial del portapapeles |
-| `Super+L` | bloquear |
-| `Super+Shift+E` | cerrar sesión |
+| `Alt+Enter` / `Ctrl+Alt+T` | terminal |
+| `Alt+Space` / `Alt+D` / `Alt+F2` | aplicaciones |
+| `Alt+B` | Firefox |
+| `Alt+E` | Thunar |
+| `Alt+C` | historial del portapapeles |
+| `Ctrl+Shift+B` | bloquear |
+| `Alt+Shift+E` | cerrar sesión |
 
 Captura y utilidades:
 
 | Atajo | Acción |
 | --- | --- |
 | `Print` | capturar pantalla completa |
-| `Super+Print` | capturar región |
-| `Super+Shift+S` | capturar región y editar |
-| `Super+Shift+R` | iniciar/detener grabación de región |
-| `Super+Shift+C` | copiar color de la pantalla |
+| `Alt+Print` | capturar región |
+| `Alt+Shift+S` | capturar región y editar |
+| `Alt+Shift+R` | iniciar/detener grabación de región |
+| `Alt+Shift+C` | copiar color de la pantalla |
 
 Las teclas físicas controlan volumen, micrófono, brillo y reproducción incluso
 con la pantalla bloqueada.

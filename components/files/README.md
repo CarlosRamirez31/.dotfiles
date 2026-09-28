@@ -15,5 +15,5 @@ Firefox queda como aplicación HTTP/HTML cuando se instala `desktop-extras`.
 thunar
 ```
 
-Atajo: `Super+E`. Las asociaciones viven en `.config/mimeapps.list`; medios
+Atajo: `Alt+E`. Las asociaciones viven en `.config/mimeapps.list`; medios
 removibles aparecen en la barra lateral de Thunar.

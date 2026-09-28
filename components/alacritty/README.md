@@ -11,6 +11,6 @@ XDG y el wrapper `dotfiles-terminal`, usado por Hyprland y HyprPanel.
 dotfiles-terminal
 ```
 
-Los atajos para abrirla son `Super+Enter` y `Ctrl+Alt+T`. El aspecto vive en
+Los atajos para abrirla son `Alt+Enter` y `Ctrl+Alt+T`. El aspecto vive en
 `dotfiles/.config/alacritty/alacritty.toml`; el shell se configura por separado
 en `components/shell`.

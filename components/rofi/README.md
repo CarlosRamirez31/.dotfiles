@@ -9,5 +9,5 @@ sesión UWSM correcta.
 dotfiles-app-launcher
 ```
 
-Atajos: `Super+Space`, `Super+D` o `Alt+F2`. El tema está en
+Atajos: `Alt+Space`, `Alt+D` o `Alt+F2`. El tema está en
 `.config/rofi/theme.rasi`.

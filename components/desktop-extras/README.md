@@ -5,9 +5,9 @@ selector de color y papelera desde terminal.
 
 ## Atajos y comandos
 
-- `Super+B`: Firefox.
-- `Super+Shift+R`: seleccionar región e iniciar/detener grabación.
-- `Super+Shift+C`: seleccionar un color y copiarlo.
+- `Alt+B`: Firefox.
+- `Alt+Shift+R`: seleccionar región e iniciar/detener grabación.
+- `Alt+Shift+C`: seleccionar un color y copiarlo.
 - `btop`: CPU, memoria, procesos, red y discos.
 - `keepassxc`: administrador local de contraseñas.
 - `trash-put ARCHIVO`: mover a papelera; `trash-restore`: recuperar.

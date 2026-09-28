@@ -8,30 +8,30 @@ existen cuatro workspaces persistentes para coincidir con HyprPanel.
 
 | Atajo | Acción |
 | --- | --- |
-| `Super+H/J/K/L` | enfocar izquierda/abajo/arriba/derecha |
-| `Super+Shift+H/J/K/L` | mover la ventana en esa dirección |
-| `Super+Ctrl+H/J/K/L` | redimensionar en esa dirección |
-| `Super+1..4` | cambiar de workspace |
-| `Super+Shift+1..4` | mover al workspace y seguir la ventana |
-| `Super+Q` | cerrar ventana |
-| `Super+F` | pantalla completa |
-| `Super+V` | alternar flotante |
+| `Alt+H/J/K/L` | enfocar izquierda/abajo/arriba/derecha |
+| `Alt+Shift+H/J/K/L` | mover la ventana en esa dirección |
+| `Alt+Ctrl+H/J/K/L` | redimensionar en esa dirección |
+| `Alt+1..4` | cambiar de workspace |
+| `Alt+Shift+1..4` | mover al workspace y seguir la ventana |
+| `Alt+Q` | cerrar ventana |
+| `Alt+F` | pantalla completa |
+| `Alt+V` | alternar flotante |
 
 La lógica refleja Neovim: `H/J/K/L` expresa dirección, `Shift` mueve y `Ctrl`
-modifica el tamaño. No se agregan variantes con flechas para evitar memorizar
-dos mapas equivalentes.
+modifica el tamaño. Se usa `Alt` en vez de `Super` para evitar atajos del
+Windows anfitrión en una VM.
 
 ## Aplicaciones y sesión
 
 | Atajo | Acción |
 | --- | --- |
-| `Super+Enter` / `Ctrl+Alt+T` | terminal |
-| `Super+Space` / `Super+D` / `Alt+F2` | lanzador |
-| `Super+B` | navegador |
-| `Super+E` | archivos |
-| `Super+C` | portapapeles |
-| `Super+L` | bloqueo |
-| `Super+Shift+E` | cerrar sesión |
+| `Alt+Enter` / `Ctrl+Alt+T` | terminal |
+| `Alt+Space` / `Alt+D` / `Alt+F2` | lanzador |
+| `Alt+B` | navegador |
+| `Alt+E` | archivos |
+| `Alt+C` | portapapeles |
+| `Ctrl+Shift+B` | bloqueo |
+| `Alt+Shift+E` | cerrar sesión |
 
 Las capturas y grabación se documentan en `desktop-tools` y `desktop-extras`.
 

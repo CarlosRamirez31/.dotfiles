@@ -16,6 +16,7 @@ utilidades de red útiles para desarrollo y laboratorios autorizados.
 - `portinfo PUERTO`: mostrar qué proceso usa un puerto.
 - `ipa`, `routes`, `sockets`: resumen de red.
 - `nmap-basic IP`: servicios y scripts seguros; `nmap-full IP`: todos los puertos.
+- `rlwrap nc -lvnp PUERTO`: listener con historial y edición de línea.
 - `cheat COMANDO`: ayuda breve mediante `tldr`.
 
 ## Instalación y personalización

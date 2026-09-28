@@ -29,6 +29,7 @@ install_packages \
     whois \
     traceroute \
     openbsd-netcat \
+    rlwrap \
     iproute2 \
     openssh \
     tcpdump \

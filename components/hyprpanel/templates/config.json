@@ -16,6 +16,8 @@
   "menus.dashboard.stats.enabled": true,
   "menus.dashboard.stats.interval": 5000,
   "menus.dashboard.stats.enable_gpu": false,
+  "menus.dashboard.powermenu.sleep": "dotfiles-sleep",
+  "menus.power.sleep": "dotfiles-sleep",
   "menus.clock.weather.enabled": false,
   "bar.layouts": {
     "0": {

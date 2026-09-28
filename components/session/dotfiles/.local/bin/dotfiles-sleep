@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Suspending a Linux guest can leave VMware's vmwgfx/Wayland stack unable to
+# redraw after resume. Lock the virtual desktop instead; suspend the VM from
+# VMware on the host when its execution state really needs to be saved.
+if [[ $(systemd-detect-virt --vm 2>/dev/null || true) != none ]]; then
+    exec loginctl lock-session
+fi
+
+exec systemctl suspend

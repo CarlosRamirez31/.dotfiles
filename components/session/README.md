@@ -16,6 +16,11 @@ sesión SSH entrante activa, evitando perder una máquina de trabajo remota. En
 portátiles instala `power-profiles-daemon`, salvo que TLP ya esté administrando
 la energía.
 
+El botón Sleep de HyprPanel usa `dotfiles-sleep`: suspende normalmente el
+equipo físico, pero en una máquina virtual solo bloquea la sesión. Para guardar
+el estado completo de una VM se debe usar la opción Suspend de VMware en el
+host, evitando que `vmwgfx` quede congelado al reanudar.
+
 ## Uso
 
 ```bash

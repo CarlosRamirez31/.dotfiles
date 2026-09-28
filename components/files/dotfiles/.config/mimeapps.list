@@ -1,4 +1,7 @@
 [Default Applications]
+text/html=firefox.desktop
+x-scheme-handler/http=firefox.desktop
+x-scheme-handler/https=firefox.desktop
 inode/directory=thunar.desktop
 application/pdf=org.pwmt.zathura.desktop
 image/bmp=imv.desktop
@@ -19,6 +22,9 @@ application/x-rar=org.gnome.FileRoller.desktop
 application/x-tar=org.gnome.FileRoller.desktop
 
 [Added Associations]
+text/html=firefox.desktop;
+x-scheme-handler/http=firefox.desktop;
+x-scheme-handler/https=firefox.desktop;
 inode/directory=thunar.desktop;
 application/pdf=org.pwmt.zathura.desktop;
 image/jpeg=imv.desktop;

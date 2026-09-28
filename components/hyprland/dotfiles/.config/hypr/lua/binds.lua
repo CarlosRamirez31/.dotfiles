@@ -15,6 +15,7 @@ hl.bind("SUPER + space", hl.dsp.exec_cmd(app_launcher), {
     description = "Application launcher (Rofi)",
 })
 run("SUPER + D", app_launcher)
+run("SUPER + B", "uwsm-app -- firefox")
 run("SUPER + E", "uwsm-app -- thunar")
 run("SUPER + L", "loginctl lock-session")
 run("SUPER + C", [[bash "$HOME/.local/bin/dotfiles-clipboard"]])
@@ -23,6 +24,8 @@ run("SUPER + C", [[bash "$HOME/.local/bin/dotfiles-clipboard"]])
 run("Print", [[bash "$HOME/.local/bin/dotfiles-screenshot" full]])
 run("SUPER + Print", [[bash "$HOME/.local/bin/dotfiles-screenshot" area]])
 run("SUPER + SHIFT + S", [[bash "$HOME/.local/bin/dotfiles-screenshot" edit]])
+run("SUPER + SHIFT + R", [[bash "$HOME/.local/bin/dotfiles-record" area]])
+run("SUPER + SHIFT + C", "hyprpicker --autocopy")
 
 -- Hardware media keys continue working while the session is locked. Repeating
 -- volume and brightness bindings feel natural when a key is held down.
@@ -69,6 +72,21 @@ local directions = {
 for key, direction in pairs(directions) do
     hl.bind("SUPER + " .. key, hl.dsp.focus({ direction = direction }))
     hl.bind("SUPER + SHIFT + " .. key, hl.dsp.window.move({ direction = direction }))
+end
+
+local resize_steps = {
+    H = { x = -30, y = 0 },
+    J = { x = 0, y = 30 },
+    K = { x = 0, y = -30 },
+    L = { x = 30, y = 0 },
+}
+
+for key, delta in pairs(resize_steps) do
+    hl.bind("SUPER + CTRL + " .. key, hl.dsp.window.resize({
+        x = delta.x,
+        y = delta.y,
+        relative = true,
+    }), { repeating = true })
 end
 
 -- Four dedicated workspaces, matching the four icons shown by HyprPanel.

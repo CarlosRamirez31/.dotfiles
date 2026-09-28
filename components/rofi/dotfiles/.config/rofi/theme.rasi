@@ -36,6 +36,7 @@ inputbar {
 
 prompt {
     str: "";
+    font: "JetBrainsMono Nerd Font SemiBold 13";
     text-color: @accent;
 }
 

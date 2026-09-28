@@ -18,6 +18,8 @@ install_packages \
     imv \
     mpv \
     zathura \
+    tesseract-data-eng \
+    tesseract-data-spa \
     zathura-pdf-mupdf \
     xdg-user-dirs
 

@@ -42,6 +42,12 @@ gio mount smb://servidor/recurso
 
 Se declaran en `.config/mimeapps.list`. Firefox viene de `desktop-extras`; si ese componente no está instalado, la asociación queda preparada pero no podrá abrirse hasta instalarlo.
 
+MPV conserva la selección automática de GPU en hardware físico. En VMware,
+donde la sesión exporta `LIBGL_ALWAYS_SOFTWARE=1`, el perfil
+`software-renderer` usa la salida `wlshm`, creada para escalado por software en
+Wayland. Esto evita que MPV 0.41 intente Vulkan sin driver, aborte durante su
+fallback hacia X11 o pierda cuadros renderizando OpenGL mediante `llvmpipe`.
+
 ## Efectos del instalador y diagnóstico
 
 Además de enlazar `mimeapps.list`, ejecuta `xdg-user-dirs-update`, que crea o actualiza nombres de carpetas XDG del usuario.

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Do not start a second session locker while one already owns the protocol.
+if pgrep -x hyprlock >/dev/null || pgrep -x gtklock >/dev/null; then
+    exit 0
+fi
+
+# Hyprlock 0.9.6 aborts while acquiring the session-lock surface on vmwgfx
+# with Hyprland 0.56.x. Gtklock is reliable there and presents an explicit
+# password field; retain the themed Hyprlock screen on physical hardware.
+if [[ -r /sys/class/dmi/id/sys_vendor ]] \
+    && grep -qi vmware /sys/class/dmi/id/sys_vendor; then
+    if command -v gtklock >/dev/null 2>&1; then
+        exec gtklock \
+            --style "$HOME/.config/gtklock/style.css" \
+            --layout "$HOME/.config/gtklock/layout.xml" \
+            --background "$HOME/.config/wallpapers/arch-bsod.png" \
+            --follow-focus \
+            --time-format '%H:%M' \
+            --date-format '%A, %d de %B'
+    fi
+
+    printf 'dotfiles-lock: gtklock is required on VMware\n' >&2
+    exit 1
+fi
+
+exec hyprlock

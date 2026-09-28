@@ -1,0 +1,178 @@
+@define-color base #11111b;
+@define-color surface #1e1e2e;
+@define-color surface_alt #242438;
+@define-color hover #45475a;
+@define-color border #45475a;
+@define-color text #cdd6f4;
+@define-color muted #a6adc8;
+@define-color faint #6c7086;
+@define-color mauve #cba6f7;
+@define-color pink #f5c2e7;
+@define-color cyan #89dceb;
+@define-color green #a6e3a1;
+@define-color yellow #f9e2af;
+@define-color red #f38ba8;
+
+* {
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    color: @text;
+    text-shadow: none;
+    box-shadow: none;
+}
+
+window {
+    background-color: #181825;
+}
+
+#window-box {
+    min-width: 480px;
+    min-height: 380px;
+    padding: 34px 42px 32px;
+    border: 2px solid @mauve;
+    border-radius: 20px;
+    background-color: alpha(@base, 0.94);
+    box-shadow: 0 14px 38px alpha(#090910, 0.68);
+}
+
+#brand-label {
+    color: @cyan;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+#clock-label {
+    margin-top: 16px;
+    color: @text;
+    font-size: 52px;
+    font-weight: 700;
+}
+
+#date-label {
+    color: @muted;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#divider {
+    min-height: 1px;
+    margin: 24px 0 21px;
+    background-color: @border;
+}
+
+#user-label {
+    margin-bottom: 15px;
+    color: @pink;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#input-label {
+    margin-bottom: 5px;
+    color: @muted;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#input-field {
+    min-height: 46px;
+    padding: 2px 13px;
+    color: @text;
+    caret-color: @pink;
+    background-color: @surface;
+    border: 1px solid @border;
+    border-radius: 12px;
+}
+
+#input-field:focus {
+    border: 2px solid @mauve;
+    background-color: @surface_alt;
+    box-shadow: 0 0 0 3px alpha(@mauve, 0.12);
+}
+
+#input-field:disabled {
+    color: @muted;
+    background-color: @surface_alt;
+    border: 2px solid @yellow;
+    opacity: 1;
+}
+
+#input-field selection {
+    color: @base;
+    background-color: @mauve;
+}
+
+#message-revealer {
+    margin-top: 6px;
+}
+
+#message-box {
+    color: @red;
+    font-size: 11px;
+}
+
+#error-label {
+    color: @red;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+#warning-label {
+    color: @yellow;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+#actions-box {
+    margin-top: 18px;
+}
+
+#hint-label {
+    color: @faint;
+    font-size: 10px;
+}
+
+button#unlock-button,
+button#unlock-button.suggested-action {
+    min-width: 112px;
+    min-height: 38px;
+    padding: 2px 14px;
+    color: @base;
+    font-size: 12px;
+    font-weight: 700;
+    background-color: @mauve;
+    border: 0;
+    border-radius: 11px;
+}
+
+button#unlock-button label,
+button#unlock-button.suggested-action label {
+    color: @base;
+}
+
+button#unlock-button:hover,
+button#unlock-button:focus,
+button#unlock-button.suggested-action:hover,
+button#unlock-button.suggested-action:focus {
+    color: @base;
+    background-color: @pink;
+}
+
+button#unlock-button:active,
+button#unlock-button.suggested-action:active {
+    color: @base;
+    background-color: @cyan;
+}
+
+button#unlock-button:disabled,
+button#unlock-button.suggested-action:disabled {
+    color: @base;
+    background-color: @yellow;
+    border: 1px solid @yellow;
+    opacity: 1;
+}
+
+button#unlock-button:disabled label,
+button#unlock-button.suggested-action:disabled label {
+    color: @base;
+}

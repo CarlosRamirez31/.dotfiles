@@ -38,10 +38,13 @@ hl.config({
         },
     },
     cursor = {
-        -- VMware already draws the host pointer over the guest display. Hide
-        -- Hyprland's copy there so only one pointer remains visible.
-        invisible = hardware.vmware,
-        no_hardware_cursors = 0,
+        -- Always keep a guest cursor visible. VMware does not consistently
+        -- overlay the host pointer when its input is captured, so hiding the
+        -- compositor cursor can leave the desktop without any pointer at all.
+        invisible = false,
+        -- Use Hyprland's software cursor in VMware; vmwgfx hardware cursors
+        -- can disappear even though pointer input itself continues working.
+        no_hardware_cursors = hardware.vmware and 1 or 0,
         -- Bibata is installed as an XCursor theme. Keeping one cursor backend
         -- also prevents clients and Hyprland from selecting different sizes.
         enable_hyprcursor = false,
@@ -62,6 +65,10 @@ hl.config({
     misc = {
         disable_hyprland_logo = true,
         force_default_wallpaper = 0,
+        -- Let a replacement locker recover the protected session when a lock
+        -- client crashes. This is required by the VMware Gtklock fallback
+        -- after Hyprlock's vmwgfx failure.
+        allow_session_lock_restore = true,
         -- Git updates several Lua files in sequence. Reload only after the
         -- installer has finished, never while the tree is half updated.
         disable_autoreload = true,

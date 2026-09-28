@@ -5,7 +5,7 @@ component_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 source "$component_root/../../scripts/lib.sh"
 
 require_arch_user
-install_packages hyprlock hypridle
+install_packages hyprlock hypridle gtklock
 
 if compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
     if pacman -Q tlp >/dev/null 2>&1; then

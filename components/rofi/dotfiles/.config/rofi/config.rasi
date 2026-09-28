@@ -11,7 +11,7 @@ configuration {
 }
 
 * {
-    font: "Lexend 11";
+    font: "JetBrainsMono Nerd Font SemiBold 11";
 }
 
 @theme "theme"

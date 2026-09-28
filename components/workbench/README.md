@@ -4,6 +4,10 @@ Instala Podman rootless y Distrobox para separar dependencias de proyectos y
 herramientas de laboratorio del sistema Arch principal. No crea ni descarga
 contenedores durante la instalación.
 
+El instalador selecciona `crun` explícitamente como runtime OCI para que Pacman
+no pregunte entre `crun`, `krun` y `runc`. Es una opción ligera y adecuada para
+Podman rootless; `krun` solo resulta necesario cuando se busca aislamiento KVM.
+
 Hay dos perfiles intencionales:
 
 - `dev`: Arch limpio para compiladores o dependencias de un proyecto.

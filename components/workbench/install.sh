@@ -5,7 +5,11 @@ component_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 source "$component_root/../../scripts/lib.sh"
 
 require_arch_user
-install_packages podman distrobox
+# Select the OCI provider explicitly. Otherwise Pacman prompts on every fresh
+# install to choose between crun, krun, and runc for Podman's virtual
+# oci-runtime dependency. crun is lightweight and works well with rootless
+# Podman; krun's KVM isolation is unnecessary for these Distrobox profiles.
+install_packages crun podman distrobox
 stow_component "$component_root"
 
 systemctl --user enable --now podman.socket

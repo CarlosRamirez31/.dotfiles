@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Virtual desktops and remote administration sessions should stay reachable.
+if [[ $(systemd-detect-virt --vm 2>/dev/null || true) != none ]]; then
+    exit 1
+fi
+
+if command -v ss >/dev/null 2>&1 && ss -Htn state established '( sport = :ssh )' 2>/dev/null | grep -q .; then
+    exit 1
+fi
+
+exit 0

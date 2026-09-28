@@ -14,6 +14,7 @@ utilidades de red útiles para desarrollo y laboratorios autorizados.
 - `mkcd DIR`: crear un directorio y entrar.
 - `serve [PUERTO] [IP]`: servidor HTTP, ligado a localhost por defecto.
 - `portinfo PUERTO`: mostrar qué proceso usa un puerto.
+- `vpn-on RUTA.ovpn`: conectar OpenVPN en segundo plano; `vpn-off`: desconectar.
 - `ipa`, `routes`, `sockets`: resumen de red.
 - `nmap-basic IP`: servicios y scripts seguros; `nmap-full IP`: todos los puertos.
 - `rlwrap nc -lvnp PUERTO`: listener con historial y edición de línea.

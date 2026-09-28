@@ -28,6 +28,7 @@ install_packages \
     bind \
     whois \
     traceroute \
+    openvpn \
     openbsd-netcat \
     rlwrap \
     iproute2 \

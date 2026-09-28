@@ -10,8 +10,11 @@ available_components=(
     system
     themes
     fonts
+    shell
+    fastfetch
     uwsm
     alacritty
+    nvim
     rofi
     wallpaper
     hyprpanel

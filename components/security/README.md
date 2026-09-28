@@ -29,11 +29,11 @@ La tabla `inet dotfiles_filter` aplica:
 ## Comandos
 
 ```bash
-dotfiles-firewall enable
-dotfiles-firewall status
-dotfiles-firewall disable
-dotfiles-firewall lab-open tcp 4444
-dotfiles-firewall lab-close tcp 4444
+lab-firewall enable
+lab-firewall status
+lab-firewall disable
+lab-firewall lab-open tcp 4444
+lab-firewall lab-close tcp 4444
 ```
 
 `enable` valida la sintaxis con `nft --check`, respalda `/etc/nftables.conf` si difiere, instala el archivo con modo `0600`, habilita el servicio y lo reinicia. `disable` apaga el servicio y elimina únicamente la tabla administrada.
@@ -42,7 +42,7 @@ dotfiles-firewall lab-close tcp 4444
 
 ## Seguridad de instalación remota
 
-Durante una instalación detectada mediante `$SSH_CONNECTION`, los archivos se instalan pero el firewall no se activa para evitar cortar acceso remoto. Revísalo y ejecuta `dotfiles-firewall enable` localmente.
+Durante una instalación detectada mediante `$SSH_CONNECTION`, los archivos se instalan pero el firewall no se activa para evitar cortar acceso remoto. Revísalo y ejecuta `lab-firewall enable` localmente.
 
 ## Diagnóstico y recuperación
 

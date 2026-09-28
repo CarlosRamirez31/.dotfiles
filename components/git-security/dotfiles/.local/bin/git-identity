@@ -4,7 +4,7 @@ set -euo pipefail
 identity_file=${XDG_CONFIG_HOME:-$HOME/.config}/git/identity
 
 usage() {
-    printf 'Usage: %s {setup NAME EMAIL [SSH_PUBLIC_KEY]|status}\n' "${0##*/}"
+    printf 'Usage: git identity {setup NAME EMAIL [SSH_PUBLIC_KEY]|status}\n'
 }
 
 case ${1:-} in
@@ -12,7 +12,10 @@ case ${1:-} in
         name=${2:-}
         email=${3:-}
         signing_key=${4:-}
-        [[ -n $name && -n $email ]] || { usage >&2; exit 2; }
+        [[ -n $name && -n $email ]] || {
+            usage >&2
+            exit 2
+        }
         if [[ -n $signing_key && ! -f $signing_key ]]; then
             printf 'SSH public key not found: %s\n' "$signing_key" >&2
             exit 1

@@ -34,3 +34,16 @@ alias dnsinfo='resolvectl status'
 alias nmap-basic='nmap -sC -sV'
 alias nmap-full='nmap -p- --min-rate 1000'
 alias httpheaders='curl -I'
+
+# Friendly entry points for user-facing dotfiles tools. Their implementation
+# keeps the dotfiles-* namespace so desktop services cannot collide with
+# system commands, while interactive use stays concise.
+alias doctor='dotfiles-doctor'
+alias maintain='dotfiles-maintain'
+alias backup='dotfiles-backup'
+alias lab-firewall='dotfiles-firewall'
+alias htb-target='dotfiles-htb-target'
+alias record='dotfiles-record'
+alias screenshot='dotfiles-screenshot'
+alias clip='dotfiles-clipboard'
+alias clip-clear='dotfiles-clipboard-clear'

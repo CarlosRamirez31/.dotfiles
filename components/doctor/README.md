@@ -6,8 +6,8 @@
 
 ```bash
 ./install.sh doctor
-dotfiles-doctor
-dotfiles-doctor >/tmp/doctor.txt
+doctor
+doctor >/tmp/doctor.txt
 ```
 
 - `✓`: requisito presente o estado esperado.

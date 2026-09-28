@@ -10,7 +10,7 @@ stow_component "$component_root"
 
 if ! git config --global --get user.email >/dev/null 2>&1; then
     printf 'Git safety defaults installed. Configure identity with:\n'
-    printf '  dotfiles-git-identity setup "Your Name" email@example.com [SSH_PUBLIC_KEY]\n'
+    printf '  git identity setup "Your Name" email@example.com [SSH_PUBLIC_KEY]\n'
 else
     printf 'Git safety defaults installed; existing global identity preserved.\n'
 fi

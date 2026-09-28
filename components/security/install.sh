@@ -13,7 +13,7 @@ systemctl --user enable --now gnome-keyring-daemon.socket gcr-ssh-agent.socket
 
 if [[ -n ${SSH_CONNECTION:-} ]]; then
     printf 'Remote SSH installation detected; firewall files were installed but not activated.\n'
-    printf 'Run dotfiles-firewall enable locally after checking your access.\n'
+    printf 'Run lab-firewall enable locally after checking your access.\n'
 else
     "$HOME/.local/bin/dotfiles-firewall" enable
 fi

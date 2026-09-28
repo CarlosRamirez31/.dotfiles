@@ -16,9 +16,9 @@ Instala `pacman-contrib`, enlaza `dotfiles-maintain` y habilita dos timers de si
 ## Referencia de comandos
 
 ```bash
-dotfiles-maintain check
-dotfiles-maintain clean
-dotfiles-maintain orphans
+maintain check
+maintain clean
+maintain orphans
 ```
 
 | Subcomando | Comportamiento |

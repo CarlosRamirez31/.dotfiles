@@ -15,9 +15,9 @@ Implementa capturas e historial local del portapapeles para Wayland. Grim captur
 ## Capturas
 
 ```bash
-dotfiles-screenshot full
-dotfiles-screenshot area
-dotfiles-screenshot edit
+screenshot full
+screenshot area
+screenshot edit
 ```
 
 Se guardan con fecha/hora en `$(xdg-user-dir PICTURES)/Screenshots` y se copian como `image/png`. `edit` usa un temporal y solo conserva el resultado confirmado por Swappy.
@@ -31,8 +31,8 @@ Se guardan con fecha/hora en `$(xdg-user-dir PICTURES)/Screenshots` y se copian 
 ## Portapapeles
 
 ```bash
-dotfiles-clipboard
-dotfiles-clipboard-clear
+clip
+clip-clear
 cliphist list
 ```
 

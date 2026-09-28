@@ -31,11 +31,11 @@ trash-empty
 | `Alt+Shift+R` | Seleccionar región e iniciar/detener grabación. |
 | `Alt+Shift+C` | Elegir y copiar color. |
 
-`dotfiles-record area` usa Slurp; `dotfiles-record full` graba la salida completa. Guarda MP4 con fecha/hora en `$(xdg-user-dir VIDEOS)/Recordings`, mantiene PID y log en `$XDG_RUNTIME_DIR` y envía `SIGINT` para cerrar correctamente el vídeo.
+`record area` usa Slurp; `record full` graba la salida completa. Guarda MP4 con fecha/hora en `$(xdg-user-dir VIDEOS)/Recordings`, mantiene PID y log en `$XDG_RUNTIME_DIR` y envía `SIGINT` para cerrar correctamente el vídeo.
 
 ```bash
-dotfiles-record area
-dotfiles-record full
+record area
+record full
 tail -f "$XDG_RUNTIME_DIR/dotfiles-wf-recorder.log"
 ```
 

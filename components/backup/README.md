@@ -8,8 +8,8 @@ Restic cifra antes de enviar, deduplica bloques y verifica integridad. La polít
 
 ```bash
 ./install.sh backup
-dotfiles-backup setup /ruta/al/repositorio-restic
-dotfiles-backup run
+backup setup /ruta/al/repositorio-restic
+backup run
 ```
 
 `setup` solicita y confirma contraseña, crea `restic-password` y `backup.conf` con permisos `0600`, ejecuta `restic init` y habilita el timer. El repositorio puede ser disco montado, ruta local o destino remoto admitido por Restic. Si está dentro de `$HOME`, se excluye automáticamente.
@@ -18,17 +18,17 @@ dotfiles-backup run
 
 | Comando | Efecto |
 | --- | --- |
-| `dotfiles-backup setup REPOSITORY` | Inicializa destino, contraseña y timer. |
-| `dotfiles-backup run` | Respalda las rutas y aplica retención. |
-| `dotfiles-backup snapshots` | Lista snapshots, fechas, hosts y rutas. |
-| `dotfiles-backup check` | Valida la estructura del repositorio. |
-| `dotfiles-backup restore latest DESTINO` | Restaura el último snapshot aparte. |
-| `dotfiles-backup restore ID DESTINO` | Restaura un snapshot específico. |
+| `backup setup REPOSITORY` | Inicializa destino, contraseña y timer. |
+| `backup run` | Respalda las rutas y aplica retención. |
+| `backup snapshots` | Lista snapshots, fechas, hosts y rutas. |
+| `backup check` | Valida la estructura del repositorio. |
+| `backup restore latest DESTINO` | Restaura el último snapshot aparte. |
+| `backup restore ID DESTINO` | Restaura un snapshot específico. |
 
 La restauración exige destino y nunca sobrescribe el home directamente:
 
 ```bash
-dotfiles-backup restore latest /tmp/restore-home
+backup restore latest /tmp/restore-home
 find /tmp/restore-home -maxdepth 3 -type f | less
 ```
 
@@ -60,7 +60,7 @@ BACKUP_PATHS=("$HOME/Documents" "$HOME/Pictures" "$HOME/.ssh")
 systemctl --user status dotfiles-backup.timer
 systemctl --user list-timers dotfiles-backup.timer
 journalctl --user -u dotfiles-backup.service
-dotfiles-backup check
+backup check
 ```
 
-Si el destino es externo debe estar montado. Un fallo no borra snapshots; corrige montaje/credenciales y ejecuta `dotfiles-backup run`.
+Si el destino es externo debe estar montado. Un fallo no borra snapshots; corrige montaje/credenciales y ejecuta `backup run`.

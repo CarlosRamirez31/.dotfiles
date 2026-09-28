@@ -20,9 +20,9 @@ Click derecho del launcher abre Rofi y click central abre terminal. El panel usa
 
 ```bash
 dotfiles-htb-vpn-status
-dotfiles-htb-target 10.10.11.20
-dotfiles-htb-target
-dotfiles-htb-target clear
+htb-target 10.10.11.20
+htb-target
+htb-target clear
 ```
 
 El objetivo se valida como IPv4 y se guarda en el estado local del usuario. Cuando existe, el panel muestra esa IP como “Objetivo activo”; de lo contrario muestra la IP VPN. `clear` elimina únicamente el objetivo, no desconecta OpenVPN.

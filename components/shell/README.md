@@ -46,6 +46,19 @@ FZF: `Ctrl+R` busca historial, `Ctrl+T` archivos y `Alt+C` directorios, con prev
 | `sysinfo` | Fastfetch. |
 | `reload` | Reemplazar el shell actual por un Zsh nuevo. |
 
+Los comandos interactivos de los dotfiles tienen nombres cortos, mientras los scripts internos conservan el prefijo `dotfiles-` para evitar conflictos:
+
+| Comando | Implementación interna |
+| --- | --- |
+| `doctor` | `dotfiles-doctor` |
+| `maintain` | `dotfiles-maintain` |
+| `backup` | `dotfiles-backup` |
+| `lab-firewall` | `dotfiles-firewall` |
+| `htb-target` | `dotfiles-htb-target` |
+| `record` | `dotfiles-record` |
+| `screenshot` | `dotfiles-screenshot` |
+| `clip` / `clip-clear` | Historial y limpieza del portapapeles. |
+
 ## Red y laboratorios autorizados
 
 | Comando | Efecto |

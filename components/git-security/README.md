@@ -22,12 +22,12 @@ Este componente define una política Git global portable y mantiene nombre, corr
 
 ```bash
 ./install.sh git-security
-dotfiles-git-identity setup "Tu Nombre" correo@example.com
-dotfiles-git-identity setup "Tu Nombre" correo@example.com ~/.ssh/id_ed25519.pub
-dotfiles-git-identity status
+git identity setup "Tu Nombre" correo@example.com
+git identity setup "Tu Nombre" correo@example.com ~/.ssh/id_ed25519.pub
+git identity status
 ```
 
-El tercer argumento debe ser la llave **pública**. Cuando se proporciona, configura `user.signingKey` y activa firma automática de commits y tags. La privada permanece en GNOME Keyring/GCR o en otro agente SSH y nunca se copia.
+Git descubre `.local/bin/git-identity` como un subcomando, por eso se invoca de forma natural como `git identity`. El tercer argumento debe ser la llave **pública**. Cuando se proporciona, configura `user.signingKey` y activa firma automática de commits y tags. La privada permanece en GNOME Keyring/GCR o en otro agente SSH y nunca se copia.
 
 `setup` reemplaza únicamente el archivo de identidad administrado, no repositorios ni llaves. Para cambiar de identidad por repositorio usa `git config user.name/email` dentro de ese repositorio; la configuración local tiene prioridad.
 

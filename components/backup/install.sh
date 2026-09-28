@@ -13,5 +13,5 @@ if [[ -s $HOME/.config/dotfiles/backup.conf ]]; then
     systemctl --user enable --now dotfiles-backup.timer
     printf 'Restic backup timer enabled for the configured repository.\n'
 else
-    printf 'Restic installed. Configure its destination with: dotfiles-backup setup REPOSITORY\n'
+    printf 'Restic installed. Configure its destination with: backup setup REPOSITORY\n'
 fi

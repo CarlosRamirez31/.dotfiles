@@ -38,12 +38,11 @@ hl.config({
         },
     },
     cursor = {
-        -- Always keep a guest cursor visible. VMware does not consistently
-        -- overlay the host pointer when its input is captured, so hiding the
-        -- compositor cursor can leave the desktop without any pointer at all.
-        invisible = false,
-        -- Use Hyprland's software cursor in VMware; vmwgfx hardware cursors
-        -- can disappear even though pointer input itself continues working.
+        -- Hypervisors already draw their host pointer over the guest. Hide
+        -- Hyprland's pointer only inside a VM so the two are not duplicated.
+        invisible = hardware.virtual_machine,
+        -- Keep the physical-machine default. This setting is irrelevant while
+        -- the guest cursor is hidden, but remains safe if it is shown live.
         no_hardware_cursors = hardware.vmware and 1 or 0,
         -- Bibata is installed as an XCursor theme. Keeping one cursor backend
         -- also prevents clients and Hyprland from selecting different sizes.

@@ -20,7 +20,7 @@ Este componente define el compositor, el modelo de ventanas, monitores, arranque
 - `lua/theme.lua`: bordes, espacios y animaciones;
 - `lua/binds.lua`: aplicaciones, ventanas, multimedia y sesión.
 
-`lua/hardware.lua` detecta VMware. Allí usa 1920×1080@60, cursor por software, desactiva animaciones/redondeado y evita pipelines gráficos costosos; en hardware normal usa modo preferido y efectos completos. El layout es `dwindle`, teclado `us`, touchpad con desplazamiento natural y cuatro workspaces persistentes.
+`lua/hardware.lua` detecta cualquier máquina virtual y oculta allí el cursor de Hyprland para que no se duplique con el puntero dibujado por el hipervisor. Los ajustes gráficos específicos de VMware (1920×1080@60, menos efectos y pipelines) no se aplican a otros hipervisores; en hardware físico el cursor Bibata y los efectos completos permanecen activos. El layout es `dwindle`, teclado `us`, touchpad con desplazamiento natural y cuatro workspaces persistentes.
 
 Al iniciar, finaliza variables UWSM, arranca HyprPanel, Awww, agente Polkit, servicios Cliphist y applet Bluetooth. La autorecarga se deshabilita para no leer archivos Lua a medio actualizar; el instalador ejecuta `hyprctl reload` cuando corresponde.
 

@@ -19,9 +19,12 @@ cd ~/.dotfiles
 ./install.sh
 ```
 
-El instalador requiere Arch Linux, se ejecuta como usuario normal y solicita
-`sudo` solamente para paquetes o servicios del sistema. Al terminar, reinicia y
-selecciona `Hyprland (uwsm-managed)` en SDDM.
+El instalador requiere Arch Linux, se ejecuta como usuario normal y solicita la
+contraseña de `sudo` una vez al comenzar. Mantiene esa autorización solamente
+mientras se ejecuta. Pacman acepta automáticamente cada transacción y usa los
+proveedores predeterminados de Arch; no hay que responder selectores y los
+dotfiles no fijan un proveedor innecesario. Al terminar, reinicia y selecciona
+`Hyprland (uwsm-managed)` en SDDM.
 
 Para instalar componentes concretos:
 

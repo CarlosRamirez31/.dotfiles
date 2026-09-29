@@ -33,7 +33,10 @@ install_packages() {
     printf 'Installing missing packages: %s\n' "${missing[*]}"
     # Arch does not support partial upgrades. Refresh and upgrade whenever a
     # component actually needs a package; subsequent components normally skip.
-    sudo pacman -Syu --needed "${missing[@]}"
+    # Keep fresh installations unattended after sudo authentication. Pacman
+    # resolves virtual dependencies with the repository's current default
+    # instead of opening an interactive provider selector.
+    sudo pacman -Syu --needed --noconfirm "${missing[@]}"
 }
 
 find_aur_helper() {

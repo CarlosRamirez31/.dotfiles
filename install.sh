@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+source "$repo_root/scripts/lib.sh"
 
 # This order is intentional: system services first, visual assets second,
 # applications third, and the compositor last so every referenced command is
@@ -76,6 +77,21 @@ else
         done
     done
 fi
+
+require_arch_user
+printf '\n==> Authenticating sudo for the installation\n'
+sudo -v
+(
+    while sudo -n -v 2>/dev/null; do
+        sleep 60
+    done
+) &
+sudo_keepalive_pid=$!
+cleanup() {
+    kill "$sudo_keepalive_pid" 2>/dev/null || true
+    wait "$sudo_keepalive_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
 
 for component in "${selected_components[@]}"; do
     if ! component_exists "$component"; then

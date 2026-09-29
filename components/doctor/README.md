@@ -19,13 +19,14 @@ Sale con código `1` cuando hay errores y `0` cuando la base funciona, aunque ex
 ## Qué comprueba
 
 1. Comandos esenciales: Hyprland, UWSM, Zsh, Alacritty, Neovim, Rofi, HyprPanel, Hyprlock e Hypridle.
-2. Herramientas opcionales de archivos, capturas, red, backup, contenedores y uso diario.
-3. Que Zsh sea el shell de login.
-4. Que configuraciones críticas sean enlaces Stow válidos.
-5. NetworkManager, nftables, timers de Pacman/TRIM y Bluetooth según hardware.
-6. Sockets de GNOME Keyring/GCR y Podman rootless.
-7. Si Restic e identidad Git privada ya se configuraron.
-8. En Hyprland activo: errores de configuración y servicios Cliphist/Hypridle.
+2. Resolución exacta de JetBrainsMono Nerd Font, Noto Color Emoji para símbolos de Starship y Lexend para HyprPanel.
+3. Herramientas opcionales de archivos, capturas, red, backup, contenedores y uso diario.
+4. Que Zsh sea el shell de login.
+5. Que configuraciones críticas sean enlaces Stow válidos.
+6. NetworkManager, nftables, timers de Pacman/TRIM y Bluetooth según hardware.
+7. Sockets de GNOME Keyring/GCR y Podman rootless.
+8. Si Restic e identidad Git privada ya se configuraron.
+9. En Hyprland activo: errores de configuración y servicios Cliphist/Hypridle.
 
 ## Límites
 

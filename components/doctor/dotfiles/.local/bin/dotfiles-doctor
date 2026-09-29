@@ -46,6 +46,31 @@ for command_name in "${optional_commands[@]}"; do
     fi
 done
 
+if command -v fc-match >/dev/null 2>&1; then
+    jetbrains_family=$(fc-match -f '%{family[0]}' 'JetBrainsMono Nerd Font' 2>/dev/null)
+    if [[ $jetbrains_family == 'JetBrainsMono Nerd Font' ]]; then
+        ok 'JetBrainsMono Nerd Font available for terminal icons'
+    else
+        fail "JetBrainsMono Nerd Font resolves to ${jetbrains_family:-nothing}"
+    fi
+
+    emoji_family=$(fc-match -f '%{family[0]}' 'Noto Color Emoji' 2>/dev/null)
+    if [[ $emoji_family == 'Noto Color Emoji' ]]; then
+        ok 'Noto Color Emoji available for Starship symbols'
+    else
+        fail "Noto Color Emoji resolves to ${emoji_family:-nothing}"
+    fi
+
+    lexend_family=$(fc-match -f '%{family[0]}' Lexend 2>/dev/null)
+    if [[ $lexend_family == Lexend ]]; then
+        ok 'Lexend available for HyprPanel'
+    else
+        fail "Lexend resolves to ${lexend_family:-nothing}"
+    fi
+else
+    fail 'fontconfig is missing; cannot validate desktop fonts'
+fi
+
 current_shell=$(getent passwd "$(id -un)" | cut -d: -f7)
 if [[ ${current_shell##*/} == zsh ]]; then
     ok "Zsh is the login shell"

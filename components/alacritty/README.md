@@ -9,6 +9,7 @@ Este componente instala y registra Alacritty como la terminal gráfica del escri
 | `alacritty` | Emulador de terminal nativo y compatible con Wayland. |
 | `zsh` | Shell de login que Alacritty inicia explícitamente. |
 | `ttf-jetbrains-mono-nerd` | Fuente monoespaciada con glifos para Starship y herramientas CLI. |
+| `noto-fonts-emoji` | Respaldo para emojis de Starship, como el símbolo predeterminado de Kali Linux. |
 
 La configuración elimina decoraciones, usa opacidad `0.94`, desenfoque, margen de 7 px, cursor vertical parpadeante y Tokyo Night. La selección se copia al portapapeles y el TOML se recarga sin reiniciar.
 

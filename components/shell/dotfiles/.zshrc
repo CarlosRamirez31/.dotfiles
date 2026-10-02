@@ -73,6 +73,7 @@ fi
 
 source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/aliases.zsh"
 source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/functions.zsh"
+source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/keybindings.zsh"
 
 zsh_autosuggestions=''
 for plugin_file in \

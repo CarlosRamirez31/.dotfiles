@@ -24,7 +24,7 @@ Sale con código `1` cuando hay errores y `0` cuando la base funciona, aunque ex
 4. Que Zsh sea el shell de login.
 5. Que configuraciones críticas sean enlaces Stow válidos.
 6. NetworkManager, nftables, timers de Pacman/TRIM y Bluetooth según hardware.
-7. Sockets de GNOME Keyring/GCR y Podman rootless.
+7. Sockets de GNOME Keyring/GCR y disponibilidad de Podman/`labbox`.
 8. Si Restic e identidad Git privada ya se configuraron.
 9. En Hyprland activo: errores de configuración y servicios Cliphist/Hypridle.
 

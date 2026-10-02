@@ -38,11 +38,9 @@ hl.config({
         },
     },
     cursor = {
-        -- Hypervisors already draw their host pointer over the guest. Hide
-        -- Hyprland's pointer only inside a VM so the two are not duplicated.
-        invisible = hardware.virtual_machine,
-        -- Keep the physical-machine default. This setting is irrelevant while
-        -- the guest cursor is hidden, but remains safe if it is shown live.
+        -- Keep Hyprland's pointer visible on both physical and virtual machines.
+        invisible = false,
+        -- VMware behaves more reliably when cursor rendering stays in software.
         no_hardware_cursors = hardware.vmware and 1 or 0,
         -- Bibata is installed as an XCursor theme. Keeping one cursor backend
         -- also prevents clients and Hyprland from selecting different sizes.

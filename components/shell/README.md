@@ -17,6 +17,7 @@ Instala Zsh, Starship, eza, bat, FZF, fd, ripgrep, zoxide, vivid, plugins de sug
 | `.zshrc` | Plugins, historial, completado, FZF, zoxide, Starship y Fastfetch. |
 | `.config/zsh/aliases.zsh` | Atajos sin argumentos complejos. |
 | `.config/zsh/functions.zsh` | Comandos con validación/estado. |
+| `.config/zsh/keybindings.zsh` | Borrado y selección de texto mediante teclado. |
 | `.config/starship.toml` | Prompt, Git, lenguajes, duración, jobs, hora y estado. |
 | `.config/bat/config` | Tema y presentación del visor. |
 
@@ -35,6 +36,8 @@ Instala Zsh, Starship, eza, bat, FZF, fd, ripgrep, zoxide, vivid, plugins de sug
 | `pathlist` | PATH, una entrada por línea. |
 
 FZF: `Ctrl+R` busca historial, `Ctrl+T` archivos y `Alt+C` directorios, con previews de Bat/eza.
+
+La edición de la línea sigue los atajos habituales de un editor gráfico: `Ctrl+Backspace` borra la palabra anterior, `Shift+←/→` amplía la selección por caracteres y `Ctrl+Shift+←/→` la amplía por palabras. Estas combinaciones están coordinadas con el componente `alacritty`.
 
 ## Paquetes y sistema
 
@@ -91,7 +94,7 @@ Conserva hasta 100000 entradas en `$XDG_STATE_HOME/zsh/history`, comparte histor
 ## Diagnóstico
 
 ```bash
-zsh -n ~/.zshrc ~/.config/zsh/aliases.zsh ~/.config/zsh/functions.zsh
+zsh -n ~/.zshrc ~/.config/zsh/aliases.zsh ~/.config/zsh/functions.zsh ~/.config/zsh/keybindings.zsh
 echo $SHELL
 command -v zsh starship fzf zoxide
 ```

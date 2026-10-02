@@ -44,6 +44,33 @@ blinking = "On"
 [selection]
 save_to_clipboard = true
 
+# Send stable, explicit sequences for word deletion and keyboard selection.
+# Zsh maps the arrow sequences to selection-aware ZLE widgets.
+[[keyboard.bindings]]
+key = "Back"
+mods = "Control"
+chars = "\u0017"
+
+[[keyboard.bindings]]
+key = "Left"
+mods = "Shift"
+chars = "\u001b[1;2D"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Shift"
+chars = "\u001b[1;2C"
+
+[[keyboard.bindings]]
+key = "Left"
+mods = "Control|Shift"
+chars = "\u001b[1;6D"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Control|Shift"
+chars = "\u001b[1;6C"
+
 # Tokyo Night palette.
 [colors.primary]
 background = "#1a1b26"

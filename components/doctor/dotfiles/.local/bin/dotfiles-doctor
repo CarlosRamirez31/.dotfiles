@@ -28,7 +28,7 @@ printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
 
 essential_commands=(hyprland uwsm zsh alacritty nvim rofi hyprpanel hyprlock hypridle)
 optional_commands=(fastfetch thunar grim slurp swappy cliphist wl-copy blueman-manager nft openvpn)
-optional_commands+=(restic podman distrobox firefox keepassxc btop wf-recorder hyprpicker trash-put)
+optional_commands+=(restic podman labbox firefox keepassxc btop wf-recorder hyprpicker trash-put)
 
 for command_name in "${essential_commands[@]}"; do
     if command -v "$command_name" >/dev/null 2>&1; then
@@ -129,12 +129,6 @@ for socket in gnome-keyring-daemon.socket gcr-ssh-agent.socket; do
         warn "$socket is not enabled"
     fi
 done
-
-if systemctl --user is-enabled --quiet podman.socket 2>/dev/null; then
-    ok 'podman.socket enabled'
-else
-    warn 'podman.socket is not enabled'
-fi
 
 if [[ -s $HOME/.config/dotfiles/backup.conf ]]; then
     ok 'Restic backup destination configured'

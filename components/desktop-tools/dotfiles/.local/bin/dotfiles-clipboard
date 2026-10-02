@@ -4,3 +4,22 @@ set -euo pipefail
 selection=$(cliphist list | rofi -dmenu -i -p '󰅇 Portapapeles') || exit 0
 [[ -n $selection ]] || exit 0
 printf '%s\n' "$selection" | cliphist decode | wl-copy
+
+# Rofi has released the keyboard by this point. Give the previously focused
+# window a moment to regain focus, then paste instead of merely restoring the
+# selected entry to the clipboard. Terminals conventionally use Ctrl+Shift+V.
+if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>&1; then
+    sleep 0.1
+    active_class=$(hyprctl activewindow 2>/dev/null |
+        awk '$1 == "class:" { print tolower($2); exit }') || active_class=''
+    case $active_class in
+        alacritty | foot | footclient | kitty | org.wezfurlong.wezterm | wezterm | com.mitchellh.ghostty)
+            paste_mods=CTRL_SHIFT
+            ;;
+        *)
+            paste_mods=CTRL
+            ;;
+    esac
+    hyprctl -q dispatch \
+        "hl.dsp.send_shortcut({ mods = \"$paste_mods\", key = \"V\" })"
+fi

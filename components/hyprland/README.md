@@ -20,7 +20,7 @@ Este componente define el compositor, el modelo de ventanas, monitores, arranque
 - `lua/theme.lua`: bordes, espacios y animaciones;
 - `lua/binds.lua`: aplicaciones, ventanas, multimedia y sesión.
 
-`lua/hardware.lua` detecta cualquier máquina virtual y oculta allí el cursor de Hyprland para que no se duplique con el puntero dibujado por el hipervisor. Los ajustes gráficos específicos de VMware (1920×1080@60, menos efectos y pipelines) no se aplican a otros hipervisores; en hardware físico el cursor Bibata y los efectos completos permanecen activos. El layout es `dwindle`, teclado `us`, touchpad con desplazamiento natural y cuatro workspaces persistentes.
+El cursor de Hyprland permanece visible tanto en hardware físico como en máquinas virtuales. `lua/hardware.lua` detecta VMware únicamente para aplicar sus ajustes gráficos específicos (1920×1080@60, cursor por software, menos efectos y pipelines), sin aplicarlos a otros hipervisores. El cursor usa el tema Bibata; el layout es `dwindle`, el teclado es `us`, el touchpad usa desplazamiento natural y hay cuatro workspaces persistentes.
 
 Al iniciar, finaliza variables UWSM, arranca HyprPanel, Awww, agente Polkit, servicios Cliphist y applet Bluetooth. La autorecarga se deshabilita para no leer archivos Lua a medio actualizar; el instalador ejecuta `hyprctl reload` cuando corresponde.
 
@@ -32,7 +32,7 @@ Al iniciar, finaliza variables UWSM, arranca HyprPanel, Awww, agente Polkit, ser
 | `Alt+Space`, `Alt+D`, `Alt+F2` | Rofi. |
 | `Alt+B` | Firefox. |
 | `Alt+E` | Thunar. |
-| `Alt+C` | Historial del portapapeles. |
+| `Super+C`, `Alt+C` | Elegir y pegar desde el historial del portapapeles. |
 | `Ctrl+Shift+B` | Bloquear. |
 | `Alt+Shift+E` | Finalizar sesión UWSM. |
 

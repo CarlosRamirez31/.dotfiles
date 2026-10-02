@@ -6,7 +6,7 @@ source "$component_root/../../scripts/lib.sh"
 
 require_arch_user
 install_aur_packages ags-hyprpanel-git
-install_packages openvpn
+install_packages jq openvpn
 stow_component "$component_root"
 
 runtime_dir="$HOME/.config/hyprpanel"
@@ -18,7 +18,22 @@ if [[ (-e $runtime_dir || -L $runtime_dir) && ! -f $marker ]]; then
 fi
 
 mkdir -p -- "$runtime_dir"
-install -m 0644 -- "$component_root/templates/config.json" "$runtime_dir/config.json"
+
+# Monitor one mount point per physical filesystem. MAJ:MIN deduplicates bind
+# mounts and subvolumes that report the same capacity, while still including
+# separate partitions such as /, /home and /boot plus mounted external disks.
+mapfile -t storage_paths < <(
+    findmnt --real --raw --noheadings --output MAJ:MIN,TARGET |
+        awk '!seen[$1]++ { print $2 }'
+)
+((${#storage_paths[@]} > 0)) || storage_paths=(/)
+storage_paths_json=$(jq -n --args '$ARGS.positional' "${storage_paths[@]}")
+config_tmp=$(mktemp "$runtime_dir/config.json.XXXXXX")
+jq --argjson paths "$storage_paths_json" \
+    '.["bar.customModules.storage.paths"] = $paths' \
+    "$component_root/templates/config.json" >"$config_tmp"
+install -m 0644 -- "$config_tmp" "$runtime_dir/config.json"
+rm -- "$config_tmp"
 install -m 0644 -- "$component_root/templates/modules.json" "$runtime_dir/modules.json"
 install -m 0644 -- "$component_root/templates/modules.scss" "$runtime_dir/modules.scss"
 touch -- "$marker"

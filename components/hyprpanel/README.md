@@ -10,7 +10,12 @@ La barra muestra:
 
 - izquierda: dashboard, título de ventana e indicador HTB;
 - centro: cuatro workspaces siempre visibles;
-- derecha: volumen, red, RAM, CPU, reloj y notificaciones.
+- derecha: volumen, red, RAM, CPU, almacenamiento, reloj y notificaciones.
+
+El almacenamiento del dashboard suma una sola vez cada sistema de archivos
+físico montado. La barra incluye además un indicador de almacenamiento cuyo
+tooltip detalla `/`, `/home`, `/boot` y discos externos presentes al instalar,
+sin duplicar bind mounts ni subvolúmenes del mismo dispositivo.
 
 Click derecho del launcher abre Rofi y click central abre terminal. El panel usa Lexend, paleta Catppuccin, barra flotante y notificaciones arriba a la derecha. Los menús desplegables aparecen sin animaciones ni sombras y usan superficies oscuras translúcidas, tarjetas con contraste, borde discreto, separación respecto a los bordes superiores y laterales de la pantalla y acentos de color por función sin alterar la apariencia de la barra. El menú multimedia reduce sus márgenes y relleno para dedicar más superficie al contenido y los controles. Sleep ejecuta `dotfiles-sleep`, respetando la protección de VMs del componente `session`.
 

@@ -36,7 +36,10 @@ clip-clear
 cliphist list
 ```
 
-`Alt+C` abre Rofi. La limpieza exige elegir “Sí”; no existe borrado silencioso. Dos servicios observan texto e imágenes, reinician tras fallos y viven con `graphical-session.target`.
+`Super+C` o `Alt+C` abre Rofi. Enter restaura la entrada elegida y la pega en
+la ventana que tenía el foco; en terminales utiliza `Ctrl+Shift+V`. La limpieza
+exige elegir “Sí”; no existe borrado silencioso. Dos servicios observan texto e
+imágenes, reinician tras fallos y viven con `graphical-session.target`.
 
 ## Instalación, servicios y archivos
 

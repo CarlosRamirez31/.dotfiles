@@ -61,6 +61,7 @@ zsh -n "$component_root/dotfiles/.zshenv"
 zsh -n "$component_root/dotfiles/.zshrc"
 zsh -n "$component_root/dotfiles/.config/zsh/aliases.zsh"
 zsh -n "$component_root/dotfiles/.config/zsh/functions.zsh"
+zsh -n "$component_root/dotfiles/.config/zsh/keybindings.zsh"
 
 zsh_path=$(command -v zsh)
 current_shell=$(getent passwd "$(id -un)" | cut -d: -f7)

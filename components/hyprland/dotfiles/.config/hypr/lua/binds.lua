@@ -19,6 +19,7 @@ run("ALT + B", "uwsm-app -- firefox")
 run("ALT + E", "uwsm-app -- thunar")
 run("CTRL + SHIFT + B", [[bash "$HOME/.local/bin/dotfiles-lock"]])
 run("ALT + C", [[bash "$HOME/.local/bin/dotfiles-clipboard"]])
+run("SUPER + C", [[bash "$HOME/.local/bin/dotfiles-clipboard"]])
 
 -- Screenshots: complete screen, selected area, or selected area with editor.
 run("Print", [[bash "$HOME/.local/bin/dotfiles-screenshot" full]])

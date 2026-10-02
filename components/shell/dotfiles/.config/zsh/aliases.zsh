@@ -22,9 +22,15 @@ alias py='python'
 alias reload='exec zsh'
 alias sysinfo='fastfetch'
 alias pathlist='print -l $path'
-alias update='sudo pacman -Syu'
-alias pacsearch='pacman -Ss'
-alias pacinfo='pacman -Si'
+if (( $+commands[pacman] )); then
+    alias update='sudo pacman -Syu'
+    alias pacsearch='pacman -Ss'
+    alias pacinfo='pacman -Si'
+elif (( $+commands[apt] )); then
+    alias update='sudo apt update && sudo apt full-upgrade'
+    alias pacsearch='apt search'
+    alias pacinfo='apt show'
+fi
 
 # Networking and authorized assessment helpers.
 alias ipa='ip -brief -color address'

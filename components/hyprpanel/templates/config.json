@@ -23,17 +23,17 @@
     "0": {
       "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "storage", "clock", "notifications"]
     },
     "1": {
       "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "storage", "clock", "notifications"]
     },
     "2": {
       "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "storage", "clock", "notifications"]
     }
   },
   "bar.launcher.icon": "󰊠",
@@ -81,6 +81,13 @@
   "bar.customModules.cpu.round": true,
   "bar.customModules.cpu.pollingInterval": 5000,
   "bar.customModules.cpu.leftClick": "",
+  "bar.customModules.storage.paths": ["/"],
+  "bar.customModules.storage.label": true,
+  "bar.customModules.storage.labelType": "percentage",
+  "bar.customModules.storage.tooltipStyle": "percentage-bar",
+  "bar.customModules.storage.round": true,
+  "bar.customModules.storage.pollingInterval": 5000,
+  "bar.customModules.storage.leftClick": "",
   "theme.font.name": "Lexend",
   "theme.font.label": "Lexend",
   "theme.font.size": "1em",
@@ -121,6 +128,10 @@
   "theme.bar.buttons.modules.cpu.background": "#242438",
   "theme.bar.buttons.modules.cpu.text": "#f38ba8",
   "theme.bar.buttons.modules.cpu.icon": "#f38ba8",
+  "theme.bar.buttons.modules.storage.background": "#242438",
+  "theme.bar.buttons.modules.storage.text": "#a6e3a1",
+  "theme.bar.buttons.modules.storage.icon_background": "#242438",
+  "theme.bar.buttons.modules.storage.icon": "#a6e3a1",
   "theme.bar.buttons.clock.background": "#242438",
   "theme.bar.buttons.clock.text": "#f5c2e7",
   "theme.bar.buttons.clock.icon": "#f5c2e7",

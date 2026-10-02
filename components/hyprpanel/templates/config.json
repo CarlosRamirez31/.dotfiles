@@ -23,17 +23,17 @@
     "0": {
       "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "ram", "cpu", "storage", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     },
     "1": {
       "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "ram", "cpu", "storage", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     },
     "2": {
       "left": ["dashboard", "windowtitle", "custom/htb"],
       "middle": ["workspaces"],
-      "right": ["volume", "network", "ram", "cpu", "storage", "clock", "notifications"]
+      "right": ["volume", "network", "ram", "cpu", "clock", "notifications"]
     }
   },
   "bar.launcher.icon": "󰊠",

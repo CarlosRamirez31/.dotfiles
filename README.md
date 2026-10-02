@@ -48,7 +48,7 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | [`quality`](components/quality/README.md) | validación reproducible de Bash, Zsh, JSON y Lua |
 | [`git-security`](components/git-security/README.md) | Git portable, identidad privada y firma SSH opcional |
 | [`backup`](components/backup/README.md) | copias cifradas y verificables con Restic |
-| [`workbench`](components/workbench/README.md) | laboratorios Kali/Parrot aislados con Podman |
+| [`workbench`](components/workbench/README.md) | entornos rootless de desarrollo y pentesting |
 | [`desktop-extras`](components/desktop-extras/README.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
 | [`session`](components/session/README.md) | bloqueo, inactividad, suspensión y energía |
 | [`desktop-tools`](components/desktop-tools/README.md) | capturas e historial del portapapeles |
@@ -115,9 +115,9 @@ doctor                       # comprobar toda la instalación
 maintain check               # servicios, disco y actualizaciones
 maintain clean               # caché segura y journal de usuario
 backup run                   # ejecutar respaldo ya configurado
-labbox run kali             # Kali desechable con la red/VPN de Arch
-labbox run parrot           # Parrot desechable con la red/VPN de Arch
-labbox list                 # laboratorios persistentes y detenidos
+distrobox enter dev         # entrar al entorno de desarrollo
+distrobox enter kalilinux   # entrar al entorno Kali
+distrobox enter parrotos    # entrar al entorno ParrotOS, si fue creado
 sysinfo                      # información visual del sistema
 ```
 
@@ -174,22 +174,20 @@ lab-firewall lab-close tcp 4444
 Ese puerto solo se expone en interfaces VPN `tun*` y desaparece al reiniciar o
 recargar nftables.
 
-## Laboratorios Podman
+## Contenedores de trabajo
 
-Las imágenes no se construyen automáticamente ni consumen espacio hasta que se
-pidan. Incluyen los dotfiles de terminal y Neovim, pero no montan el home del
-host:
+Los contenedores no se crean automáticamente ni consumen espacio hasta que los
+pidas:
 
 ```bash
-labbox build kali
-labbox build parrot
-labbox run kali
-labbox create parrot parrot-principal
+distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name dev
+distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name kalilinux
+distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name parrotos
+distrobox list
 ```
 
-`labbox run` crea una instancia desechable; `labbox create` conserva cambios
-hasta ejecutar `labbox rm NOMBRE`. Ambas usan la red de la VM Arch para heredar
-las rutas de OpenVPN y solamente añaden `NET_RAW` para herramientas como Nmap.
+Podman funciona rootless. Distrobox integra el home, pero mantiene compiladores
+y herramientas específicas fuera del sistema Arch principal.
 
 ## Monitores por máquina
 

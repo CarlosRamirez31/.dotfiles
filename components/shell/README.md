@@ -37,7 +37,7 @@ Instala Zsh, Starship, eza, bat, FZF, fd, ripgrep, zoxide, vivid, plugins de sug
 
 FZF: `Ctrl+R` busca historial, `Ctrl+T` archivos y `Alt+C` directorios, con previews de Bat/eza.
 
-La edición de la línea sigue los atajos habituales de un editor gráfico: `Ctrl+Backspace` borra la palabra anterior, `Shift+←/→` amplía la selección por caracteres y `Ctrl+Shift+←/→` la amplía por palabras. Estas combinaciones están coordinadas con el componente `alacritty`.
+La edición de la línea sigue los atajos habituales de un editor gráfico: `Ctrl+Backspace` borra la palabra anterior, `Shift+←/→` amplía la selección por caracteres y `Ctrl+Shift+←/→` la amplía por palabras. Cuando existe una selección, `Backspace` o `Ctrl+Backspace` elimina todo el texto seleccionado. Estas combinaciones están coordinadas con el componente `alacritty`.
 
 ## Paquetes y sistema
 

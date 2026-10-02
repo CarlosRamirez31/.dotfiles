@@ -39,6 +39,7 @@ El objetivo se valida como IPv4 y se guarda en el estado local del usuario. Cuan
 | `templates/config.json` | Layout, menús, notificaciones, tema y acciones. |
 | `templates/modules.json` | Definición del módulo HTB y sondeo. |
 | `templates/modules.scss` | Apariencia del módulo personalizado. |
+| `.config/systemd/user/dotfiles-hyprpanel.service` | Arranque con la sesión y reinicio automático de la barra. |
 | `.local/bin/dotfiles-htb-vpn-status` | Detección VPN/HTB y salida JSON. |
 | `.local/bin/dotfiles-htb-target` | Gestión del objetivo local. |
 
@@ -46,9 +47,13 @@ El objetivo se valida como IPv4 y se guarda en el estado local del usuario. Cuan
 
 ```bash
 ./install.sh hyprpanel
-pkill -x hyprpanel
-uwsm-app -- hyprpanel
-tail -f "${XDG_RUNTIME_DIR:-/tmp}/hyprpanel-dotfiles.log"
+systemctl --user restart dotfiles-hyprpanel.service
+journalctl --user -u dotfiles-hyprpanel.service -f
 ```
 
-Durante una sesión activa el instalador detiene Waybar, cierra HyprPanel y lo inicia mediante UWSM cuando está disponible. Si falta el indicador, comprueba `ip -br address`, `ip route`, el estado JSON y que la VPN realmente tenga rutas HTB.
+El servicio arranca con la sesión gráfica y usa `Restart=always`, por lo que
+HyprPanel vuelve a levantarse tras un cierre limpio o un fallo. Al cerrar la
+sesión se detiene junto con `graphical-session.target`. Durante una sesión
+activa el instalador detiene Waybar, elimina cualquier instancia anterior de
+HyprPanel y reinicia el servicio. Si falta el indicador, comprueba `ip -br
+address`, `ip route`, el estado JSON y que la VPN realmente tenga rutas HTB.

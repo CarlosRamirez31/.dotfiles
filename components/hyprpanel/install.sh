@@ -38,17 +38,14 @@ install -m 0644 -- "$component_root/templates/modules.json" "$runtime_dir/module
 install -m 0644 -- "$component_root/templates/modules.scss" "$runtime_dir/modules.scss"
 touch -- "$marker"
 
+systemctl --user daemon-reload
+systemctl --user enable dotfiles-hyprpanel.service
 if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
     systemctl --user stop waybar.service >/dev/null 2>&1 || true
     pkill -x waybar >/dev/null 2>&1 || true
+    systemctl --user stop dotfiles-hyprpanel.service >/dev/null 2>&1 || true
     pkill -x hyprpanel >/dev/null 2>&1 || true
-    if command -v uwsm-app >/dev/null 2>&1; then
-        nohup uwsm-app -- hyprpanel \
-            >"${XDG_RUNTIME_DIR:-/tmp}/hyprpanel-dotfiles.log" 2>&1 &
-    else
-        nohup hyprpanel \
-            >"${XDG_RUNTIME_DIR:-/tmp}/hyprpanel-dotfiles.log" 2>&1 &
-    fi
+    systemctl --user start dotfiles-hyprpanel.service
 fi
 
 printf 'HyprPanel installed and configured.\n'

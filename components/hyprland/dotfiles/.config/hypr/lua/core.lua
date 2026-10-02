@@ -94,7 +94,9 @@ hl.on("hyprland.start", function()
     -- Start UWSM's lightweight application daemon in the background now. Its
     -- shell client is much faster than importing the Python CLI on every app.
     hl.exec_cmd("uwsm finalize PATH GDK_BACKEND GSK_RENDERER MOZ_ENABLE_WAYLAND ELECTRON_OZONE_PLATFORM_HINT TERMINAL XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE HYPRCURSOR_THEME HYPRCURSOR_SIZE SSH_AUTH_SOCK && uwsm-app -- true")
-    hl.exec_cmd("uwsm-app -- hyprpanel")
+    -- HyprPanel is supervised separately so an unexpected clean exit or crash
+    -- brings the bar back without restarting the compositor.
+    hl.exec_cmd("systemctl --user start dotfiles-hyprpanel.service")
     hl.exec_cmd([[pgrep -x awww-daemon >/dev/null || awww-daemon & sleep 1; awww img "$HOME/.config/wallpapers/arch-bsod.png" --transition-type none]])
     hl.exec_cmd("hyprctl setcursor Bibata-Modern-Classic 24")
     hl.exec_cmd("systemctl --user start hyprpolkitagent.service")

@@ -47,4 +47,4 @@ if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>
     hyprctl reload
 fi
 
-printf 'Yazi file chooser, graphical fallback and default applications installed.\n'
+printf 'Yazi file chooser, reliable save flow and default applications installed.\n'

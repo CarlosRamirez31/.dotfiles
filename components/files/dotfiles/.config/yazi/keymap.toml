@@ -1,4 +1,14 @@
 [[mgr.prepend_keymap]]
+on = "<Enter>"
+run = "enter"
+desc = "Entrar al directorio"
+
+[[mgr.prepend_keymap]]
+on = "<S-Enter>"
+run = "open"
+desc = "Abrir o confirmar el archivo"
+
+[[mgr.prepend_keymap]]
 on = [ "g", "d" ]
 run = "cd ~/Downloads"
 desc = "Ir a Descargas"

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+save=${3:?}
+
+if [[ $save != 1 ]]; then
+    exec /usr/share/xdg-desktop-portal-termfilechooser/yazi-wrapper.sh "$@"
+fi
+
+path=${4:?}
+out=${5:?}
+client_id=$$
+watcher_pid=''
+
+cleanup() {
+    if [[ -n $watcher_pid ]]; then
+        kill "$watcher_pid" 2>/dev/null || true
+        wait "$watcher_pid" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+
+watch_rename() {
+    local kind _receiver sender payload selected
+
+    while [[ ! -s $out ]]; do
+        while IFS=, read -r kind _receiver sender payload; do
+            if [[ $kind != rename || $sender != "$client_id" ]]; then
+                continue
+            fi
+            selected=$(jq -r '.to // empty' <<<"$payload")
+            if [[ -z $selected ]]; then
+                continue
+            fi
+            printf '%s\n' "$selected" >"$out"
+            ya emit-to "$client_id" quit
+            return
+        done < <(ya sub rename 2>/dev/null)
+        sleep 0.05
+    done
+}
+
+watch_rename &
+watcher_pid=$!
+
+"$HOME/.local/bin/dotfiles-terminal" \
+    --class dotfiles-file-picker \
+    --title "Guardar archivo" \
+    --command yazi \
+    --client-id="$client_id" \
+    --chooser-file="$out" \
+    "$path"

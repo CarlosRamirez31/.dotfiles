@@ -30,16 +30,19 @@ gio mount smb://servidor/recurso
 ```
 
 `Alt+E` abre Yazi en Alacritty y `Ctrl+Alt+E` abre Thunar. En Yazi se navega
-con `h/j/k/l`, `Enter` abre, `Space` selecciona y `q` sale. `gd`, `gp` y `gh`
+con `h/j/k/l`, `Enter` entra en directorios, `Shift+Enter` abre el archivo en
+su aplicación, `Space` selecciona y `q` sale. `gd`, `gp` y `gh`
 saltan a Descargas, Imágenes y el directorio personal. Los volúmenes aparecen
 en la barra lateral de Thunar y se montan mediante UDisks/GVfs; no hace falta
 `sudo mount` para el uso normal.
 
 Firefox y las aplicaciones que respetan XDG Desktop Portal abren Yazi al subir,
-abrir o escoger dónde guardar un archivo. `Enter` confirma el archivo señalado,
-`Space` permite una selección múltiple y `Q` cancela el diálogo. Para elegir el
-destino de cada descarga, activa «Preguntar siempre dónde guardar los archivos»
-en el navegador.
+abrir o guardar archivos. `Shift+Enter` confirma el archivo señalado, `Space`
+permite una selección múltiple y `Q` cancela el diálogo. Al guardar una descarga,
+`r` abre el nombre sugerido; al escribir el nombre y pulsar `Enter`, el cambio de
+nombre y la selección quedan confirmados en un solo paso. Para elegir el destino
+de cada descarga, activa «Preguntar siempre dónde guardar los archivos» en el
+navegador.
 
 ## Asociaciones predeterminadas
 
@@ -53,6 +56,10 @@ en el navegador.
 | ZIP, 7z, RAR y tar | File Roller |
 
 Se declaran en `.config/mimeapps.list`. Firefox viene de `desktop-extras`; si ese componente no está instalado, la asociación queda preparada pero no podrá abrirse hasta instalarlo.
+
+En imv, `Shift++` amplía la imagen y `Shift+-` la reduce. Este último atajo se
+declara de forma explícita porque esa combinación produce el carácter `_`, que
+imv no enlaza de fábrica.
 
 MPV conserva la selección automática de GPU en hardware físico. En VMware,
 donde la sesión exporta `LIBGL_ALWAYS_SOFTWARE=1`, el perfil

@@ -1,0 +1,3 @@
+[binds]
+# En el teclado, Shift+- produce "_". imv solo enlaza "-" de fábrica.
+_ = zoom -1

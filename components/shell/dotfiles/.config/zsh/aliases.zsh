@@ -2,11 +2,12 @@
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
-alias l='eza --icons=auto --group-directories-first'
-alias la='eza -a --icons=auto --group-directories-first'
-alias ll='eza -lah --icons=auto --group-directories-first --git --time-style=long-iso'
-alias lt='eza --tree --level=2 --icons=auto --group-directories-first'
-alias tree='eza --tree --icons=auto --group-directories-first'
+alias ls='eza --icons=always --group-directories-first'
+alias l='eza --icons=always --group-directories-first'
+alias la='eza -a --icons=always --group-directories-first'
+alias ll='eza -lah --icons=always --group-directories-first --git --time-style=long-iso'
+alias lt='eza --tree --level=2 --icons=always --group-directories-first'
+alias tree='eza --tree --icons=always --group-directories-first'
 
 # Better defaults for reading and searching files.
 alias cat='bat --paging=never --style=plain'

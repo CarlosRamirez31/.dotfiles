@@ -26,7 +26,7 @@ Instala Zsh, Starship, eza, bat, FZF, fd, ripgrep, zoxide, vivid, plugins de sug
 | Comando | Uso |
 | --- | --- |
 | `..`, `...`, `....` | Subir uno, dos o tres directorios. |
-| `l`, `la`, `ll`, `lt`, `tree` | Listados eza; `ll` incluye Git y `lt` limita a dos niveles. |
+| `ls`, `l`, `la`, `ll`, `lt`, `tree` | Listados eza con iconos; `ll` incluye Git y `lt` limita a dos niveles. |
 | `cat` / `catp` | Bat legible / `cat` POSIX real. |
 | `z RUTA`, `zi` | Saltar a rutas aprendidas / selector interactivo. |
 | `mkcd DIRECTORIO` | Crear directorio y entrar. |

@@ -1,11 +1,13 @@
 # Files
 
-Este componente convierte el escritorio mínimo en un entorno capaz de navegar archivos, montar medios y abrir formatos comunes. Centraliza las asociaciones MIME para que Rofi, Firefox, Thunar y aplicaciones GTK elijan programas predecibles.
+Este componente convierte el escritorio mínimo en un entorno capaz de navegar archivos, montar medios y abrir formatos comunes. Yazi aporta navegación tipo Neovim y funciona como selector de archivos del sistema; Thunar permanece como respaldo gráfico. Las asociaciones MIME permiten que Rofi, Firefox y aplicaciones GTK elijan programas predecibles.
 
 ## Paquetes y responsabilidades
 
 | Paquete | Función |
 | --- | --- |
+| `yazi` | Gestor de terminal con previsualizaciones y navegación `h/j/k/l`. |
+| `xdg-desktop-portal-termfilechooser` | Presenta Yazi al navegador y aplicaciones compatibles como selector del sistema. |
 | `thunar`, `thunar-volman` | Gestor de archivos y reacción a medios removibles. |
 | `tumbler` | Miniaturas en Thunar. |
 | `gvfs`, `gvfs-mtp`, `gvfs-gphoto2`, `gvfs-smb` | Papelera, teléfonos, cámaras y recursos SMB. |
@@ -21,13 +23,23 @@ Este componente convierte el escritorio mínimo en un entorno capaz de navegar a
 
 ```bash
 ./install.sh files
-thunar
+yazi
 xdg-open documento.pdf
 xdg-open imagen.png
 gio mount smb://servidor/recurso
 ```
 
-`Alt+E` abre Thunar. Los volúmenes aparecen en su barra lateral y se montan mediante UDisks/GVfs; no hace falta `sudo mount` para el uso normal.
+`Alt+E` abre Yazi en Alacritty y `Ctrl+Alt+E` abre Thunar. En Yazi se navega
+con `h/j/k/l`, `Enter` abre, `Space` selecciona y `q` sale. `gd`, `gp` y `gh`
+saltan a Descargas, Imágenes y el directorio personal. Los volúmenes aparecen
+en la barra lateral de Thunar y se montan mediante UDisks/GVfs; no hace falta
+`sudo mount` para el uso normal.
+
+Firefox y las aplicaciones que respetan XDG Desktop Portal abren Yazi al subir,
+abrir o escoger dónde guardar un archivo. `Enter` confirma el archivo señalado,
+`Space` permite una selección múltiple y `Q` cancela el diálogo. Para elegir el
+destino de cada descarga, activa «Preguntar siempre dónde guardar los archivos»
+en el navegador.
 
 ## Asociaciones predeterminadas
 
@@ -50,11 +62,15 @@ fallback hacia X11 o pierda cuadros renderizando OpenGL mediante `llvmpipe`.
 
 ## Efectos del instalador y diagnóstico
 
-Además de enlazar `mimeapps.list`, ejecuta `xdg-user-dirs-update`, que crea o actualiza nombres de carpetas XDG del usuario.
+Además de enlazar `mimeapps.list`, configura el portal `FileChooser` para Yazi,
+conserva los demás portales de Hyprland/GTK y ejecuta `xdg-user-dirs-update`, que
+crea o actualiza nombres de carpetas XDG del usuario.
 
 ```bash
 xdg-mime query default inode/directory
 xdg-mime query default application/pdf
+systemctl --user status xdg-desktop-portal-termfilechooser.service
+journalctl --user -eu xdg-desktop-portal-termfilechooser.service
 gio mount -l
 systemctl status udisks2.service
 ```

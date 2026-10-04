@@ -26,7 +26,7 @@ fail() {
 
 printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
 
-essential_commands=(hyprland uwsm zsh alacritty nvim rofi hyprpanel hyprlock hypridle)
+essential_commands=(hyprland uwsm zsh alacritty nvim yazi rofi hyprpanel hyprlock hypridle)
 optional_commands=(fastfetch thunar grim slurp swappy cliphist wl-copy blueman-manager nft openvpn)
 optional_commands+=(restic podman labbox firefox keepassxc btop wf-recorder hyprpicker trash-put)
 
@@ -83,6 +83,8 @@ managed_paths=(
     "$HOME/.config/hypr/hyprland.lua"
     "$HOME/.config/alacritty/alacritty.toml"
     "$HOME/.config/nvim/init.lua"
+    "$HOME/.config/yazi/yazi.toml"
+    "$HOME/.config/xdg-desktop-portal/portals.conf"
     "$HOME/.config/fastfetch/config.jsonc"
 )
 for managed_path in "${managed_paths[@]}"; do

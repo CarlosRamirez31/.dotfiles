@@ -52,14 +52,14 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | [`desktop-extras`](components/desktop-extras/README.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
 | [`session`](components/session/README.md) | bloqueo, inactividad, suspensión y energía |
 | [`desktop-tools`](components/desktop-tools/README.md) | capturas e historial del portapapeles |
-| [`files`](components/files/README.md) | Thunar, medios removibles, visores y asociaciones |
+| [`files`](components/files/README.md) | Yazi, selector del sistema, Thunar, visores y asociaciones |
 | [`hardware`](components/hardware/README.md) | Bluetooth y, en equipos físicos, firmware/SMART |
 | [`security`](components/security/README.md) | keyring, agente SSH y firewall nftables |
 | [`uwsm`](components/uwsm/README.md) | sesión Wayland administrada por systemd |
 | [`alacritty`](components/alacritty/README.md) | terminal gráfica y registro XDG |
 | [`nvim`](components/nvim/README.md) | editor LazyVim para todos los lenguajes usados |
 | [`rofi`](components/rofi/README.md) | lanzador de aplicaciones |
-| [`wallpaper`](components/wallpaper/README.md) | fondo administrado por Awww |
+| [`wallpaper`](components/wallpaper/README.md) | carrusel GTK con estado Waypaper y fondo Awww |
 | [`hyprpanel`](components/hyprpanel/README.md) | barra, notificaciones, workspaces y estado HTB |
 | [`hyprland`](components/hyprland/README.md) | compositor, ventanas, monitores y atajos |
 | [`doctor`](components/doctor/README.md) | diagnóstico final de toda la instalación |
@@ -90,7 +90,9 @@ Aplicaciones y sesión:
 | `Alt+Enter` / `Ctrl+Alt+T` | terminal |
 | `Alt+Space` / `Alt+D` / `Alt+F2` | aplicaciones |
 | `Alt+B` | Firefox |
-| `Alt+E` | Thunar |
+| `Alt+E` | Yazi |
+| `Ctrl+Alt+E` | Thunar (respaldo gráfico) |
+| `Alt+W` | seleccionar wallpaper con vista previa |
 | `Alt+C` | historial del portapapeles |
 | `Ctrl+Shift+B` | bloquear |
 | `Alt+Shift+E` | cerrar sesión |

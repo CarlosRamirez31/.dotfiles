@@ -1,0 +1,6 @@
+[filechooser]
+cmd=yazi-wrapper.sh
+default_dir=$HOME
+env=TERMCMD='bash "$HOME/.local/bin/dotfiles-terminal" --class dotfiles-file-picker --title "Seleccionar archivo" --command'
+open_mode=suggested
+save_mode=suggested

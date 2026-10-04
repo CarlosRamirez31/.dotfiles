@@ -19,6 +19,7 @@ Después de una instalación nueva, reinicia y selecciona `Hyprland (uwsm-manage
 | --- | --- |
 | `GDK_BACKEND=wayland,x11,*` | Preferir Wayland con fallback. |
 | `GSK_RENDERER=cairo` solo en VMware | Evitar incompatibilidad de buffers GTK/vmwgfx. |
+| `GTK_USE_PORTAL=1` | Usar el selector Yazi del portal desde aplicaciones GTK compatibles. |
 | `MOZ_ENABLE_WAYLAND=1` | Firefox nativo Wayland. |
 | `ELECTRON_OZONE_PLATFORM_HINT=auto` | Selección correcta para Electron. |
 | `PATH` con `~/.local/bin` | Scripts disponibles aun con entorno mínimo de SDDM. |

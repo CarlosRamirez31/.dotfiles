@@ -1,0 +1,91 @@
+[app]
+overall = { bg = "#1a1b26" }
+
+[mgr]
+cwd = { fg = "#7aa2f7", bold = true }
+find_keyword = { fg = "#e0af68", bold = true, underline = true }
+find_position = { fg = "#bb9af7", italic = true }
+symlink_target = { fg = "#7dcfff", italic = true }
+marker_copied = { fg = "#9ece6a", bg = "#9ece6a" }
+marker_cut = { fg = "#f7768e", bg = "#f7768e" }
+marker_marked = { fg = "#bb9af7", bg = "#bb9af7" }
+marker_selected = { fg = "#7aa2f7", bg = "#7aa2f7" }
+count_copied = { fg = "#1a1b26", bg = "#9ece6a", bold = true }
+count_cut = { fg = "#1a1b26", bg = "#f7768e", bold = true }
+count_selected = { fg = "#1a1b26", bg = "#7aa2f7", bold = true }
+border_symbol = "│"
+border_style = { fg = "#414868" }
+hovered = { fg = "#1a1b26", bg = "#7aa2f7", bold = true }
+
+[filetype]
+rules = [
+    { mime = "**/image/*", fg = "#e0af68" },
+    { mime = "**/audio/*", fg = "#bb9af7" },
+    { mime = "**/video/*", fg = "#f7768e" },
+    { mime = "**/application/{pdf,doc,rtf}", fg = "#7dcfff" },
+    { mime = "**/application/{zip,rar,7z*,tar,gzip,xz,zstd,bzip*,archive}", fg = "#f7768e" },
+    { mime = "**/text/{x-shellscript,x-python,x-lua,x-rust}", fg = "#9ece6a" },
+    { mime = "vfs/{absent,stale}", fg = "#565f89" },
+    { url = "*", is = "orphan", fg = "#f7768e", crossed = true },
+    { url = "*", is = "exec", fg = "#9ece6a", bold = true },
+    { url = "*/", fg = "#7aa2f7", bold = true },
+]
+
+# Yazi already ships nvim-web-devicons. These rules give the folders and file
+# types used most often a brighter Tokyo Night identity without replacing the
+# large built-in icon set.
+[icon]
+prepend_dirs = [
+    { name = ".config", text = "", fg = "#e0af68" },
+    { name = ".dotfiles", text = "", fg = "#bb9af7" },
+    { name = ".git", text = "", fg = "#f7768e" },
+    { name = "Desktop", text = "", fg = "#7dcfff" },
+    { name = "Documents", text = "", fg = "#7dcfff" },
+    { name = "Downloads", text = "", fg = "#9ece6a" },
+    { name = "Music", text = "", fg = "#bb9af7" },
+    { name = "Pictures", text = "", fg = "#e0af68" },
+    { name = "Projects", text = "󰲋", fg = "#9ece6a" },
+    { name = "Videos", text = "", fg = "#f7768e" },
+]
+prepend_exts = [
+    { name = "png", text = "", fg = "#e0af68" },
+    { name = "jpg", text = "", fg = "#e0af68" },
+    { name = "jpeg", text = "", fg = "#e0af68" },
+    { name = "webp", text = "", fg = "#e0af68" },
+    { name = "svg", text = "󰜡", fg = "#e0af68" },
+    { name = "mp3", text = "", fg = "#bb9af7" },
+    { name = "flac", text = "", fg = "#bb9af7" },
+    { name = "mp4", text = "", fg = "#f7768e" },
+    { name = "mkv", text = "", fg = "#f7768e" },
+    { name = "pdf", text = "", fg = "#f7768e" },
+    { name = "zip", text = "", fg = "#f7768e" },
+    { name = "7z", text = "", fg = "#f7768e" },
+    { name = "tar", text = "", fg = "#f7768e" },
+    { name = "md", text = "", fg = "#7dcfff" },
+    { name = "json", text = "", fg = "#e0af68" },
+    { name = "toml", text = "", fg = "#e0af68" },
+    { name = "yaml", text = "", fg = "#e0af68" },
+    { name = "yml", text = "", fg = "#e0af68" },
+    { name = "sh", text = "", fg = "#9ece6a" },
+    { name = "zsh", text = "", fg = "#9ece6a" },
+    { name = "py", text = "", fg = "#e0af68" },
+    { name = "lua", text = "", fg = "#7aa2f7" },
+    { name = "js", text = "", fg = "#e0af68" },
+    { name = "ts", text = "", fg = "#7aa2f7" },
+    { name = "html", text = "", fg = "#f7768e" },
+    { name = "css", text = "", fg = "#7dcfff" },
+    { name = "rs", text = "", fg = "#f7768e" },
+    { name = "go", text = "", fg = "#7dcfff" },
+]
+prepend_conds = [
+    { if = "orphan", text = "", fg = "#f7768e" },
+    { if = "link", text = "", fg = "#7dcfff" },
+    { if = "exec", text = "", fg = "#9ece6a" },
+]
+
+[help]
+border = { fg = "#414868" }
+chord = { fg = "#7dcfff" }
+action = { fg = "#c0caf5" }
+desc = { fg = "#a9b1d6" }
+hovered = { fg = "#1a1b26", bg = "#7aa2f7", bold = true }

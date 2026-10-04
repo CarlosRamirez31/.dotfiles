@@ -31,7 +31,9 @@ Al iniciar, finaliza variables UWSM, arranca HyprPanel, Awww, agente Polkit, ser
 | `Alt+Enter`, `Ctrl+Alt+T` | Terminal. |
 | `Alt+Space`, `Alt+D`, `Alt+F2` | Rofi. |
 | `Alt+B` | Firefox. |
-| `Alt+E` | Thunar. |
+| `Alt+E` | Yazi en Alacritty. |
+| `Ctrl+Alt+E` | Thunar como respaldo gráfico. |
+| `Alt+W` | Selector visual de wallpapers. |
 | `Super+C`, `Alt+C` | Elegir y pegar desde el historial del portapapeles. |
 | `Ctrl+Shift+B` | Bloquear. |
 | `Alt+Shift+E` | Finalizar sesión UWSM. |

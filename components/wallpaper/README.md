@@ -7,10 +7,11 @@ se mantienen fuera de Git en `~/Pictures/Wallpapers`.
 
 ## Funcionamiento
 
-Al iniciar Hyprland, `dotfiles-wallpaper restore` delega en Waypaper la
-restauración de la última selección. Solamente aplica
-`.config/wallpapers/arch-bsod.png` cuando la carpeta no existe o no contiene
-imágenes compatibles.
+Al iniciar Hyprland, `dotfiles-wallpaper restore` lee la ruta guardada por
+Waypaper y la aplica directamente con Awww, sin iniciar Waypaper ni recorrer la
+carpeta de fondos. Solo busca una imagen alternativa si la última selección ya
+no existe; si no hay imágenes compatibles, aplica
+`.config/wallpapers/arch-bsod.png`.
 
 ```bash
 ./install.sh wallpaper

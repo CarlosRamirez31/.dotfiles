@@ -236,17 +236,14 @@ class Preview(Gtk.DrawingArea):
 class Carousel(Gtk.Window):
     def __init__(self, folder: Path):
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
-        self.wallpapers = sorted(
-            path
-            for path in folder.iterdir()
-            if path.is_file()
-            and path.suffix.lower() in FORMATS
-            and image_dimensions(path) is not None
-        )
-        if not self.wallpapers:
-            raise ValueError("No hay imágenes válidas")
+        self.folder = folder
+        self.wallpapers: list[Path] = []
         self.loader = ThumbnailLoader()
-        self.current = self.saved_index()
+        self.scanner = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="wallpaper-scan",
+        )
+        self.current = 0
 
         self.set_name("wallpaper-carousel")
         self.set_decorated(False)
@@ -257,6 +254,10 @@ class Carousel(Gtk.Window):
         self.connect("key-press-event", self.on_key)
         self.connect("destroy", Gtk.main_quit)
         self.connect("destroy", lambda _window: self.loader.close())
+        self.connect(
+            "destroy",
+            lambda _window: self.scanner.shutdown(wait=False, cancel_futures=True),
+        )
 
         screen = self.get_screen()
         visual = screen.get_rgba_visual()
@@ -291,7 +292,41 @@ class Carousel(Gtk.Window):
             css,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
+        self.loading = Gtk.Label(label="Cargando imágenes…")
+        self.loading.set_halign(Gtk.Align.CENTER)
+        self.loading.set_valign(Gtk.Align.CENTER)
+        self.add(self.loading)
+
+    def scan_wallpapers(self) -> list[Path]:
+        candidates = sorted(
+            path
+            for path in self.folder.iterdir()
+            if path.is_file() and path.suffix.lower() in FORMATS
+        )
+        return [path for path in candidates if image_dimensions(path) is not None]
+
+    def begin_scan(self):
+        future = self.scanner.submit(self.scan_wallpapers)
+        future.add_done_callback(
+            lambda completed: GLib.idle_add(self.finish_scan, completed)
+        )
+
+    def finish_scan(self, future: Future):
+        if self.loader.closed:
+            return False
+        try:
+            self.wallpapers = future.result()
+        except OSError as error:
+            print(f"No se pudo leer {self.folder}: {error}", file=sys.stderr)
+            self.wallpapers = []
+
+        if not self.wallpapers:
+            self.loading.set_text("No hay imágenes válidas")
+            return False
+
+        self.current = self.saved_index()
         self.rebuild()
+        return False
 
     def saved_index(self) -> int:
         state = Path.home() / ".local/state/waypaper/state.ini"
@@ -388,6 +423,19 @@ class Carousel(Gtk.Window):
         self.destroy()
 
     def on_key(self, _widget, event):
+        if not self.wallpapers:
+            if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_q):
+                self.close_picker()
+            return event.keyval in (
+                Gdk.KEY_Left,
+                Gdk.KEY_Right,
+                Gdk.KEY_h,
+                Gdk.KEY_l,
+                Gdk.KEY_Return,
+                Gdk.KEY_KP_Enter,
+                Gdk.KEY_Escape,
+                Gdk.KEY_q,
+            )
         if event.keyval in (Gdk.KEY_Left, Gdk.KEY_h):
             self.move(-1)
             return True
@@ -432,6 +480,7 @@ def main() -> int:
         window = Carousel(folder)
         window.show_all()
         window.present()
+        window.begin_scan()
         Gtk.main()
     finally:
         os.close(lock_fd)

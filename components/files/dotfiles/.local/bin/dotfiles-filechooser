@@ -11,25 +11,96 @@ path=${4:?}
 out=${5:?}
 client_id=$$
 watcher_pid=''
+move_watcher_pid=''
+moved_helpers="${out}.helpers"
 
 cleanup() {
     if [[ -n $watcher_pid ]]; then
         kill "$watcher_pid" 2>/dev/null || true
         wait "$watcher_pid" 2>/dev/null || true
     fi
+    if [[ -n $move_watcher_pid ]]; then
+        kill "$move_watcher_pid" 2>/dev/null || true
+        wait "$move_watcher_pid" 2>/dev/null || true
+    fi
+
+    local selected='' selected_path candidate
+    if [[ -s $out ]]; then
+        IFS= read -r selected < "$out" || true
+    fi
+    decode_path "$selected"
+    selected_path=$decoded_path
+
+    if [[ -z $selected ]]; then
+        remove_helper "$path"
+    elif [[ $selected_path != "$(decode_path_value "$path")" ]]; then
+        remove_helper "$path"
+    fi
+
+    if [[ -r $moved_helpers ]]; then
+        while IFS= read -r candidate; do
+            [[ -n $candidate && $candidate != "$selected_path" ]] &&
+                remove_helper "$candidate"
+        done < "$moved_helpers"
+    fi
+    rm -f -- "$moved_helpers"
 }
 trap cleanup EXIT
 
+decode_path() {
+    local encoded
+    decoded_path=$1
+    case $decoded_path in
+        file://*)
+            encoded=${decoded_path#file://}
+            printf -v decoded_path '%b' "${encoded//%/\\x}"
+            ;;
+    esac
+}
+
+decode_path_value() {
+    decode_path "$1"
+    printf '%s' "$decoded_path"
+}
+
+is_portal_helper() {
+    local file=$1 size marker='* xdg-desktop-portal-termfilechooser instructions *'
+    [[ -f $file && ! -L $file ]] || return 1
+    size=$(stat -c '%s' -- "$file") || return 1
+    ((size <= 512)) || return 1
+    [[ $(head -n 1 -- "$file") == "$marker" &&
+        $(tail -n 1 -- "$file") == "$marker" ]]
+}
+
+remove_helper() {
+    local file
+    decode_path "$1"
+    file=$decoded_path
+    if is_portal_helper "$file"; then
+        rm -f -- "$file"
+    fi
+}
+
 watch_rename() {
-    local kind _receiver sender payload selected
+    local kind _receiver sender payload selected from
 
     while [[ ! -s $out ]]; do
         while IFS=, read -r kind _receiver sender payload; do
             if [[ $kind != rename || $sender != "$client_id" ]]; then
                 continue
             fi
+            from=$(jq -r '.from // empty' <<<"$payload")
             selected=$(jq -r '.to // empty' <<<"$payload")
-            if [[ -z $selected ]]; then
+            if [[ -z $selected || -z $from ]]; then
+                continue
+            fi
+            # Cross-directory moves should stay in Yazi so the user can paste
+            # and confirm explicitly. Same-directory rename commits the name.
+            if [[ ${from%/*} != "${selected%/*}" ]]; then
+                printf '%s\n' "$selected" >>"$moved_helpers"
+                continue
+            fi
+            if ! is_portal_helper "$(decode_path_value "$selected")"; then
                 continue
             fi
             printf '%s\n' "$selected" >"$out"
@@ -40,8 +111,24 @@ watch_rename() {
     done
 }
 
+watch_moves() {
+    local kind _receiver sender payload
+
+    while [[ ! -s $out ]]; do
+        while IFS=, read -r kind _receiver sender payload; do
+            if [[ $kind != move || $sender != "$client_id" ]]; then
+                continue
+            fi
+            jq -r '.items[]?.to // empty' <<<"$payload" >>"$moved_helpers"
+        done < <(ya sub move 2>/dev/null)
+        sleep 0.05
+    done
+}
+
 watch_rename &
 watcher_pid=$!
+watch_moves &
+move_watcher_pid=$!
 
 "$HOME/.local/bin/dotfiles-terminal" \
     --class dotfiles-file-picker \

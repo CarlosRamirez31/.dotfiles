@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+vpn_status=$("$HOME/.local/bin/dotfiles-htb-vpn-status" 2>/dev/null || true)
+[[ -n $vpn_status ]] || exit 0
+
+printf '%%{F#9fef00}%%{F-} %s\n' "$vpn_status"

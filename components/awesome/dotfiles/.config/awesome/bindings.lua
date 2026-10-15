@@ -12,6 +12,7 @@ local function spawn(command)
     end
 end
 local keys = gears.table.join(
+    awful.key({ modkey }, "Tab", spawn("rofi -modi window,drun -show window")),
     awful.key({ modkey }, "Return", spawn("dotfiles-terminal")), awful.key({ "Control", modkey }, "t", spawn("dotfiles-terminal")), awful.key({ modkey }, "space", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "d", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "F2", spawn("dotfiles-app-launcher")),
     awful.key({ modkey }, "b", spawn("firefox")), awful.key({ modkey }, "e", spawn("dotfiles-terminal --command yazi")), awful.key({ "Control", modkey }, "e", spawn("thunar")), awful.key({ modkey }, "w", spawn("dotfiles-wallpaper choose")), awful.key({ modkey }, "c", spawn("dotfiles-clipboard")), awful.key({ "Control", "Shift" }, "b", spawn("dotfiles-lock")), awful.key({ modkey, "Shift" }, "e", function() awesome.quit() end),
     awful.key({ modkey }, "q", function() if client.focus then client.focus:kill() end end), awful.key({ modkey }, "f", function() if client.focus then client.focus.fullscreen = not client.focus.fullscreen; client.focus:raise() end end), awful.key({ modkey }, "v", function() if client.focus then client.focus.floating = not client.focus.floating end end),

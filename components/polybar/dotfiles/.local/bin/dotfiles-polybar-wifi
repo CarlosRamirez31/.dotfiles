@@ -1,31 +1,86 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-active=$(nmcli -t -f ACTIVE,SSID device wifi list 2>/dev/null | awk -F: '$1 == "yes" {print $2; exit}')
-options=$(nmcli -t -f SECURITY,SSID device wifi list 2>/dev/null | awk -F: '
-    $2 != "" {
-        icon = ($1 == "") ? "󰖩" : ""
-        print icon " " $2
-    }
-' | awk '!seen[$0]++')
-choice=$(printf '%s\n%s\n%s\n' "$options" '──────────' 'Toggle Wi-Fi' | rofi -dmenu -i -p "${active:-Wi-Fi}")
+status() {
+    local devices wifi_present=0 wifi_connected=0 ethernet_present=0 ethernet_connected=0
+    devices=$(nmcli -t -f TYPE,STATE device 2>/dev/null || true)
+    while IFS=: read -r type state; do
+        case "$type" in
+            wifi)
+                wifi_present=1
+                [[ $state == connected ]] && wifi_connected=1
+                ;;
+            ethernet)
+                ethernet_present=1
+                [[ $state == connected ]] && ethernet_connected=1
+                ;;
+        esac
+    done <<< "$devices"
 
-case "$choice" in
-    ''|'──────────') exit 0 ;;
-    'Toggle Wi-Fi')
-        if [[ $(nmcli -t -f WIFI general status) == enabled ]]; then
-            nmcli radio wifi off
+    if (( ethernet_present )); then
+        if (( ethernet_connected )); then
+            printf '%%{F#a3be8c}󰈀%%{F-} '
         else
-            nmcli radio wifi on
+            printf '%%{F#d35f5e}󰈀%%{F-} '
         fi
-        exit 0
-        ;;
-esac
+    fi
+    if (( wifi_present )); then
+        if (( wifi_connected )); then
+            printf '%%{F#a3be8c}%%{F-}\n'
+        else
+            printf '%%{F#d35f5e}󰖪%%{F-}\n'
+        fi
+    elif (( ! ethernet_present )); then
+        printf '%%{F#d35f5e}󰖪%%{F-}\n'
+    fi
+}
 
-ssid=${choice#* }
-if [[ $choice == * ]]; then
-    password=$(rofi -dmenu -password -p "Password for $ssid")
-    nmcli device wifi connect "$ssid" password "$password"
+menu() {
+    local active_device wifi_enabled choice ssid password networks profile uuid profile_name
+    wifi_enabled=$(nmcli -t -f WIFI general status 2>/dev/null || true)
+    active_device=$(nmcli -t -f DEVICE,TYPE,STATE device 2>/dev/null | awk -F: '$2 == "wifi" && $3 == "connected" {print $1; exit}')
+    choice=$(printf '%s\n' \
+        'Conectar o cambiar Wi-Fi' \
+        'Desconectar Wi-Fi' \
+        'Olvidar una red Wi-Fi' \
+        "$([[ $wifi_enabled == enabled ]] && printf 'Apagar Wi-Fi' || printf 'Encender Wi-Fi')" \
+        | rofi -dmenu -i -p 'Redes Wi-Fi') || return 0
+
+    case "$choice" in
+        '') return 0 ;;
+        'Conectar o cambiar Wi-Fi')
+            nmcli device wifi rescan >/dev/null 2>&1 || true
+            networks=$(nmcli -g SSID device wifi list 2>/dev/null | awk 'NF && !seen[$0]++')
+            ssid=$(printf '%s\n' "$networks" | rofi -dmenu -i -p 'Elige una red') || return 0
+            [[ -n $ssid ]] || return 0
+            if nmcli device wifi connect "$ssid" >/dev/null 2>&1; then
+                return 0
+            fi
+            password=$(rofi -dmenu -password -p "Clave de $ssid") || return 0
+            [[ -n $password ]] && nmcli device wifi connect "$ssid" password "$password"
+            return ;;
+        'Desconectar Wi-Fi')
+            [[ -n $active_device ]] && nmcli device disconnect "$active_device"
+            return ;;
+        'Olvidar una red Wi-Fi')
+            local -a profiles=()
+            while IFS= read -r uuid; do
+                [[ -n $uuid ]] || continue
+                profile_name=$(nmcli -g NAME connection show uuid "$uuid" 2>/dev/null || true)
+                [[ -n $profile_name ]] && profiles+=("$uuid  $profile_name")
+            done < <(nmcli -t -f UUID,TYPE connection show 2>/dev/null | awk -F: '$NF == "802-11-wireless" {print $1}')
+            profile=$(printf '%s\n' "${profiles[@]}" | rofi -dmenu -i -p 'Elige la red que quieres olvidar') || return 0
+            [[ -n $profile ]] || return 0
+            uuid=${profile%%  *}
+            nmcli connection delete uuid "$uuid"
+            return ;;
+        'Apagar Wi-Fi') nmcli radio wifi off; return ;;
+        'Encender Wi-Fi') nmcli radio wifi on; return ;;
+    esac
+}
+
+if [[ ${1:-} == --status ]]; then
+    status
 else
-    nmcli device wifi connect "$ssid"
+    menu
 fi

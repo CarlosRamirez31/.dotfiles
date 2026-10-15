@@ -10,6 +10,11 @@ fi
 export WLAN_IFACE="$(ip -o link show | awk -F': ' '$2 ~ /^wl/{print $2; exit}')"
 export BATTERY="$(find /sys/class/power_supply -maxdepth 1 -name 'BAT*' -printf '%f\n' 2>/dev/null | head -n1)"
 export ADAPTER="$(find /sys/class/power_supply -maxdepth 1 \( -name 'AC*' -o -name 'ADP*' \) -printf '%f\n' 2>/dev/null | head -n1)"
-export BACKLIGHT_CARD="$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -n1)"
+backlight_card="$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -n1)"
+if [[ -n $backlight_card ]]; then
+    export BACKLIGHT_CARD="$backlight_card"
+else
+    unset BACKLIGHT_CARD
+fi
 
 exec polybar top >>"${XDG_RUNTIME_DIR:-/tmp}/polybar.log" 2>&1

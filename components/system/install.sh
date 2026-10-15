@@ -8,6 +8,7 @@ require_arch_user
 
 packages=(
     git
+    sddm
     xdg-desktop-portal-gtk
     libnotify
     pipewire
@@ -28,12 +29,6 @@ case $virtualization in
     kvm | qemu) packages+=(spice-vdagent) ;;
 esac
 
-needs_display_manager=false
-if ! systemctl is-enabled display-manager.service >/dev/null 2>&1; then
-    packages+=(sddm)
-    needs_display_manager=true
-fi
-
 install_packages "${packages[@]}"
 sudo systemctl enable --now NetworkManager.service
 
@@ -47,10 +42,12 @@ case $virtualization in
         ;;
 esac
 
-if [[ $needs_display_manager == true ]]; then
-    sudo systemctl enable sddm.service
-else
-    printf 'Keeping the currently enabled display manager.\n'
+current_display_manager=$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null || true)
+if [[ -n $current_display_manager && $current_display_manager != */sddm.service ]]; then
+    current_display_manager=${current_display_manager##*/}
+    printf 'Selecting SDDM for the next boot (current session stays active; replacing %s).\n' "$current_display_manager"
+    sudo systemctl disable "$current_display_manager"
 fi
+sudo systemctl enable sddm.service
 
 printf 'Base desktop services installed and configured.\n'

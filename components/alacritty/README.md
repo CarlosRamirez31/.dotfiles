@@ -1,12 +1,12 @@
 # Alacritty
 
-Este componente instala y registra Alacritty como la terminal gráfica del escritorio. Existe como punto único de entrada para que Hyprland, HyprPanel, Rofi y XDG abran la misma terminal con el mismo shell, fuente y comportamiento, incluido el ajuste necesario en VMware.
+Este componente instala y registra Alacritty como terminal gráfica de Awesome/X11. El mismo wrapper ofrece una entrada estable para los atajos, Rofi y XDG, con el mismo shell y fuente.
 
 ## Qué instala y por qué
 
 | Paquete | Función |
 | --- | --- |
-| `alacritty` | Emulador de terminal nativo y compatible con Wayland. |
+| `alacritty` | Emulador de terminal para X11. |
 | `zsh` | Shell de login que Alacritty inicia explícitamente. |
 | `ttf-jetbrains-mono-nerd` | Fuente monoespaciada con glifos para Starship y herramientas CLI. |
 | `noto-fonts-emoji` | Respaldo para emojis de Starship, como el símbolo predeterminado de Kali Linux. |
@@ -22,7 +22,7 @@ dotfiles-terminal -e btop    # ejecutar un comando dentro de Alacritty
 alacritty --print-events     # diagnóstico de ventanas y entrada
 ```
 
-`Alt+Enter` y `Ctrl+Alt+T` llaman a `dotfiles-terminal`. El wrapper activa `LIBGL_ALWAYS_SOFTWARE=1` únicamente en VMware para evitar superficies negras tras cambiar la resolución; en cualquier otro equipo conserva aceleración normal.
+`Alt+Enter` y `Ctrl+Alt+T` llaman a `dotfiles-terminal`. En Awesome el wrapper no fuerza `LIBGL_ALWAYS_SOFTWARE`; Alacritty usa X11 y el renderer disponible para VMware.
 
 ## Archivos administrados
 
@@ -33,7 +33,7 @@ alacritty --print-events     # diagnóstico de ventanas y entrada
 | `.local/share/applications/Alacritty.desktop` | Registro para Rofi y menús XDG. |
 | `.config/xdg-terminals.list` | Declara Alacritty como terminal preferida. |
 
-La fuente depende de `fonts`; el prompt y shell se personalizan en `shell`; las variables Wayland vienen de `uwsm`. Este componente no guarda historial ni configura Zsh.
+La fuente depende de `fonts`; el prompt y shell se personalizan en `shell`. Este componente no guarda historial ni configura Zsh.
 
 ## Verificación y problemas comunes
 
@@ -42,4 +42,4 @@ command -v alacritty dotfiles-terminal
 grep Alacritty ~/.config/xdg-terminals.list
 ```
 
-Si faltan iconos, reinstala `fonts` y ejecuta `fc-cache -f`. Si no cargan alias, reinstala `shell` o comprueba `zsh -l`. En VMware abre mediante `dotfiles-terminal` para aplicar el fallback.
+Si faltan iconos, reinstala `fonts` y ejecuta `fc-cache -f`. Si no cargan alias, reinstala `shell` o comprueba `zsh -l`. En Awesome confirma `echo "$XDG_SESSION_TYPE"` (`x11`) y `echo "$WAYLAND_DISPLAY"` (vacío).

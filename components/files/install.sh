@@ -29,10 +29,9 @@ install_packages \
     poppler \
     resvg \
     ripgrep \
-    wl-clipboard \
-    xdg-user-dirs
-
-install_aur_packages xdg-desktop-portal-termfilechooser-hunkyburrito-git
+    xdg-user-dirs \
+    xdg-desktop-portal \
+    xdg-desktop-portal-gtk
 
 stow_component "$component_root"
 xdg-user-dirs-update
@@ -44,8 +43,4 @@ if systemctl --user --quiet is-active xdg-desktop-portal.service 2>/dev/null; th
     systemctl --user restart xdg-desktop-portal.service
 fi
 
-if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && command -v hyprctl >/dev/null 2>&1; then
-    hyprctl reload
-fi
-
-printf 'Yazi file chooser, reliable save flow and default applications installed.\n'
+printf 'GTK/X11 file chooser and default applications installed; Yazi is ready in Alacritty.\n'

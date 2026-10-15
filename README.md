@@ -1,7 +1,7 @@
 # Dotfiles
 
 Escritorio Arch Linux reproducible para programación, uso diario y laboratorios
-de seguridad autorizados. El conjunto usa Hyprland, HyprPanel, Alacritty, Zsh y
+de seguridad autorizados. El conjunto usa AwesomeWM sobre X11, Alacritty, Zsh y
 Neovim con una apariencia coherente y módulos instalables por separado.
 
 La configuración prioriza cuatro ideas:
@@ -24,12 +24,14 @@ contraseña de `sudo` una vez al comenzar. Mantiene esa autorización solamente
 mientras se ejecuta. Pacman acepta automáticamente cada transacción y usa los
 proveedores predeterminados de Arch; no hay que responder selectores y los
 dotfiles no fijan un proveedor innecesario. Al terminar, reinicia y selecciona
-`Hyprland (uwsm-managed)` en SDDM.
+`Awesome` en SDDM. El componente `system` instala y habilita SDDM para el
+próximo arranque sin interrumpir la sesión actual. Hyprland se conserva como
+sesión de rollback independiente.
 
 Para instalar componentes concretos:
 
 ```bash
-./install.sh shell nvim hyprland
+./install.sh rofi alacritty awesome
 ./install.sh --help
 ```
 
@@ -39,7 +41,7 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 
 | Módulo | Para qué existe |
 | --- | --- |
-| [`system`](components/system/README.md) | red, audio, portales, OpenVPN, SDDM y soporte de VM |
+| [`system`](components/system/README.md) | red, audio, portal GTK/X11, OpenVPN, SDDM y soporte de VM |
 | [`themes`](components/themes/README.md) | cursor Bibata e iconos Oranchelo |
 | [`fonts`](components/fonts/README.md) | JetBrainsMono Nerd Font y Lexend |
 | [`shell`](components/shell/README.md) | Zsh, Starship, historial, navegación y herramientas de red |
@@ -55,13 +57,11 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | [`files`](components/files/README.md) | Yazi, selector del sistema, Thunar, visores y asociaciones |
 | [`hardware`](components/hardware/README.md) | Bluetooth y, en equipos físicos, firmware/SMART |
 | [`security`](components/security/README.md) | keyring, agente SSH y firewall nftables |
-| [`uwsm`](components/uwsm/README.md) | sesión Wayland administrada por systemd |
 | [`alacritty`](components/alacritty/README.md) | terminal gráfica y registro XDG |
 | [`nvim`](components/nvim/README.md) | editor LazyVim para todos los lenguajes usados |
 | [`rofi`](components/rofi/README.md) | lanzador de aplicaciones |
-| [`wallpaper`](components/wallpaper/README.md) | carrusel GTK con estado Waypaper y fondo Awww |
-| [`hyprpanel`](components/hyprpanel/README.md) | barra, notificaciones, workspaces y estado HTB |
-| [`hyprland`](components/hyprland/README.md) | compositor, ventanas, monitores y atajos |
+| [`wallpaper`](components/wallpaper/README.md) | carrusel GTK/X11 y fondo Feh |
+| [`awesome`](components/awesome/README.md) | sesión X11, Wibar, notificaciones y Picom |
 | [`doctor`](components/doctor/README.md) | diagnóstico final de toda la instalación |
 
 Cada README enlazado explica sus archivos, decisiones y los pocos comandos que
@@ -155,7 +155,7 @@ ignorados por Git.
 
 ## HTB y OpenVPN
 
-HyprPanel muestra el icono verde de HTB y la IP cuando detecta la VPN. Puedes
+La Wibar de Awesome muestra el icono verde de HTB y la IP cuando detecta la VPN. Puedes
 fijar la máquina objetivo con:
 
 ```bash
@@ -178,6 +178,13 @@ recargar nftables.
 
 ## Contenedores de trabajo
 
+Los componentes Hyprland/UWSM se conservan fuera de la instalación `all`. Para
+reinstalar la sesión de rollback explícitamente:
+
+```bash
+./install.sh uwsm hyprpanel hyprland
+```
+
 Los contenedores no se crean automáticamente ni consumen espacio hasta que los
 pidas:
 
@@ -191,17 +198,18 @@ distrobox list
 Podman funciona rootless. Distrobox integra el home, pero mantiene compiladores
 y herramientas específicas fuera del sistema Arch principal.
 
-## Monitores por máquina
+## Monitores
 
-La base usa el modo preferido y funciona con una o varias pantallas. Para
-posiciones específicas:
+Awesome usa la salida disponible y su modo preferido. Consulta las salidas y
+modos reales antes de cambiar resolución o posición:
 
 ```bash
-cp ~/.config/hypr/local.lua.example ~/.config/hypr/local.lua
-hyprctl monitors all
+xrandr --query
+xrandr --output NOMBRE_REAL --mode 1920x1080 --rate 60
 ```
 
-Edita `local.lua` con los nombres reales; el archivo no se sube al repositorio.
+Sustituye `NOMBRE_REAL` por el nombre reportado por XRandR; no copies ese ajuste
+a un equipo con salidas distintas.
 
 ## Windows y Neovim
 

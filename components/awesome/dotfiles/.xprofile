@@ -1,0 +1,13 @@
+# Display managers source this for X11 sessions. Limit the overrides to
+# Awesome so the retained Hyprland rollback and other X11 sessions stay intact.
+case ${DESKTOP_SESSION:-${XDG_SESSION_DESKTOP:-}} in
+    *awesome*)
+        export XDG_CURRENT_DESKTOP=awesome
+        export XDG_SESSION_DESKTOP=awesome
+        export XDG_SESSION_TYPE=x11
+        export XCURSOR_THEME=Bibata-Modern-Classic
+        export XCURSOR_SIZE=24
+        unset WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE UWSM_FINALIZE_VARNAMES
+        unset MOZ_ENABLE_WAYLAND
+        ;;
+esac

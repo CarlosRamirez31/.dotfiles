@@ -1,60 +1,56 @@
 # Desktop tools
 
-Implementa capturas e historial local del portapapeles para Wayland. Grim captura, Slurp selecciona geometría, Swappy anota, wl-clipboard integra el portapapeles y Cliphist conserva entradas.
+Implementa capturas e historial del portapapeles para X11. Maim captura, Slop
+selecciona regiones, Flameshot permite anotar, Xclip integra el portapapeles y
+Clipmenu guarda el historial que Rofi presenta bajo demanda.
 
 ## Dependencias
 
 | Paquete | Función |
 | --- | --- |
-| `grim` | Captura una salida o región en PNG. |
-| `slurp` | Selecciona una región. |
-| `swappy` | Anota, recorta y confirma. |
-| `wl-clipboard` | Proporciona `wl-copy` y `wl-paste`. |
-| `cliphist` | Almacena y decodifica texto e imágenes. |
+| `maim` | Captura completa o de una región X11. |
+| `slop` | Selecciona la región para captura y grabación. |
+| `xclip` | Copia imágenes y texto al portapapeles X11. |
+| `clipmenu` | Historial del portapapeles con `clipmenud` y Rofi. |
+| `flameshot` | Captura interactiva y anotación. |
 
 ## Capturas
 
 ```bash
-screenshot full
-screenshot area
-screenshot edit
+./install.sh desktop-tools
+dotfiles-screenshot full
+dotfiles-screenshot area
+dotfiles-screenshot edit
 ```
 
-Se guardan con fecha/hora en `$(xdg-user-dir PICTURES)/Screenshots` y se copian como `image/png`. `edit` usa un temporal y solo conserva el resultado confirmado por Swappy.
+Las imágenes se guardan con fecha y hora en `$(xdg-user-dir PICTURES)/Screenshots`
+y se copian al portapapeles. `edit` abre Flameshot en modo X11.
 
 | Atajo | Acción |
 | --- | --- |
 | `Print` | Pantalla completa. |
-| `Alt+Print` | Región. |
-| `Alt+Shift+S` | Región y editor. |
+| `Alt+Print` | Seleccionar región. |
+| `Alt+Shift+S` | Capturar región y anotar. |
 
 ## Portapapeles
 
 ```bash
-clip
-clip-clear
-cliphist list
+dotfiles-clipboard
+dotfiles-clipboard-clear
 ```
 
-`Super+C` o `Alt+C` abre Rofi. Enter restaura la entrada elegida y la pega en
-la ventana que tenía el foco; en terminales utiliza `Ctrl+Shift+V`. La limpieza
-exige elegir “Sí”; no existe borrado silencioso. Dos servicios observan texto e
-imágenes, reinician tras fallos y viven con `graphical-session.target`.
+`Alt+C` abre el historial en Rofi. Elegir una entrada la copia al portapapeles;
+la aplicación receptora puede pegarla con su atajo habitual. `clipmenud` observa
+el portapapeles X11 durante la sesión Awesome. La limpieza exige confirmar en
+Rofi.
 
-## Instalación, servicios y archivos
+## Diagnóstico
 
 ```bash
-./install.sh desktop-tools
-systemctl --user status dotfiles-cliphist-text.service
-systemctl --user status dotfiles-cliphist-image.service
+command -v maim slop xclip clipmenu clipmenud flameshot
+pgrep -a -u "$USER" -f '[c]lipmenud'
+journalctl --user -b | rg -i 'clipmenu|flameshot|maim'
 ```
 
-El instalador enlaza `dotfiles-screenshot`, `dotfiles-clipboard`, `dotfiles-clipboard-clear` y dos unidades systemd. Las habilita siempre y solo las reinicia en el acto si detecta Wayland.
-
-```bash
-journalctl --user -u dotfiles-cliphist-text.service -u dotfiles-cliphist-image.service
-echo texto-de-prueba | wl-copy
-cliphist list
-```
-
-Si no aparece la prueba, verifica ambos servicios y que `WAYLAND_DISPLAY` pertenezca a la sesión UWSM.
+Este componente no inicia servicios Wayland ni depende de Grim, Slurp,
+wl-clipboard o Cliphist.

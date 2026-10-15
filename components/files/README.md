@@ -7,7 +7,6 @@ Este componente convierte el escritorio mínimo en un entorno capaz de navegar a
 | Paquete | Función |
 | --- | --- |
 | `yazi` | Gestor de terminal con previsualizaciones y navegación `h/j/k/l`. |
-| `xdg-desktop-portal-termfilechooser` | Presenta Yazi al navegador y aplicaciones compatibles como selector del sistema. |
 | `thunar`, `thunar-volman` | Gestor de archivos y reacción a medios removibles. |
 | `tumbler` | Miniaturas en Thunar. |
 | `gvfs`, `gvfs-mtp`, `gvfs-gphoto2`, `gvfs-smb` | Papelera, teléfonos, cámaras y recursos SMB. |
@@ -36,16 +35,10 @@ saltan a Descargas, Imágenes y el directorio personal. Los volúmenes aparecen
 en la barra lateral de Thunar y se montan mediante UDisks/GVfs; no hace falta
 `sudo mount` para el uso normal.
 
-Firefox y las aplicaciones que respetan XDG Desktop Portal abren Yazi al subir,
-abrir o guardar archivos. `Shift+Enter` confirma el archivo señalado, `Space`
-permite una selección múltiple y `Q` cancela el diálogo. Al guardar una descarga,
-el archivo señalado es una plantilla temporal del portal, no la descarga final.
-Puedes manejarla como un archivo normal: `v` selecciona, `x` corta (o `y` copia),
-`Enter` entra a la carpeta destino, `p` pega y `Shift+Enter` confirma el archivo.
-`r` permite cambiarle el nombre. Si cancelas, el selector elimina la plantilla
-temporal que creó o movió, sin borrar otros archivos. `gd`, `gp` y `gh` saltan a
-Descargas, Imágenes y tu carpeta personal. Para elegir el destino de cada
-descarga, activa «Preguntar siempre dónde guardar los archivos» en el navegador.
+En la sesión Awesome, el portal de archivos usa GTK, una implementación X11 que
+no depende de Hyprland ni de Wayland. Firefox y las aplicaciones compatibles
+abren ese selector al subir, abrir o guardar archivos. Yazi sigue disponible
+como gestor de terminal (`Alt+E`); Thunar es el respaldo gráfico.
 
 ## Asociaciones predeterminadas
 
@@ -63,25 +56,21 @@ Se declaran en `.config/mimeapps.list`. Firefox viene de `desktop-extras`; si es
 En imv, `Shift++` amplía la imagen; `Shift+-` y `Ctrl+-` la reducen. Los dos
 atajos de reducción se declaran explícitamente.
 
-MPV conserva la selección automática de GPU en hardware físico. En VMware,
-donde la sesión exporta `LIBGL_ALWAYS_SOFTWARE=1`, el perfil
-`software-renderer` usa la salida `wlshm`, creada para escalado por software en
-Wayland. Esto evita que MPV 0.41 intente Vulkan sin driver, aborte durante su
-fallback hacia X11 o pierda cuadros renderizando OpenGL mediante `llvmpipe`.
+MPV conserva su selección normal de GPU. Awesome ejecuta aplicaciones gráficas
+en X11 y no exporta `LIBGL_ALWAYS_SOFTWARE` ni activa salidas Wayland.
 
 ## Efectos del instalador y diagnóstico
 
-Además de enlazar `mimeapps.list`, configura el portal `FileChooser` para Yazi,
-conserva los demás portales de Hyprland/GTK y ejecuta `xdg-user-dirs-update`, que
-crea o actualiza nombres de carpetas XDG del usuario.
+Además de enlazar `mimeapps.list`, configura el portal con GTK como proveedor
+predeterminado y ejecuta `xdg-user-dirs-update`, que crea o actualiza nombres de
+carpetas XDG del usuario.
 
 ```bash
 xdg-mime query default inode/directory
 xdg-mime query default application/pdf
-systemctl --user status xdg-desktop-portal-termfilechooser.service
-journalctl --user -eu xdg-desktop-portal-termfilechooser.service
+systemctl --user status xdg-desktop-portal.service xdg-desktop-portal-gtk.service
 gio mount -l
 systemctl status udisks2.service
 ```
 
-Si un teléfono no aparece, desbloquéalo y selecciona MTP. Si faltan miniaturas, reinicia Thunar con `thunar -q` y ábrelo otra vez. No ejecutes Thunar como root: rompería permisos y el contexto de la sesión.
+Si una aplicación muestra un selector incorrecto, comprueba `~/.config/xdg-desktop-portal/portals.conf` y reinicia los portales de usuario. Si un teléfono no aparece, desbloquéalo y selecciona MTP. Si faltan miniaturas, reinicia Thunar con `thunar -q` y ábrelo otra vez. No ejecutes Thunar como root.

@@ -5,7 +5,7 @@ component_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 source "$component_root/../../scripts/lib.sh"
 
 require_arch_user
-install_packages hyprlock hypridle gtklock
+install_packages xsecurelock xss-lock xorg-xset
 
 if compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
     if pacman -Q tlp >/dev/null 2>&1; then
@@ -19,9 +19,5 @@ else
 fi
 
 stow_component "$component_root"
-systemctl --user daemon-reload
-systemctl --user enable dotfiles-hypridle.service
-if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
-    systemctl --user restart dotfiles-hypridle.service
-fi
-printf 'Lock screen, idle handling and safe suspend rules installed.\n'
+systemctl --user disable --now dotfiles-hypridle.service 2>/dev/null || true
+printf 'X11 lock screen, idle handling and safe suspend rules installed.\n'

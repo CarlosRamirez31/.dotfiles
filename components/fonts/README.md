@@ -1,6 +1,6 @@
 # Fonts
 
-Este componente instala las dos familias tipográficas que sostienen la interfaz: JetBrainsMono Nerd Font para terminal/código/iconos y Lexend para HyprPanel. Tenerlas en un módulo temprano evita cuadros vacíos y cambios de medida durante el resto de la instalación.
+Este componente instala las dos familias tipográficas que sostienen la interfaz: JetBrainsMono Nerd Font para terminal/código/iconos y Lexend para la Wibar de Awesome y la sesión Hyprland de rollback. Tenerlas en un módulo temprano evita cuadros vacíos y cambios de medida durante el resto de la instalación.
 
 ## Contenido
 

@@ -1,6 +1,6 @@
 # System
 
-Este es el cimiento del escritorio. Instala servicios y utilidades que otros componentes dan por disponibles: red, audio, portales Wayland, notificaciones, VPN, brillo, multimedia, energía y login gráfico. No contiene personalización visual ni secretos.
+Este es el cimiento del escritorio. Instala servicios y utilidades que otros componentes dan por disponibles: red, audio, portal GTK para X11, notificaciones, VPN, brillo, multimedia, energía y login gráfico. No contiene personalización visual ni secretos.
 
 ## Paquetes base
 
@@ -10,7 +10,7 @@ Este es el cimiento del escritorio. Instala servicios y utilidades que otros com
 | `pipewire`, `pipewire-pulse`, `wireplumber` | Audio moderno y compatibilidad PulseAudio. |
 | `xdg-desktop-portal-gtk` | Selector de archivos y portal GTK complementario. |
 | `libnotify` | `notify-send` para capturas, grabación y avisos. |
-| `openvpn` | Cliente usado por NetworkManager, HyprPanel y `vpn-on`. |
+| `openvpn` | Cliente usado por NetworkManager y `vpn-on`. |
 | `brightnessctl` | Brillo desde teclas y gestión de inactividad. |
 | `playerctl` | Reproducción multimedia desde teclas físicas. |
 | `upower` | Estado de batería y energía para panel/aplicaciones. |
@@ -19,7 +19,7 @@ Este es el cimiento del escritorio. Instala servicios y utilidades que otros com
 
 ## Display manager y máquinas virtuales
 
-Si no hay `display-manager.service` habilitado, instala y habilita SDDM. Si ya existe GDM, LightDM u otro, lo conserva para no cambiar el login del usuario.
+Instala SDDM y lo selecciona para el próximo arranque. Si GDM, LightDM u otro gestor está activo, lo deshabilita para arranques futuros sin terminar la sesión actual.
 
 Detecta el hipervisor e instala solo su integración:
 
@@ -42,7 +42,7 @@ brightnessctl --list
 playerctl status
 ```
 
-NetworkManager se inicia en el acto. SDDM se habilita para el próximo arranque, pero el instalador no termina la sesión actual.
+NetworkManager se inicia en el acto. SDDM queda habilitado para el próximo arranque, pero el instalador no termina la sesión gráfica actual.
 
 ## Verificación y diagnóstico
 
@@ -53,4 +53,4 @@ journalctl -u NetworkManager.service -b
 systemd-detect-virt
 ```
 
-Tras una instalación completa reinicia y selecciona `Hyprland (uwsm-managed)`. El portal específico de Hyprland viene del componente `hyprland`; la política de suspensión de `session`; y el firewall/keyring de `security`.
+Tras una instalación completa reinicia y selecciona `Awesome` en SDDM. Hyprland/UWSM quedan fuera de `all` y pueden conservarse como sesión de rollback independiente.

@@ -5,9 +5,9 @@ repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 source "$repo_root/scripts/lib.sh"
 
 # This order is intentional: system services first, visual assets second,
-# applications third, and the compositor last so every referenced command is
-# ready when Hyprland reloads.
-available_components=(
+# applications third, and Awesome last so every referenced command is ready
+# when the X11 session starts.
+default_components=(
     system
     themes
     fonts
@@ -24,19 +24,20 @@ available_components=(
     files
     hardware
     security
-    uwsm
     alacritty
     nvim
     rofi
     wallpaper
-    hyprpanel
-    hyprland
+    awesome
     doctor
 )
+rollback_components=(uwsm hyprpanel hyprland)
+available_components=("${default_components[@]}" "${rollback_components[@]}")
 
 usage() {
     printf 'Usage: %s [all|COMPONENT ...]\n' "${0##*/}"
-    printf 'Components (default order): %s\n' "${available_components[*]}"
+    printf 'Components installed by default: %s\n' "${default_components[*]}"
+    printf 'Optional Hyprland rollback: %s\n' "${rollback_components[*]}"
 }
 
 component_exists() {
@@ -54,7 +55,7 @@ if (($# == 1)) && [[ $1 == --help || $1 == -h ]]; then
 fi
 
 if (($# == 0)) || { (($# == 1)) && [[ $1 == all ]]; }; then
-    selected_components=("${available_components[@]}")
+    selected_components=("${default_components[@]}")
 else
     requested_components=("$@")
     for requested in "${requested_components[@]}"; do
@@ -111,6 +112,6 @@ for component in "${selected_components[@]}"; do
 done
 
 printf '\nSetup complete.\n'
-printf 'On a fresh installation, reboot and select "Hyprland (uwsm-managed)".\n'
+printf 'On a fresh installation, reboot and select "Awesome" in your login manager.\n'
 printf 'Terminal: Ctrl+Alt+T or Alt+Enter | Launcher: Alt+Space or Alt+F2\n'
 printf 'Validate later with: doctor\n'

@@ -1,45 +1,52 @@
 # Doctor
 
-`dotfiles-doctor` es la comprobación integral y de solo lectura del escritorio. Distingue una instalación rota de una función opcional pendiente. Su instalador enlaza el script y lo ejecuta inmediatamente al final del despliegue.
+`dotfiles-doctor` es la comprobación integral y de solo lectura del escritorio
+Awesome/X11. Distingue un requisito roto de una función opcional pendiente. Su
+instalador enlaza el script y lo ejecuta al final del despliegue.
 
 ## Uso y resultado
 
 ```bash
 ./install.sh doctor
-doctor
-doctor >/tmp/doctor.txt
+dotfiles-doctor
+dotfiles-doctor >/tmp/doctor.txt
 ```
 
 - `✓`: requisito presente o estado esperado.
-- `!`: función opcional ausente/inactiva o prueba en vivo no disponible.
+- `!`: función opcional ausente o comprobación en vivo no disponible.
 - `✗`: requisito esencial roto.
 
-Sale con código `1` cuando hay errores y `0` cuando la base funciona, aunque existan advertencias.
+Sale con código `1` cuando hay errores y `0` cuando la base funciona, aunque
+existan advertencias.
 
 ## Qué comprueba
 
-1. Comandos esenciales: Hyprland, UWSM, Zsh, Alacritty, Neovim, Rofi, HyprPanel, Hyprlock e Hypridle.
-2. Resolución exacta de JetBrainsMono Nerd Font, Noto Color Emoji para símbolos de Starship y Lexend para HyprPanel.
-3. Herramientas opcionales de archivos, capturas, red, backup, contenedores y uso diario.
-4. Que Zsh sea el shell de login.
-5. Que configuraciones críticas sean enlaces Stow válidos.
-6. NetworkManager, nftables, timers de Pacman/TRIM y Bluetooth según hardware.
-7. Sockets de GNOME Keyring/GCR y disponibilidad de Podman/`labbox`.
-8. Si Restic e identidad Git privada ya se configuraron.
-9. En Hyprland activo: errores de configuración y servicios Cliphist/Hypridle.
+1. Awesome, Xorg, Picom, Mesa, terminal, lanzador, capturas, portapapeles,
+   grabación, wallpaper y bloqueo.
+2. Ejecutables administrados en `~/.local/bin`, configuración de Awesome y
+   Picom, y enlaces Stow críticos.
+3. JetBrainsMono Nerd Font, Noto Color Emoji y Lexend para la Wibar.
+4. Zsh como shell de login, NetworkManager, firewall, timers y sockets de
+   credenciales.
+5. En una sesión Awesome activa: tipo X11, ausencia de `WAYLAND_DISPLAY`,
+   Picom, Xss-lock, una sola instancia de Clipmenu, sintaxis Lua y renderer GL.
+6. En VMware, detecta `llvmpipe` como error de aceleración.
 
 ## Límites
 
-No modifica archivos, instala paquetes ni reinicia servicios. Restic o Git pendientes son informativos porque requieren decisiones privadas. Fuera de Hyprland no puede ejecutar pruebas en vivo y emite advertencia.
+No instala paquetes ni reinicia servicios. Restic e identidad Git pendientes
+son informativos porque requieren decisiones privadas. Desde una TTY o SSH
+omite las comprobaciones que necesitan una sesión gráfica activa.
 
 ## Diagnóstico complementario
 
 ```bash
 systemctl --failed
 systemctl --user --failed
-hyprctl configerrors
-systemctl --user status dotfiles-hypridle.service
+journalctl --user -b -p warning
+glxinfo -B
 git status
 ```
 
-El único archivo administrado es `.local/bin/dotfiles-doctor`; no tiene paquetes propios porque inspecciona los demás componentes.
+El único archivo administrado es `.local/bin/dotfiles-doctor`; no tiene
+paquetes propios porque inspecciona los demás componentes.

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_root=${XDG_STATE_HOME:-"$HOME/.local/state"}
+state_dir="$state_root/dotfiles"
+target_file="$state_dir/htb-target"
+
+usage() {
+    printf 'Uso: %s IP | clear\n' "${0##*/}" >&2
+}
+
+valid_ipv4() {
+    local address=$1
+    local octet
+    local -a octets
+
+    [[ $address =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+    IFS=. read -r -a octets <<<"$address"
+    for octet in "${octets[@]}"; do
+        ((10#$octet <= 255)) || return 1
+    done
+}
+
+if (($# == 0)); then
+    [[ -r $target_file ]] && cat -- "$target_file"
+    exit 0
+fi
+
+if (($# != 1)); then
+    usage
+    exit 2
+fi
+
+case $1 in
+    clear | off | -)
+        rm -f -- "$target_file"
+        printf 'Objetivo de Hack The Box eliminado.\n'
+        ;;
+    *)
+        if ! valid_ipv4 "$1"; then
+            printf 'IP no válida: %s\n' "$1" >&2
+            usage
+            exit 2
+        fi
+        mkdir -p -- "$state_dir"
+        printf '%s\n' "$1" >"$target_file"
+        printf 'Objetivo de Hack The Box: %s\n' "$1"
+        ;;
+esac

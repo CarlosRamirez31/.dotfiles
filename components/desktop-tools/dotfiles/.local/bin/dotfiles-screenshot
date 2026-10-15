@@ -10,20 +10,16 @@ mkdir -p -- "$output_dir"
 
 case $mode in
     full)
-        grim "$output"
+        maim "$output"
         ;;
     area)
-        geometry=$(slurp) || exit 0
+        geometry=$(slop -f '%x %y %w %h') || exit 0
         [[ -n $geometry ]] || exit 0
-        grim -g "$geometry" "$output"
+        read -r x y width height <<<"$geometry"
+        maim -g "${width}x${height}+${x}+${y}" "$output"
         ;;
     edit)
-        geometry=$(slurp) || exit 0
-        [[ -n $geometry ]] || exit 0
-        temporary=$(mktemp --suffix=.png "${XDG_RUNTIME_DIR:-/tmp}/dotfiles-shot.XXXXXX")
-        trap 'rm -f -- "$temporary"' EXIT
-        grim -g "$geometry" "$temporary"
-        swappy -f "$temporary" -o "$output"
+        flameshot gui --path "$output"
         [[ -s $output ]] || exit 0
         ;;
     *)
@@ -32,5 +28,5 @@ case $mode in
         ;;
 esac
 
-wl-copy --type image/png <"$output"
+xclip -selection clipboard -t image/png -i <"$output"
 notify-send -a Screenshot -i "$output" 'Captura guardada' "$output"

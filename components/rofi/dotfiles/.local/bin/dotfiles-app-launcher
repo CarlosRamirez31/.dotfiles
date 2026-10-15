@@ -2,14 +2,6 @@
 
 set -uo pipefail
 
-# Hyprland 0.56.x and VMware's vmwgfx currently disagree on GPU buffer
-# imports. This local fallback also fixes an already-running session; on a
-# physical machine GTK keeps its normal accelerated renderer.
-if [[ -z ${GSK_RENDERER:-} && -r /sys/class/dmi/id/sys_vendor ]] &&
-    grep -qi vmware /sys/class/dmi/id/sys_vendor; then
-    export GSK_RENDERER=cairo
-fi
-
 # Display managers can give Hyprland a minimal PATH. Rofi launches desktop
 # entries directly, so expose the portable per-user command directory here.
 case ":${PATH:-}:" in
@@ -17,9 +9,7 @@ case ":${PATH:-}:" in
     *) export PATH="$HOME/.local/bin${PATH:+:$PATH}" ;;
 esac
 
-# Rofi's drun mode parses Desktop Entries in native code and keeps an on-disk
-# cache. Run the selected Exec line directly; Hyprland itself already belongs
-# to the UWSM-managed graphical session.
+# Rofi parses Desktop Entries in native code and keeps an on-disk cache.
 exec rofi \
     -show drun \
     -show-icons \

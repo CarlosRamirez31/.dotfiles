@@ -1,0 +1,14 @@
+pcall(require, "luarocks.loader")
+local awful = require("awful")
+require("awful.autofocus")
+local beautiful = require("theme")
+local naughty = require("naughty")
+if awesome.startup_errors then naughty.notify({ preset = naughty.config.presets.critical, title = "Awesome startup error", text = awesome.startup_errors }) end
+awful.layout.layouts = { awful.layout.suit.tile, awful.layout.suit.tile.left, awful.layout.suit.floating, awful.layout.suit.max }
+awful.screen.connect_for_each_screen(function(s) awful.tag({ "󰊢", "", "󰨞", "󰙨" }, s, awful.layout.layouts[1]); require("bar")(s) end)
+root.keys(require("bindings"))
+awful.rules.rules = require("rules")
+client.connect_signal("manage", function(c) if awesome.startup and not c.size_hints.user_position and not c.size_hints.program_position then awful.placement.no_offscreen(c) end end)
+client.connect_signal("focus", function(c) c.border_color = beautiful.border_focus end)
+client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
+require("autostart")

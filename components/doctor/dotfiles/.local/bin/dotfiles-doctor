@@ -26,15 +26,37 @@ fail() {
 
 printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
 
-essential_commands=(hyprland uwsm zsh alacritty nvim yazi rofi hyprpanel hyprlock hypridle)
-optional_commands=(fastfetch thunar grim slurp swappy cliphist wl-copy blueman-manager nft openvpn)
-optional_commands+=(restic podman labbox firefox keepassxc btop wf-recorder hyprpicker trash-put)
+essential_commands=(awesome picom Xorg xrandr xrdb xset zsh alacritty nvim yazi rofi)
+essential_commands+=(xsecurelock xss-lock feh maim slop flameshot clipmenu xclip)
+essential_commands+=(ffmpeg gpick firefox thunar)
+optional_commands=(fastfetch glxinfo blueman-manager nft openvpn restic podman labbox keepassxc btop trash-put)
+essential_user_commands=(
+    dotfiles-terminal
+    dotfiles-app-launcher
+    dotfiles-wallpaper
+    dotfiles-wallpaper-picker
+    dotfiles-screenshot
+    dotfiles-clipboard
+    dotfiles-record
+    dotfiles-lock
+    dotfiles-htb-vpn-status
+    dotfiles-htb-target
+)
 
 for command_name in "${essential_commands[@]}"; do
     if command -v "$command_name" >/dev/null 2>&1; then
         ok "$command_name available"
     else
         fail "$command_name is missing"
+    fi
+done
+
+for command_name in "${essential_user_commands[@]}"; do
+    command_path="$HOME/.local/bin/$command_name"
+    if [[ -x $command_path ]]; then
+        ok "$command_name executable"
+    else
+        fail "$command_path is missing or not executable"
     fi
 done
 
@@ -63,7 +85,7 @@ if command -v fc-match >/dev/null 2>&1; then
 
     lexend_family=$(fc-match -f '%{family[0]}' Lexend 2>/dev/null)
     if [[ $lexend_family == Lexend ]]; then
-        ok 'Lexend available for HyprPanel'
+        ok 'Lexend available for Awesome Wibar'
     else
         fail "Lexend resolves to ${lexend_family:-nothing}"
     fi
@@ -80,7 +102,11 @@ fi
 
 managed_paths=(
     "$HOME/.zshrc"
-    "$HOME/.config/hypr/hyprland.lua"
+    "$HOME/.config/awesome/rc.lua"
+    "$HOME/.config/picom/picom.conf"
+    "$HOME/.Xresources"
+    "$HOME/.xprofile"
+    "$HOME/.config/gtk-3.0/settings.ini"
     "$HOME/.config/alacritty/alacritty.toml"
     "$HOME/.config/nvim/init.lua"
     "$HOME/.config/yazi/yazi.toml"
@@ -144,28 +170,57 @@ else
     printf '· Git identity remains private and awaits setup.\n'
 fi
 
-if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
-    config_errors=$(hyprctl configerrors 2>/dev/null || true)
-    if [[ -n $config_errors ]]; then
-        fail "Hyprland configuration errors:\n$config_errors"
+if [[ ${XDG_SESSION_TYPE:-} == x11 && ${XDG_CURRENT_DESKTOP:-} == awesome ]]; then
+    ok 'Awesome X11 session is active'
+    if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
+        ok 'No Wayland display is inherited by Awesome'
     else
-        ok 'Active Hyprland configuration has no errors'
+        fail "WAYLAND_DISPLAY is set in Awesome: $WAYLAND_DISPLAY"
     fi
-
-    for service in dotfiles-cliphist-text.service dotfiles-cliphist-image.service; do
-        if systemctl --user is-active --quiet "$service"; then
-            ok "$service active"
-        else
-            warn "$service is not active"
-        fi
-    done
-    if systemctl --user is-active --quiet dotfiles-hypridle.service; then
-        ok 'dotfiles-hypridle.service active'
+    if pgrep -x awesome >/dev/null; then ok 'Awesome process is active'; else fail 'Awesome process is missing'; fi
+    if pgrep -x picom >/dev/null; then ok 'Picom is active'; else warn 'Picom is not active'; fi
+    if pgrep -x xss-lock >/dev/null; then ok 'Xss-lock is active'; else warn 'Xss-lock is not active'; fi
+    clipmenud_count=$(pgrep -u "$(id -u)" -fc '[c]lipmenud' || true)
+    if [[ $clipmenud_count == 1 ]]; then
+        ok 'One Clipmenu daemon is active'
+    elif [[ $clipmenud_count == 0 ]]; then
+        warn 'Clipmenu daemon is not active'
     else
-        warn 'dotfiles-hypridle.service is not active'
+        fail "Found $clipmenud_count Clipmenu daemons; expected one"
+    fi
+    if command -v awesome >/dev/null 2>&1 && awesome -k -c "$HOME/.config/awesome/rc.lua"; then
+        ok 'Awesome configuration syntax is valid'
+    else
+        fail 'Awesome configuration syntax is invalid'
+    fi
+    renderer=''
+    if command -v glxinfo >/dev/null 2>&1; then
+        renderer=$(glxinfo -B 2>/dev/null | awk -F: '/OpenGL renderer string/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }')
+    fi
+    if [[ -z $renderer ]]; then
+        warn 'OpenGL renderer could not be read; check DISPLAY and Mesa'
+    elif [[ $virtualization == vmware && $renderer == *llvmpipe* ]]; then
+        fail "VMware is using software rendering: $renderer"
+    else
+        ok "OpenGL renderer: $renderer"
+    fi
+    if [[ -r /usr/share/xsessions/awesome.desktop ]]; then
+        ok 'Awesome X11 session is installed for SDDM'
+    else
+        fail 'Awesome session entry is missing from /usr/share/xsessions'
+    fi
+    if systemctl is-enabled --quiet sddm.service 2>/dev/null; then
+        ok 'SDDM is enabled for the next boot'
+    else
+        fail 'SDDM is not enabled for the next boot'
+    fi
+    if xrandr --query 2>/dev/null | rg -q ' connected '; then
+        ok 'XRandR reports a connected display'
+    else
+        fail 'XRandR reports no connected display'
     fi
 else
-    warn 'Hyprland is not active; live compositor checks were skipped'
+    warn 'Awesome X11 is not active; live checks were skipped'
 fi
 
 printf '\n%sResult:%s %d error(s), %d warning(s).\n' "$bold" "$reset" "$errors" "$warnings"

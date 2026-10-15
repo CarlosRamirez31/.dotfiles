@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# Only show tunnels used by Hack The Box, not unrelated work or personal VPNs.
+command -v ip >/dev/null 2>&1 || exit 0
+
+state_root=${XDG_STATE_HOME:-"$HOME/.local/state"}
+target_file="$state_root/dotfiles/htb-target"
+
+while read -r interface vpn_ip; do
+    [[ $interface =~ ^(tun|tap)[[:alnum:]_.-]*$ ]] || continue
+    [[ $vpn_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || continue
+
+    routes=$(ip -o -4 route show dev "$interface" 2>/dev/null || true)
+    if [[ $vpn_ip != 10.10.* && $vpn_ip != 10.129.* ]] ||
+        [[ $routes != *"10.10."* && $routes != *"10.129."* ]]; then
+        continue
+    fi
+
+    display_ip=$vpn_ip
+    if [[ -r $target_file ]]; then
+        IFS= read -r target_ip <"$target_file" || true
+        [[ $target_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] && display_ip=$target_ip
+    fi
+
+    printf '%s\n' "$display_ip"
+    exit 0
+done < <(
+    ip -o -4 address show up 2>/dev/null |
+        awk '$2 ~ /^(tun|tap)[[:alnum:]_.-]*$/ { split($4, address, "/"); print $2, address[1] }'
+)

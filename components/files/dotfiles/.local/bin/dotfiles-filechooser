@@ -26,7 +26,7 @@ cleanup() {
 
     local selected='' selected_path candidate
     if [[ -s $out ]]; then
-        IFS= read -r selected < "$out" || true
+        IFS= read -r selected <"$out" || true
     fi
     decode_path "$selected"
     selected_path=$decoded_path
@@ -41,7 +41,7 @@ cleanup() {
         while IFS= read -r candidate; do
             [[ -n $candidate && $candidate != "$selected_path" ]] &&
                 remove_helper "$candidate"
-        done < "$moved_helpers"
+        done <"$moved_helpers"
     fi
     rm -f -- "$moved_helpers"
 }
@@ -69,7 +69,7 @@ is_portal_helper() {
     size=$(stat -c '%s' -- "$file") || return 1
     ((size <= 512)) || return 1
     [[ $(head -n 1 -- "$file") == "$marker" &&
-        $(tail -n 1 -- "$file") == "$marker" ]]
+    $(tail -n 1 -- "$file") == "$marker" ]]
 }
 
 remove_helper() {

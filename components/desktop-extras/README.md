@@ -1,6 +1,7 @@
 # Desktop extras
 
-Agrupa aplicaciones útiles que no son necesarias para arrancar Hyprland, permitiendo omitir navegador, gestor de contraseñas y utilidades en una instalación mínima.
+Agrupa aplicaciones de uso diario que no son necesarias para iniciar Awesome:
+Firefox, KeePassXC, Btop, grabación X11, selección de color y papelera.
 
 ## Programas incluidos
 
@@ -9,9 +10,9 @@ Agrupa aplicaciones útiles que no son necesarias para arrancar Hyprland, permit
 | `firefox` | Navegador predeterminado HTTP/HTTPS/HTML. |
 | `keepassxc` | Bóveda local; no crea ni sincroniza bases automáticamente. |
 | `btop` | CPU, memoria, red, discos y procesos. |
-| `wf-recorder` | Grabación nativa de Wayland. |
-| `hyprpicker` | Selector de color y copia al portapapeles. |
-| `trash-cli` | Papelera Freedesktop recuperable desde terminal. |
+| `ffmpeg` | Grabación de pantalla con `x11grab`. |
+| `gpick` | Selector de color X11. |
+| `trash-cli` | Papelera recuperable desde terminal. |
 
 ## Atajos y comandos
 
@@ -19,6 +20,8 @@ Agrupa aplicaciones útiles que no son necesarias para arrancar Hyprland, permit
 ./install.sh desktop-extras
 btop
 keepassxc
+dotfiles-record area
+dotfiles-record full
 trash-put archivo
 trash-list
 trash-restore
@@ -27,26 +30,22 @@ trash-empty
 
 | Atajo | Acción |
 | --- | --- |
-| `Alt+B` | Firefox dentro de UWSM. |
-| `Alt+Shift+R` | Seleccionar región e iniciar/detener grabación. |
-| `Alt+Shift+C` | Elegir y copiar color. |
+| `Alt+B` | Firefox. |
+| `Alt+Shift+R` | Iniciar/detener grabación de una región. |
+| `Alt+Shift+C` | Selector de color. |
 
-`record area` usa Slurp; `record full` graba la salida completa. Guarda MP4 con fecha/hora en `$(xdg-user-dir VIDEOS)/Recordings`, mantiene PID y log en `$XDG_RUNTIME_DIR` y envía `SIGINT` para cerrar correctamente el vídeo.
-
-```bash
-record area
-record full
-tail -f "$XDG_RUNTIME_DIR/dotfiles-wf-recorder.log"
-```
-
-El archivo administrado es `.local/bin/dotfiles-record`. Los atajos vienen de `hyprland`, Slurp/notificaciones de otros componentes y las asociaciones Firefox de `files`. No se reemplaza `rm`: la papelera es explícita.
+`dotfiles-record area` usa Slop para elegir la región; `full` toma la pantalla
+completa mediante XRandR. FFmpeg graba en MP4 dentro de
+`$(xdg-user-dir VIDEOS)/Recordings`; `Alt+Shift+R` vuelve a pulsarse para cerrar
+el archivo limpiamente.
 
 ## Diagnóstico
 
 ```bash
-command -v firefox keepassxc btop wf-recorder hyprpicker trash-put
-pgrep -a wf-recorder
-echo "$WAYLAND_DISPLAY"
+command -v firefox keepassxc btop ffmpeg gpick trash-put
+pgrep -a ffmpeg
+echo "$XDG_SESSION_TYPE"
 ```
 
-Una grabación negra suele indicar que no se ejecuta dentro de la sesión Wayland. No se puede capturar desde una TTY o una sesión SSH sin acceso al compositor.
+La sesión debe indicar `x11`. Este componente no utiliza wf-recorder ni
+Hyprpicker.

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import configparser
-import fcntl
 import hashlib
+import fcntl
 import math
 import os
 import subprocess
@@ -19,8 +18,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-gi.require_version("GtkLayerShell", "0.1")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
 
 FORMATS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"}
@@ -248,6 +246,7 @@ class Carousel(Gtk.Window):
         self.set_name("wallpaper-carousel")
         self.set_decorated(False)
         self.set_app_paintable(True)
+        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
         self.set_skip_taskbar_hint(True)
         self.set_skip_pager_hint(True)
         self.set_accept_focus(True)
@@ -272,15 +271,8 @@ class Carousel(Gtk.Window):
         self.overlay_height = round(self.screen_height * 0.52)
         self.set_size_request(self.screen_width, self.overlay_height)
 
-        GtkLayerShell.init_for_window(self)
-        GtkLayerShell.set_namespace(self, "dotfiles-wallpaper-carousel")
-        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
-        GtkLayerShell.set_monitor(self, monitor)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.LEFT, True)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.BOTTOM, True)
-        GtkLayerShell.set_exclusive_zone(self, -1)
-        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+        self.set_default_size(self.screen_width, self.overlay_height)
+        self.set_position(Gtk.WindowPosition.CENTER)
 
         css = Gtk.CssProvider()
         css.load_from_data(
@@ -329,13 +321,12 @@ class Carousel(Gtk.Window):
         return False
 
     def saved_index(self) -> int:
-        state = Path.home() / ".local/state/waypaper/state.ini"
-        parser = configparser.ConfigParser()
         try:
-            parser.read(state)
-            saved = Path(parser.get("State", "wallpaper")).expanduser()
+            saved = Path(
+                (Path.home() / ".local/state/dotfiles/wallpaper").read_text().strip()
+            ).expanduser()
             return self.wallpapers.index(saved)
-        except (ValueError, configparser.Error, KeyError):
+        except (OSError, ValueError):
             return 0
 
     def visible_indices(self) -> list[int]:
@@ -402,23 +393,14 @@ class Carousel(Gtk.Window):
         self.rebuild()
 
     def apply(self):
-        result = subprocess.run(
-            [
-                "waypaper",
-                "--backend",
-                "awww",
-                "--wallpaper",
-                str(self.wallpapers[self.current]),
-                "--fill",
-                "fill",
-            ],
-            check=False,
-        )
+        result = subprocess.run(["feh", "--bg-fill", str(self.wallpapers[self.current])], check=False)
         if result.returncode == 0:
+            state = Path.home() / ".local/state/dotfiles/wallpaper"
+            state.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            state.write_text(f"{self.wallpapers[self.current]}\n")
             self.close_picker()
 
     def close_picker(self):
-        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
         self.hide()
         self.destroy()
 
@@ -465,7 +447,7 @@ def main() -> int:
     if len(sys.argv) != 2:
         print(f"Uso: {Path(sys.argv[0]).name} DIRECTORIO", file=sys.stderr)
         return 2
-    folder = Path(sys.argv[1]).expanduser()
+    folder = Path(sys.argv[1]).expanduser().resolve()
     if not folder.is_dir():
         return 1
     runtime_dir = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))

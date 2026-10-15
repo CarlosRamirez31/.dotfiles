@@ -4,7 +4,7 @@ set -uo pipefail
 
 wallpaper_dir=${DOTFILES_WALLPAPER_DIR:-"$HOME/Pictures/Wallpapers"}
 default_wallpaper="$HOME/.config/wallpapers/arch-bsod.png"
-waypaper_state=${XDG_STATE_HOME:-"$HOME/.local/state"}/waypaper/state.ini
+state_file=${XDG_STATE_HOME:-"$HOME/.local/state"}/dotfiles/wallpaper
 declare -a wallpapers=()
 
 load_wallpapers() {
@@ -17,24 +17,8 @@ load_wallpapers() {
     )
 }
 
-start_daemon() {
-    awww query >/dev/null 2>&1 && return 0
-    if ! pgrep -x awww-daemon >/dev/null 2>&1; then
-        awww-daemon >"${XDG_RUNTIME_DIR:-/tmp}/awww-dotfiles.log" 2>&1 &
-    fi
-
-    local attempt=0
-    while ((attempt < 20)); do
-        awww query >/dev/null 2>&1 && return 0
-        sleep 0.1
-        ((attempt += 1))
-    done
-    return 1
-}
-
 apply_default() {
-    start_daemon || return 1
-    awww img "$default_wallpaper" --transition-type none
+    feh --bg-fill "$default_wallpaper"
 }
 
 case ${1:-choose} in
@@ -51,20 +35,7 @@ case ${1:-choose} in
         ;;
     restore)
         saved=''
-        if [[ -r $waypaper_state ]]; then
-            while IFS='=' read -r key value; do
-                key=${key//[[:space:]]/}
-                if [[ $key == wallpaper ]]; then
-                    saved=${value#"${value%%[![:space:]]*}"}
-                    break
-                fi
-            done < "$waypaper_state"
-        fi
-
-        case $saved in
-            '~/'*) saved="$HOME/${saved#~/}" ;;
-            '~') saved=$HOME ;;
-        esac
+        [[ -r $state_file ]] && IFS= read -r saved <"$state_file" || true
 
         if [[ ! -f $saved ]]; then
             load_wallpapers
@@ -73,8 +44,7 @@ case ${1:-choose} in
 
         [[ -n $saved && -f $saved ]] || saved=$default_wallpaper
         [[ -f $saved ]] || exit 1
-        start_daemon || exit 1
-        awww img "$saved" --transition-type none --resize crop
+        feh --bg-fill "$saved"
         ;;
     *)
         printf 'Uso: %s [choose|restore]\n' "${0##*/}" >&2

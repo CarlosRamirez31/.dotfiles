@@ -11,7 +11,7 @@ Este componente instala y registra Alacritty como terminal gráfica de Awesome/X
 | `ttf-jetbrains-mono-nerd` | Fuente monoespaciada con glifos para Starship y herramientas CLI. |
 | `noto-fonts-emoji` | Respaldo para emojis de Starship, como el símbolo predeterminado de Kali Linux. |
 
-La configuración elimina decoraciones, usa opacidad `0.94`, desenfoque, margen de 7 px, cursor vertical parpadeante y Tokyo Night. La selección se copia al portapapeles y el TOML se recarga sin reiniciar. También envía secuencias estables para borrar con `Ctrl+Backspace`, seleccionar caracteres con `Shift+←/→` y seleccionar palabras con `Ctrl+Shift+←/→`; Zsh interpreta esas secuencias.
+La configuración elimina decoraciones, usa Catppuccin Mocha con opacidad `0.98`, sin desenfoque, margen de 12 px y JetBrainsMono Nerd Font Regular a 11.5 pt. El cursor vertical parpadeante y la selección se copian al portapapeles; el TOML se recarga sin reiniciar. También envía secuencias estables para borrar con `Ctrl+Backspace`, seleccionar caracteres con `Shift+←/→` y seleccionar palabras con `Ctrl+Shift+←/→`; Zsh interpreta esas secuencias.
 
 ## Comandos
 

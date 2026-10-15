@@ -29,6 +29,7 @@ default_components=(
     rofi
     wallpaper
     awesome
+    polybar
     doctor
 )
 rollback_components=(uwsm hyprpanel hyprland)

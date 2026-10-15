@@ -39,6 +39,7 @@ essential_user_commands=(
     dotfiles-clipboard
     dotfiles-record
     dotfiles-lock
+    dotfiles-display
     dotfiles-htb-vpn-status
     dotfiles-htb-target
 )

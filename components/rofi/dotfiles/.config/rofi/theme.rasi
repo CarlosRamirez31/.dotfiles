@@ -1,5 +1,5 @@
 * {
-    font:             "Lexend Medium 11";
+    font:             "Lexend Regular 10";
     background:       #11111bf2;
     surface:          #1e1e2eff;
     surface-alt:      #242438ff;
@@ -11,22 +11,22 @@
 }
 
 window {
-    width: 720px;
-    border: 2px;
+    width: 640px;
+    border: 1px;
     border-color: @accent;
     border-radius: 20px;
     background-color: @background;
 }
 
 mainbox {
-    padding: 20px;
-    spacing: 16px;
+    padding: 16px;
+    spacing: 12px;
     background-color: transparent;
 }
 
 inputbar {
-    padding: 14px 18px;
-    spacing: 12px;
+    padding: 11px 14px;
+    spacing: 10px;
     border: 1px;
     border-color: @surface-hover;
     border-radius: 14px;
@@ -37,7 +37,7 @@ inputbar {
 
 prompt {
     str: "";
-    font: "JetBrainsMono Nerd Font SemiBold 13";
+    font: "JetBrainsMono Nerd Font 11";
     text-color: @accent;
 }
 
@@ -51,7 +51,7 @@ prompt, entry {
 }
 
 listview {
-    lines: 5;
+    lines: 6;
     columns: 2;
     fixed-columns: true;
     spacing: 8px;
@@ -59,8 +59,8 @@ listview {
 }
 
 element {
-    padding: 12px;
-    spacing: 10px;
+    padding: 10px;
+    spacing: 9px;
     border-radius: 12px;
     background-color: @surface-alt;
     text-color: @foreground;
@@ -72,7 +72,7 @@ element selected {
 }
 
 element-icon {
-    size: 30px;
+    size: 24px;
     background-color: transparent;
 }
 

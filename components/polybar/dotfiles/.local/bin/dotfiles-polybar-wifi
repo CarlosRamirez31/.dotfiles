@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+active=$(nmcli -t -f ACTIVE,SSID device wifi list 2>/dev/null | awk -F: '$1 == "yes" {print $2; exit}')
+options=$(nmcli -t -f SECURITY,SSID device wifi list 2>/dev/null | awk -F: '
+    $2 != "" {
+        icon = ($1 == "") ? "󰖩" : ""
+        print icon " " $2
+    }
+' | awk '!seen[$0]++')
+choice=$(printf '%s\n%s\n%s\n' "$options" '──────────' 'Toggle Wi-Fi' | rofi -dmenu -i -p "${active:-Wi-Fi}")
+
+case "$choice" in
+    ''|'──────────') exit 0 ;;
+    'Toggle Wi-Fi')
+        if [[ $(nmcli -t -f WIFI general status) == enabled ]]; then
+            nmcli radio wifi off
+        else
+            nmcli radio wifi on
+        fi
+        exit 0
+        ;;
+esac
+
+ssid=${choice#* }
+if [[ $choice == * ]]; then
+    password=$(rofi -dmenu -password -p "Password for $ssid")
+    nmcli device wifi connect "$ssid" password "$password"
+else
+    nmcli device wifi connect "$ssid"
+fi

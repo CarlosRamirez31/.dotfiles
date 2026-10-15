@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+pkill -x polybar 2>/dev/null || true
+
+export MONITOR="$(xrandr --query | awk '/ primary/{print $1; exit}')"
+if [[ -z ${MONITOR:-} ]]; then
+    export MONITOR="$(xrandr --query | awk '/ connected/{print $1; exit}')"
+fi
+export WLAN_IFACE="$(ip -o link show | awk -F': ' '$2 ~ /^wl/{print $2; exit}')"
+export BATTERY="$(find /sys/class/power_supply -maxdepth 1 -name 'BAT*' -printf '%f\n' 2>/dev/null | head -n1)"
+export ADAPTER="$(find /sys/class/power_supply -maxdepth 1 \( -name 'AC*' -o -name 'ADP*' \) -printf '%f\n' 2>/dev/null | head -n1)"
+export BACKLIGHT_CARD="$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -n1)"
+
+exec polybar top >>"${XDG_RUNTIME_DIR:-/tmp}/polybar.log" 2>&1

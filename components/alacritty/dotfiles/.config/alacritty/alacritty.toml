@@ -10,20 +10,20 @@ args = ["--login"]
 
 [window]
 decorations = "None"
-opacity = 0.94
-blur = true
+opacity = 0.98
+blur = false
 dynamic_padding = true
 
 [window.padding]
-x = 7
-y = 7
+x = 12
+y = 12
 
 [font]
-size = 13.0
+size = 11.5
 
 [font.normal]
 family = "JetBrainsMono Nerd Font"
-style = "SemiBold"
+style = "Regular"
 
 [font.bold]
 family = "JetBrainsMono Nerd Font"
@@ -31,7 +31,7 @@ style = "Bold"
 
 [font.italic]
 family = "JetBrainsMono Nerd Font"
-style = "SemiBold Italic"
+style = "Italic"
 
 [font.bold_italic]
 family = "JetBrainsMono Nerd Font"
@@ -71,35 +71,35 @@ key = "Right"
 mods = "Control|Shift"
 chars = "\u001b[1;6C"
 
-# Tokyo Night palette.
+# Catppuccin Mocha palette.
 [colors.primary]
-background = "#1a1b26"
-foreground = "#c0caf5"
+background = "#1e1e2e"
+foreground = "#cdd6f4"
 
 [colors.cursor]
-cursor = "#c0caf5"
-text = "#1a1b26"
+cursor = "#f5e0dc"
+text = "#1e1e2e"
 
 [colors.selection]
-background = "#33467c"
-text = "#c0caf5"
+background = "#585b70"
+text = "#cdd6f4"
 
 [colors.normal]
-black = "#15161e"
-red = "#f7768e"
-green = "#9ece6a"
-yellow = "#e0af68"
-blue = "#7aa2f7"
-magenta = "#bb9af7"
-cyan = "#7dcfff"
-white = "#a9b1d6"
+black = "#45475a"
+red = "#f38ba8"
+green = "#a6e3a1"
+yellow = "#f9e2af"
+blue = "#89b4fa"
+magenta = "#cba6f7"
+cyan = "#89dceb"
+white = "#bac2de"
 
 [colors.bright]
-black = "#414868"
-red = "#f7768e"
-green = "#9ece6a"
-yellow = "#e0af68"
-blue = "#7aa2f7"
-magenta = "#bb9af7"
-cyan = "#7dcfff"
-white = "#c0caf5"
+black = "#585b70"
+red = "#f38ba8"
+green = "#a6e3a1"
+yellow = "#f9e2af"
+blue = "#89b4fa"
+magenta = "#cba6f7"
+cyan = "#89dceb"
+white = "#a6adc8"

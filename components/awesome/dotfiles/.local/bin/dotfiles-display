@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output=$(xrandr --query | awk '
+    / connected primary/ { print $1; primary = 1; exit }
+    / connected / && !fallback { fallback = $1 }
+    END { if (!primary) print fallback }
+')
+[[ -n $output ]] || exit 0
+
+if xrandr --query | awk '$1 == "1920x1080" { available = 1 } END { exit !available }'; then
+    xrandr --output "$output" --mode 1920x1080 --rate 60
+fi

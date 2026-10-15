@@ -5,7 +5,10 @@ local beautiful = require("theme")
 local naughty = require("naughty")
 if awesome.startup_errors then naughty.notify({ preset = naughty.config.presets.critical, title = "Awesome startup error", text = awesome.startup_errors }) end
 awful.layout.layouts = { awful.layout.suit.tile, awful.layout.suit.tile.left, awful.layout.suit.floating, awful.layout.suit.max }
-awful.screen.connect_for_each_screen(function(s) awful.tag({ "󰊢", "", "󰨞", "󰙨" }, s, awful.layout.layouts[1]); require("bar")(s) end)
+awful.screen.connect_for_each_screen(function(s)
+    awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
+end)
+require("bar")
 root.keys(require("bindings"))
 awful.rules.rules = require("rules")
 client.connect_signal("manage", function(c) if awesome.startup and not c.size_hints.user_position and not c.size_hints.program_position then awful.placement.no_offscreen(c) end end)

@@ -3,7 +3,8 @@
 set -uo pipefail
 
 wallpaper_dir=${DOTFILES_WALLPAPER_DIR:-"$HOME/Pictures/Wallpapers"}
-default_wallpaper="$HOME/.config/wallpapers/arch-bsod.png"
+default_wallpaper="$HOME/.config/wallpapers/mocha-aurora.png"
+legacy_wallpaper="$HOME/.config/wallpapers/arch-bsod.png"
 state_file=${XDG_STATE_HOME:-"$HOME/.local/state"}/dotfiles/wallpaper
 declare -a wallpapers=()
 
@@ -36,6 +37,8 @@ case ${1:-choose} in
     restore)
         saved=''
         [[ -r $state_file ]] && IFS= read -r saved <"$state_file" || true
+
+        [[ $saved == "$legacy_wallpaper" ]] && saved=$default_wallpaper
 
         if [[ ! -f $saved ]]; then
             load_wallpapers

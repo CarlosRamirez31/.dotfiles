@@ -1,6 +1,6 @@
 # Shell
 
-Este componente configura Zsh como shell de login, Oh My Zsh sin tema, Starship Tokyo Night, historial persistente, navegación rápida, búsqueda FZF y herramientas de red. Es la interfaz de terminal común del repositorio.
+Este componente configura Zsh como shell de login, Oh My Zsh sin tema, Starship Catppuccin Mocha, historial persistente, navegación rápida, búsqueda FZF y herramientas de red. Es la interfaz de terminal común del repositorio.
 
 ## Instalación y estructura
 

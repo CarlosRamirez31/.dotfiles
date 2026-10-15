@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+choice=$(printf 'Lock\nLogout\nSuspend\nReboot\nShutdown' | rofi -m -1 -dmenu -p 'Power')
+case "$choice" in
+    Lock) exec "$HOME/.local/bin/dotfiles-lock" ;;
+    Logout) exec awesome-client 'awesome.quit()' ;;
+    Suspend) systemctl suspend ;;
+    Reboot) systemctl reboot ;;
+    Shutdown) systemctl poweroff ;;
+esac

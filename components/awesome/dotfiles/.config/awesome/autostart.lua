@@ -15,7 +15,9 @@ once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
 awful.spawn("clipmenud")
 
 awful.spawn.with_shell("xset s 600 60 +dpms dpms 660 660 660")
+awful.spawn.with_shell("$HOME/.local/bin/dotfiles-display")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-wallpaper restore")
+awful.spawn.with_shell("$HOME/.local/bin/dotfiles-polybar")
 awful.spawn.with_shell(
     "xrdb -merge \"$HOME/.Xresources\"; " ..
         "systemctl --user unset-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE " ..

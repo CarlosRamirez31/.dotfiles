@@ -1,6 +1,6 @@
 add_newline = true
 command_timeout = 1200
-palette = "tokyo_night"
+palette = "catppuccin_mocha"
 
 format = """
 $os$username$hostname$directory$git_branch$git_status$docker_context$package$c$cmake$dart$dotnet$golang$java$kotlin$lua$nodejs$php$python$rust$swift$fill$cmd_duration$jobs$time
@@ -8,17 +8,17 @@ $character"""
 
 right_format = "$status"
 
-[palettes.tokyo_night]
-background = "#1a1b26"
-surface = "#24283b"
-muted = "#565f89"
-foreground = "#c0caf5"
-red = "#f7768e"
-green = "#9ece6a"
-yellow = "#e0af68"
-blue = "#7aa2f7"
-purple = "#bb9af7"
-cyan = "#7dcfff"
+[palettes.catppuccin_mocha]
+background = "#1e1e2e"
+surface = "#313244"
+muted = "#a6adc8"
+foreground = "#cdd6f4"
+red = "#f38ba8"
+green = "#a6e3a1"
+yellow = "#f9e2af"
+blue = "#89b4fa"
+purple = "#cba6f7"
+cyan = "#89dceb"
 
 [os]
 disabled = false

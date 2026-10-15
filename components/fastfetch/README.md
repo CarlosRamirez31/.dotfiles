@@ -25,7 +25,7 @@ Para desactivarlo persistentemente exporta esa variable antes de `.zshrc`.
 
 ## Archivo y validación
 
-`.config/fastfetch/config.jsonc` define orden, iconos y Tokyo Night. El instalador lo valida silenciosamente; una sintaxis inválida hace fallar la instalación en vez de romper cada terminal nueva.
+`.config/fastfetch/config.jsonc` define orden, iconos y la paleta Catppuccin Mocha. El instalador lo valida silenciosamente; una sintaxis inválida hace fallar la instalación en vez de romper cada terminal nueva.
 
 ```bash
 fastfetch --config ~/.config/fastfetch/config.jsonc

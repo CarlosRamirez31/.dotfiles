@@ -19,7 +19,7 @@ izquierda/derecha o `H/L` recorren los fondos, `Enter` aplica la selección y
 Feh aplica el fondo y la ruta elegida se guarda en
 `~/.local/state/dotfiles/wallpaper`. En cada inicio de Awesome se restaura la
 última selección; si el archivo desapareció, usa la primera imagen disponible y
-finalmente `.config/wallpapers/arch-bsod.png`.
+finalmente `.config/wallpapers/mocha-aurora.png`.
 
 Se reconocen JPG, JPEG, PNG, WebP, GIF, BMP y AVIF colocados directamente en
 la carpeta. Para usar otra ubicación puntualmente:
@@ -34,7 +34,7 @@ dotfiles-wallpaper
 ```bash
 command -v feh python
 echo "$XDG_SESSION_TYPE"
-test -r ~/.config/wallpapers/arch-bsod.png
+test -r ~/.config/wallpapers/mocha-aurora.png
 ```
 
 La sesión debe indicar `x11`. Este componente no ejecuta Awww, Waypaper ni GTK

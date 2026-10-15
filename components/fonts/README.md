@@ -7,6 +7,8 @@ Este componente instala las dos familias tipográficas que sostienen la interfaz
 | Fuente | Procedencia | Uso |
 | --- | --- | --- |
 | JetBrainsMono Nerd Font | Paquete Arch `ttf-jetbrains-mono-nerd` | Alacritty, Hyprlock, Starship e iconos Nerd Font. |
+| Iosevka Nerd Font | Paquete Arch `ttf-iosevka-nerd` | Tipografía compacta de la barra inspirada en Ayamir/Yoru. |
+| Material Icons | Paquete Arch `ttf-material-icons` | Iconos de controles de la barra Ayamir/Yoru. |
 | Noto Color Emoji | Paquete Arch `noto-fonts-emoji` | Emojis de Starship, incluido el dragón que identifica Kali Linux. |
 | Lexend Variable | Archivo versionado bajo `.local/share/fonts/Lexend` | Texto y controles de HyprPanel. |
 

@@ -28,3 +28,7 @@ done < <(
     ip -o -4 address show up 2>/dev/null |
         awk '$2 ~ /^(tun|tap)[[:alnum:]_.-]*$/ { split($4, address, "/"); print $2, address[1] }'
 )
+
+# Polybar keeps the previous custom-script output unless it receives an empty
+# line. Emit one explicitly when no HTB tunnel matched so its label disappears.
+printf '\n'

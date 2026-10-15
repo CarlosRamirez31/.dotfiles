@@ -29,4 +29,4 @@ case $mode in
 esac
 
 xclip -selection clipboard -t image/png -i <"$output"
-notify-send -a Screenshot -i "$output" 'Captura guardada' "$output"
+notify-send -a Screenshot -i "$output" 'Captura guardada' "$(basename -- "$output")"

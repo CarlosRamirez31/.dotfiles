@@ -20,6 +20,10 @@ beautiful.init({
     notification_bg = "#242438",
     notification_fg = "#cdd6f4",
     notification_border_color = "#cba6f7",
+    notification_width = 360,
+    notification_height = 96,
+    notification_icon_size = 64,
+    notification_margin = 10,
 })
 
 return beautiful

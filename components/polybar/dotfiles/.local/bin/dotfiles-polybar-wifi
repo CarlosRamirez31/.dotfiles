@@ -36,6 +36,10 @@ status() {
 }
 
 menu() {
+    if command -v awesome-client >/dev/null 2>&1 && awesome-client 'require("quickmenus").toggle("network")' >/dev/null 2>&1; then
+        return 0
+    fi
+
     local active_device wifi_enabled choice ssid password networks profile uuid profile_name
     wifi_enabled=$(nmcli -t -f WIFI general status 2>/dev/null || true)
     active_device=$(nmcli -t -f DEVICE,TYPE,STATE device 2>/dev/null | awk -F: '$2 == "wifi" && $3 == "connected" {print $1; exit}')

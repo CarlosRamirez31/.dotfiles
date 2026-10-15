@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+if command -v awesome-client >/dev/null 2>&1 && awesome-client 'require("quickmenus").toggle("power")' >/dev/null 2>&1; then
+    exit 0
+fi
 choice=$(printf 'Lock\nLogout\nSuspend\nReboot\nShutdown' | rofi -m -1 -dmenu -p 'Power')
 case "$choice" in
     Lock) exec "$HOME/.local/bin/dotfiles-lock" ;;

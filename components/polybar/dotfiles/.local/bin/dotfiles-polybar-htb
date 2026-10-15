@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 vpn_status=$("$HOME/.local/bin/dotfiles-htb-vpn-status" 2>/dev/null || true)
-[[ -n $vpn_status ]] || exit 0
+if [[ -z $vpn_status ]]; then
+    # Polybar needs an actual empty line to clear the previous script output.
+    printf '\n'
+    exit 0
+fi
 
 printf '%%{F#9fef00}%%{F-} %s\n' "$vpn_status"

@@ -1,7 +1,7 @@
 local awful = require("awful")
 
-local function once(process, command, match_command_line)
-    local match = match_command_line and "-f '[c]lipmenud'" or "-x " .. process
+local function once(process, command)
+    local match = "-x " .. process
     awful.spawn.with_shell(
         "if ! pgrep -u \"$(id -u)\" " .. match .. " >/dev/null 2>&1; then " .. command .. " & fi"
     )
@@ -9,7 +9,10 @@ end
 
 once("picom", "picom --config $HOME/.config/picom/picom.conf")
 once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
-once("clipmenud", "clipmenud", true)
+-- clipmenud owns an advisory per-session lock.  Let it enforce the singleton:
+-- probing it with pgrep is unreliable while Awesome is reloaded because the
+-- shell used for the probe can itself match the command line.
+awful.spawn("clipmenud")
 
 awful.spawn.with_shell("xset s 600 60 +dpms dpms 660 660 660")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-wallpaper restore")

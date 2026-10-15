@@ -26,10 +26,10 @@ fail() {
 
 printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
 
-essential_commands=(awesome picom Xorg xrandr xrdb xset zsh alacritty nvim yazi rofi)
+essential_commands=(awesome picom Xorg xrandr xrdb xset glxinfo zsh alacritty nvim yazi rofi)
 essential_commands+=(xsecurelock xss-lock feh maim slop flameshot clipmenu xclip)
 essential_commands+=(ffmpeg gpick firefox thunar)
-optional_commands=(fastfetch glxinfo blueman-manager nft openvpn restic podman labbox keepassxc btop trash-put)
+optional_commands=(fastfetch blueman-manager nft openvpn restic podman labbox keepassxc btop trash-put)
 essential_user_commands=(
     dotfiles-terminal
     dotfiles-app-launcher

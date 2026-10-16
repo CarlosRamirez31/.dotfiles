@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( EUID != 0 )); then
+    printf 'Run this installer with sudo.\n' >&2
+    exit 1
+fi
+
+user_name=${SUDO_USER:-beambollow}
+user_home=$(getent passwd "$user_name" | cut -d: -f6)
+theme_source="$user_home/Projects/SilentSDDM"
+config_source="$user_home/.dotfiles/components/sddm/silent.conf"
+theme_target=/usr/share/sddm/themes/silent
+
+[[ -f $theme_source/Main.qml ]] || {
+    printf 'SilentSDDM was not found at %s.\n' "$theme_source" >&2
+    exit 1
+}
+
+pacman -S --needed qt6-virtualkeyboard qt6-multimedia-ffmpeg qt6-imageformats
+
+install -d -m 0755 "$theme_target" /etc/sddm.conf.d
+cp -a "$theme_source"/. "$theme_target"/
+sed -i 's|^ConfigFile=.*|ConfigFile=configs/catppuccin-mocha.conf|' "$theme_target/metadata.desktop"
+install -d -m 0755 /usr/share/fonts/silent-sddm
+cp -a "$theme_target/fonts"/. /usr/share/fonts/silent-sddm/
+fc-cache -f /usr/share/fonts/silent-sddm
+install -m 0644 "$config_source" /etc/sddm.conf.d/10-silent.conf
+
+printf 'SilentSDDM is installed. Test it with: sddm-greeter-qt6 --test-mode --theme %s\n' "$theme_target"

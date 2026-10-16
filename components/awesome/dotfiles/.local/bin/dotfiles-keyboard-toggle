@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+current_layout=$(setxkbmap -query | awk '$1 == "layout:" { print $2 }')
+
+if [[ $current_layout == latam || $current_layout == latam,* ]]; then
+    exec setxkbmap -layout us,latam -option
+fi
+
+exec setxkbmap -layout latam,us -option

@@ -15,6 +15,8 @@ once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
 awful.spawn("clipmenud")
 
 awful.spawn.with_shell("xset s 600 60 +dpms dpms 660 660 660")
+-- Start in US. Switching is handled by Super+K and the Polybar indicator.
+awful.spawn.with_shell("setxkbmap -layout us,latam -option")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-display")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-wallpaper restore")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-polybar")

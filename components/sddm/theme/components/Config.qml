@@ -36,7 +36,7 @@ QtObject {
     property bool clockDisplay: config['LockScreen.Clock/display'] === "false" ? false : true // @desc:Whether or not to display the clock in the lock screen.
     property string clockPosition: config.stringValue("LockScreen.Clock/position") || "top-center" // @possible:'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' @desc:Position of the clock and date in the lock screen. <br />See also: <a href="#lockscreenpaddingtop">LockScreen/padding-top</a>
     property string clockAlign: config.stringValue("LockScreen.Clock/align") || "center" // @possible:'left' | 'center' | 'right' @desc:Relative alignment of the clock and date.
-    property string clockFormat: config.stringValue("LockScreen.Clock/format") || "hh:mm" // @desc:Format string used for the clock.
+    property string clockFormat: config.stringValue("LockScreen.Clock/format") || "hh:mm AP" // @desc:Format string used for the clock.
     property string clockFontFamily: config.stringValue("LockScreen.Clock/font-family") || "RedHatDisplay" // @desc:Font family used for the clock.
     property int clockFontSize: config.intValue("LockScreen.Clock/font-size") || 70 // @desc:Font size of the clock.
     property int clockFontWeight: config.intValue("LockScreen.Clock/font-weight") || 900 // @desc:Font weight of the clock. 400 = regular, 600 = bold, 800 = black

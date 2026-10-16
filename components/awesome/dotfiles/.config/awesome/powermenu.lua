@@ -47,7 +47,7 @@ local function build(screen)
         bottom = 10,
         widget = wibox.container.margin,
     })
-    local time = wibox.widget.textclock("%H:%M")
+    local time = wibox.widget.textclock("%I:%M %p")
     time.font = "Lexend 28"
     local date = wibox.widget.textclock("%A, %d de %B")
     date.font = "Lexend 9"

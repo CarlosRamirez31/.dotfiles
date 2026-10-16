@@ -122,7 +122,7 @@ function M.clock()
             '<span foreground="%s">󰥔</span><span foreground="%s"> %s</span>',
             colors.pink,
             colors.text,
-            os.date("%H:%M  ·  %a %d")
+            os.date("%I:%M %p  ·  %a %d")
         )
     end
     update()

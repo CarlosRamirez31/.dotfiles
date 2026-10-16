@@ -80,7 +80,7 @@ format = "[$symbol$number]($style) "
 
 [time]
 disabled = false
-time_format = "%H:%M"
+time_format = "%I:%M %p"
 style = "muted"
 format = "[ $time]($style)"
 

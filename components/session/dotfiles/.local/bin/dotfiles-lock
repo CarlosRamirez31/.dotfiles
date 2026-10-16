@@ -2,8 +2,53 @@
 set -euo pipefail
 
 # Do not start a second locker while one already owns the display.
-if pgrep -x xsecurelock >/dev/null; then
+if pgrep -x xsecurelock >/dev/null || pgrep -x i3lock >/dev/null; then
     exit 0
 fi
+
+if command -v betterlockscreen >/dev/null 2>&1 && command -v bc >/dev/null 2>&1 && command -v xdpyinfo >/dev/null 2>&1; then
+    # Feh writes the desktop's active wallpaper here.  Reuse it so the lock
+    # screen always matches what is actually on screen, not a hard-coded file.
+    wallpaper=$(awk -F\' '/feh .*--bg/ { print $2; exit }' "$HOME/.fehbg" 2>/dev/null || true)
+    [[ -r $wallpaper ]] || wallpaper="$HOME/.config/wallpapers/mocha-aurora.png"
+    cache_image="${XDG_CACHE_HOME:-"$HOME/.cache"}/betterlockscreen/current/lock_dimblur.png"
+    cache_source="${XDG_CACHE_HOME:-"$HOME/.cache"}/betterlockscreen/current/dotfiles-wallpaper"
+
+    # Betterlockscreen owns the cache and the actual lock screen.  Refresh it
+    # whenever its source is changed, even when an older wallpaper is selected.
+    if [[ ! -s $cache_image || ! -r $cache_source || $(<"$cache_source") != "$wallpaper" ]]; then
+        betterlockscreen --update "$wallpaper" --fx dimblur
+        printf '%s\n' "$wallpaper" > "$cache_source"
+    fi
+    exec betterlockscreen --lock dimblur
+fi
+
+# Safe fallback until i3lock-color is installed.  The launcher switches to
+# the full visual lock screen automatically once that package is present.
+# Keep the display lifecycle under the locker.  A separate xset DPMS timer
+# used to turn the panel off behind XSecureLock; on some X11/VM graphics
+# stacks that left the screen black after PAM accepted the password.
+export XSECURELOCK_BLANK_TIMEOUT=-1
+export XSECURELOCK_BLANK_DPMS_STATE=on
+
+# Catppuccin Mocha lock screen: use a dedicated quiet background and keep the
+# authentication prompt intentionally minimal.
+export XSECURELOCK_SAVER=saver_mpv
+export XSECURELOCK_LIST_VIDEOS_COMMAND="$HOME/.local/bin/dotfiles-lock-background"
+export XSECURELOCK_IMAGE_DURATION_SECONDS=3600
+export XSECURELOCK_DIM_COLOR='#1e1e2e'
+export XSECURELOCK_DIM_ALPHA=0.68
+export XSECURELOCK_DIM_TIME_MS=350
+export XSECURELOCK_SAVER_DELAY_MS=500
+export XSECURELOCK_AUTH_BACKGROUND_COLOR='#11111b'
+export XSECURELOCK_AUTH_FOREGROUND_COLOR='#cdd6f4'
+export XSECURELOCK_AUTH_WARNING_COLOR='#f38ba8'
+export XSECURELOCK_FONT='JetBrainsMono Nerd Font 14'
+export XSECURELOCK_PASSWORD_PROMPT=cursor
+export XSECURELOCK_SHOW_DATETIME=0
+export XSECURELOCK_SHOW_USERNAME=0
+export XSECURELOCK_SHOW_HOSTNAME=0
+export XSECURELOCK_SHOW_KEYBOARD_LAYOUT=0
+export XSECURELOCK_AUTH_SOUNDS=0
 
 exec xsecurelock

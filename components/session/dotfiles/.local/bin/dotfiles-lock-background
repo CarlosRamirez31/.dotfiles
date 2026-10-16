@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Used only if the live desktop capture cannot be created.
+fallback="$HOME/.config/wallpapers/mocha-aurora.png"
+
+if [[ -f $fallback ]]; then
+    printf '%s\n' "$fallback"
+fi

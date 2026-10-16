@@ -14,7 +14,9 @@ once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
 -- shell used for the probe can itself match the command line.
 awful.spawn("clipmenud")
 
-awful.spawn.with_shell("xset s 600 60 +dpms dpms 660 660 660")
+-- XSecureLock owns its display state.  A second DPMS timeout could keep the
+-- monitor off after a successful unlock on some X11/VM graphics drivers.
+awful.spawn.with_shell("xset s 600 60 -dpms")
 -- Start in US. Switching is handled by Super+K and the Polybar indicator.
 awful.spawn.with_shell("setxkbmap -layout us,latam -option")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-display")

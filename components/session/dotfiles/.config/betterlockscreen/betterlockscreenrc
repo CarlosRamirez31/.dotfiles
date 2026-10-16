@@ -1,0 +1,40 @@
+# BESTerlockscreen-style Betterlockscreen theme for Awesome/X11.
+# The lock layout is Betterlockscreen's native clock + unlock indicator.
+i3lockcolor_bin="i3lock"
+fx_list=(dimblur)
+dim_level=40
+blur_level=1
+wallpaper_cmd="feh --bg-fill"
+quiet=true
+
+# Native Betterlockscreen composition, tinted to match Mocha Aurora.
+loginbox=11111baa
+loginshadow=00000000
+locktext="Type password to unlock..."
+font="JetBrainsMono Nerd Font"
+ringcolor=cba6f7ff
+insidecolor=11111b66
+separatorcolor=00000000
+ringvercolor=89dcebff
+insidevercolor=11111bcc
+ringwrongcolor=f38ba8ff
+insidewrongcolor=f38ba8cc
+time_format="%H:%M:%S"
+timecolor=c0caf5ff
+greetercolor=cdd6f4ff
+layoutcolor=a6adc8ff
+keyhlcolor=cba6f7ff
+bshlcolor=f38ba8ff
+veriftext="Verifying..."
+verifcolor=89dcebff
+wrongtext="Wrong password"
+wrongcolor=f38ba8ff
+modifcolor=cba6f7ff
+bgcolor=11111bff
+
+# Betterlockscreen draws the clock/text relative to the unlock circle.  Give
+# the two groups a deliberate gap so they never read as a single crowded unit.
+lockargs+=(--ind-pos="x+400:y+h-80")
+lockargs+=(--time-pos="ix-360:iy-10")
+lockargs+=(--greeter-pos="ix-360:iy+12")
+lockargs+=(--layout-pos="ix-360:iy+32")

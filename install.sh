@@ -9,6 +9,7 @@ source "$repo_root/scripts/lib.sh"
 # when the X11 session starts.
 default_components=(
     system
+    sddm
     themes
     fonts
     shell

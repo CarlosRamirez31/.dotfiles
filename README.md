@@ -41,6 +41,7 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | Módulo | Para qué existe |
 | --- | --- |
 | [`system`](components/system/README.md) | red, audio, portal GTK/X11, OpenVPN, SDDM y soporte de VM |
+| [`sddm`](components/sddm/README.md) | tema SilentSDDM con Catppuccin Mocha y teclado virtual en la pantalla de inicio |
 | [`themes`](components/themes/README.md) | cursor Bibata e iconos Oranchelo |
 | [`fonts`](components/fonts/README.md) | JetBrainsMono Nerd Font y Lexend |
 | [`shell`](components/shell/README.md) | Zsh, Starship, historial, navegación y herramientas de red |

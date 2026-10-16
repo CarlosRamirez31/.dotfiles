@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Firefox draws client-side window controls itself, independently of Awesome
+# or Hyprland.  Keep only its browser UI; window actions belong to the WM.
+profile_root="${MOZILLA_HOME:-$HOME/.mozilla/firefox}"
+css=$'/* Managed by dotfiles-firefox: window actions are handled by the WM. */\n.titlebar-buttonbox-container,\n#window-controls,\n.titlebar-spacer[type="post-tabs"] {\n    display: none !important;\n}\n'
+
+if [[ -d $profile_root ]]; then
+    while IFS= read -r -d '' profile; do
+        chrome_dir="$profile/chrome"
+        mkdir -p -- "$chrome_dir"
+        printf '%s' "$css" >"$chrome_dir/dotfiles-window-controls.css"
+
+        user_chrome="$chrome_dir/userChrome.css"
+        if [[ ! -e $user_chrome ]]; then
+            printf '@import url("dotfiles-window-controls.css");\n' >"$user_chrome"
+        elif ! grep -Fqx '@import url("dotfiles-window-controls.css");' "$user_chrome"; then
+            printf '\n@import url("dotfiles-window-controls.css");\n' >>"$user_chrome"
+        fi
+
+        user_js="$profile/user.js"
+        if [[ ! -e $user_js ]]; then
+            printf '%s\n' 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' >"$user_js"
+        elif ! grep -Fq 'toolkit.legacyUserProfileCustomizations.stylesheets' "$user_js"; then
+            printf '%s\n' 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' >>"$user_js"
+        fi
+    done < <(find "$profile_root" -mindepth 1 -maxdepth 1 -type d -name '*.default*' -print0)
+fi
+
+exec firefox "$@"

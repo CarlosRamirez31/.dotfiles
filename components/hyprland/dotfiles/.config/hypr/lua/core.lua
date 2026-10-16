@@ -5,6 +5,10 @@ local hardware = require("lua.hardware")
 -- physical machines and other hypervisors still use their preferred mode.
 local monitor_mode = hardware.vmware and "1920x1080@60" or "preferred"
 
+-- Let the compositor manage ordinary GTK window frames.  This prevents the
+-- close, minimize, and maximize buttons that client-side decorations add.
+hl.env("GTK_CSD", "0")
+
 hl.monitor({
     output = "",
     mode = monitor_mode,
@@ -103,7 +107,7 @@ hl.on("hyprland.start", function()
     -- any desktop components so those services can create visible windows.
     -- Start UWSM's lightweight application daemon in the background now. Its
     -- shell client is much faster than importing the Python CLI on every app.
-    hl.exec_cmd("uwsm finalize PATH GDK_BACKEND GSK_RENDERER GTK_USE_PORTAL MOZ_ENABLE_WAYLAND ELECTRON_OZONE_PLATFORM_HINT TERMINAL XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE HYPRCURSOR_THEME HYPRCURSOR_SIZE SSH_AUTH_SOCK && uwsm-app -- true")
+    hl.exec_cmd("uwsm finalize PATH GDK_BACKEND GSK_RENDERER GTK_USE_PORTAL GTK_CSD MOZ_ENABLE_WAYLAND ELECTRON_OZONE_PLATFORM_HINT TERMINAL XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE HYPRCURSOR_THEME HYPRCURSOR_SIZE SSH_AUTH_SOCK && uwsm-app -- true")
     -- Session services (panel, polkit and clipboard) and XDG autostart apps
     -- (including Blueman) are already started by graphical-session.target.
     hl.exec_cmd([[bash "$HOME/.local/bin/dotfiles-wallpaper" restore]])

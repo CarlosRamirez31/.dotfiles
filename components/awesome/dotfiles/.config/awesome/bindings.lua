@@ -7,15 +7,41 @@ local function spawn(command)
             'unset WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE MOZ_ENABLE_WAYLAND; ' ..
                 'export XDG_SESSION_TYPE=x11 XDG_CURRENT_DESKTOP=awesome ' ..
                 'XDG_SESSION_DESKTOP=awesome XCURSOR_THEME=Bibata-Modern-Classic ' ..
-                'XCURSOR_SIZE=24 PATH="$HOME/.local/bin:$PATH"; exec ' .. command
+                'XCURSOR_SIZE=24 GTK_CSD=0 PATH="$HOME/.local/bin:$PATH"; exec ' .. command
         )
     end
 end
+
+local function toggle_floating()
+    local c = client.focus
+    if not c then return end
+
+    if c.floating then
+        c.maximized = false
+        c.fullscreen = false
+        c.floating = false
+    else
+        c.fullscreen = false
+        c.maximized = false
+        c.floating = true
+        awful.placement.centered(c, { honor_workarea = true, honor_padding = true })
+    end
+    c:raise()
+end
+
 local keys = gears.table.join(
     awful.key({ modkey }, "Tab", spawn("rofi -modi window,drun -show window")),
     awful.key({ modkey }, "Return", spawn("dotfiles-terminal")), awful.key({ "Control", modkey }, "t", spawn("dotfiles-terminal")), awful.key({ modkey }, "space", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "d", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "F2", spawn("dotfiles-app-launcher")),
-    awful.key({ modkey }, "b", spawn("firefox")), awful.key({ modkey }, "e", spawn("dotfiles-terminal --command yazi")), awful.key({ "Control", modkey }, "e", spawn("thunar")), awful.key({ modkey }, "w", spawn("dotfiles-wallpaper choose")), awful.key({ modkey }, "c", spawn("dotfiles-clipboard")), awful.key({ "Control", "Shift" }, "b", spawn("dotfiles-lock")), awful.key({ modkey, "Shift" }, "e", function() awesome.quit() end),
-    awful.key({ modkey }, "q", function() if client.focus then client.focus:kill() end end), awful.key({ modkey }, "f", function() if client.focus then client.focus.fullscreen = not client.focus.fullscreen; client.focus:raise() end end), awful.key({ modkey }, "v", function() if client.focus then client.focus.floating = not client.focus.floating end end),
+    awful.key({ modkey }, "b", spawn("dotfiles-firefox")), awful.key({ modkey }, "e", spawn("dotfiles-terminal --command yazi")), awful.key({ "Control", modkey }, "e", spawn("thunar")), awful.key({ modkey }, "w", spawn("dotfiles-wallpaper choose")), awful.key({ modkey }, "c", spawn("dotfiles-clipboard")), awful.key({ "Control", "Shift" }, "b", spawn("dotfiles-lock")), awful.key({ modkey, "Shift" }, "e", function() awesome.quit() end),
+    awful.key({ modkey }, "q", function() if client.focus then client.focus:kill() end end), awful.key({ modkey }, "v", toggle_floating),
+    awful.key({ modkey, "Shift" }, "equal", function()
+        local c = client.focus
+        if c and c.floating then c:geometry({ width = c.width + 60, height = c.height + 60 }) end
+    end),
+    awful.key({ modkey, "Shift" }, "minus", function()
+        local c = client.focus
+        if c and c.floating then c:geometry({ width = math.max(100, c.width - 60), height = math.max(100, c.height - 60) }) end
+    end),
     awful.key({}, "Print", spawn("dotfiles-screenshot full")), awful.key({ modkey }, "Print", spawn("dotfiles-screenshot area")), awful.key({ modkey, "Shift" }, "s", spawn("dotfiles-screenshot area")), awful.key({ modkey, "Shift" }, "r", spawn("dotfiles-record area")), awful.key({ modkey, "Shift" }, "c", spawn("gpick")),
     awful.key({}, "XF86AudioRaiseVolume", spawn("wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+")), awful.key({}, "XF86AudioLowerVolume", spawn("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-")), awful.key({}, "XF86AudioMute", spawn("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")), awful.key({}, "XF86AudioMicMute", spawn("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle")), awful.key({}, "XF86MonBrightnessUp", spawn("brightnessctl set +5%")), awful.key({}, "XF86MonBrightnessDown", spawn("brightnessctl set 5%-")), awful.key({}, "XF86AudioPlay", spawn("playerctl play-pause")), awful.key({}, "XF86AudioNext", spawn("playerctl next")), awful.key({}, "XF86AudioPrev", spawn("playerctl previous")),
     awful.key({ modkey }, "h", function() awful.client.focus.bydirection("left") end), awful.key({ modkey }, "j", function() awful.client.focus.bydirection("down") end), awful.key({ modkey }, "k", function() awful.client.focus.bydirection("up") end), awful.key({ modkey }, "l", function() awful.client.focus.bydirection("right") end),

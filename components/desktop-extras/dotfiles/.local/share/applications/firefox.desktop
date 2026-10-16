@@ -1,0 +1,19 @@
+[Desktop Entry]
+Name=Firefox
+Comment=Browse the World Wide Web
+Exec=dotfiles-firefox %u
+Icon=firefox
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png;x-scheme-handler/http;x-scheme-handler/https;
+StartupNotify=true
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=dotfiles-firefox --new-window
+
+[Desktop Action new-private-window]
+Name=New Private Window
+Exec=dotfiles-firefox --private-window

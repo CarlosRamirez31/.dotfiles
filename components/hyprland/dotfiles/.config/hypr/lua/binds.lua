@@ -15,7 +15,7 @@ hl.bind("ALT + space", hl.dsp.exec_cmd(app_launcher), {
     description = "Application launcher (Rofi)",
 })
 run("ALT + D", app_launcher)
-run("ALT + B", "uwsm-app -- firefox")
+run("ALT + B", "uwsm-app -- dotfiles-firefox")
 run("ALT + E", [[bash "$HOME/.local/bin/dotfiles-terminal" --class dotfiles-yazi --title "Archivos" -e yazi]])
 run("CTRL + ALT + E", "uwsm-app -- thunar")
 run("ALT + W", [[bash "$HOME/.local/bin/dotfiles-wallpaper" choose]])

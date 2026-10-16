@@ -1,0 +1,100 @@
+configuration {
+    show-icons: true;
+    matching: "fuzzy";
+    sort: true;
+    sorting-method: "fzf";
+}
+
+* {
+    font: "Lexend Regular 10";
+    background: #11111be8;
+    surface: #1e1e2ef5;
+    card: #242438f5;
+    card-hover: #313244ff;
+    foreground: #cdd6f4ff;
+    muted: #a6adc8ff;
+    accent: #cba6f7ff;
+}
+
+window {
+    width: 84%;
+    height: 84%;
+    location: center;
+    anchor: center;
+    border: 1px;
+    border-color: @accent;
+    border-radius: 22px;
+    background-color: @background;
+}
+
+mainbox {
+    padding: 22px;
+    spacing: 18px;
+    background-color: transparent;
+    children: [ inputbar, listview ];
+}
+
+inputbar {
+    padding: 13px 16px;
+    spacing: 12px;
+    border: 1px;
+    border-color: #45475aff;
+    border-radius: 14px;
+    background-color: @surface;
+    text-color: @foreground;
+    children: [ prompt, entry ];
+}
+
+prompt {
+    font: "JetBrainsMono Nerd Font 14";
+    text-color: @accent;
+    background-color: transparent;
+}
+
+entry {
+    placeholder: "Buscar entre tus wallpapers…";
+    placeholder-color: @muted;
+    text-color: @foreground;
+    background-color: transparent;
+}
+
+listview {
+    lines: 2;
+    columns: 4;
+    fixed-columns: true;
+    fixed-height: true;
+    spacing: 12px;
+    scrollbar: false;
+    background-color: transparent;
+}
+
+element {
+    children: [ element-icon, element-text ];
+    orientation: vertical;
+    padding: 10px;
+    spacing: 8px;
+    border: 1px;
+    border-color: transparent;
+    border-radius: 14px;
+    background-color: @card;
+    text-color: @foreground;
+}
+
+element selected {
+    border-color: @accent;
+    background-color: @card-hover;
+    text-color: @foreground;
+}
+
+element-icon {
+    size: 180px;
+    horizontal-align: 0.5;
+    background-color: transparent;
+}
+
+element-text {
+    horizontal-align: 0.5;
+    vertical-align: 0.5;
+    text-color: inherit;
+    background-color: transparent;
+}

@@ -1,5 +1,5 @@
 # Display managers source this for X11 sessions. Limit the overrides to
-# Awesome so the retained Hyprland rollback and other X11 sessions stay intact.
+# Awesome so the session environment remains predictable.
 case ${DESKTOP_SESSION:-${XDG_SESSION_DESKTOP:-}} in
     *awesome*)
         export XDG_CURRENT_DESKTOP=awesome
@@ -10,7 +10,5 @@ case ${DESKTOP_SESSION:-${XDG_SESSION_DESKTOP:-}} in
         # Applications should use Awesome's borderless window management
         # instead of painting their own titlebar controls.
         export GTK_CSD=0
-        unset WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE UWSM_FINALIZE_VARNAMES
-        unset MOZ_ENABLE_WAYLAND
         ;;
 esac

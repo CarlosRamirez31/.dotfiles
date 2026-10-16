@@ -1,6 +1,6 @@
 # Themes
 
-Este componente instala los recursos visuales externos compartidos por Awesome, aplicaciones GTK y la sesión Hyprland opcional de rollback. Se mantiene separado porque ambos paquetes proceden del AUR y no son necesarios para una instalación puramente funcional.
+Este componente instala los recursos visuales externos compartidos por Awesome y aplicaciones GTK. Se mantiene separado porque ambos paquetes proceden del AUR y no son necesarios para una instalación puramente funcional.
 
 ## Recursos
 
@@ -23,6 +23,5 @@ Awesome carga Bibata desde `.Xresources` y configura las aplicaciones GTK con `B
 
 Este componente no escribe preferencias GTK de usuario ni descarga fondos. El wallpaper pertenece a `wallpaper`, las fuentes a `fonts` y los colores están definidos en cada aplicación.
 
-La sesión Hyprland de rollback conserva su selección de cursor independiente.
 
 Si el cursor anterior persiste, cierra la sesión X11 completa y vuelve a entrar para recargar los recursos Xcursor.

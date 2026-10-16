@@ -20,8 +20,6 @@ awful.spawn.with_shell("$HOME/.local/bin/dotfiles-wallpaper restore")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-polybar")
 awful.spawn.with_shell(
     "xrdb -merge \"$HOME/.Xresources\"; " ..
-        "systemctl --user unset-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE " ..
-        "UWSM_FINALIZE_VARNAMES MOZ_ENABLE_WAYLAND; " ..
         "systemctl --user set-environment XCURSOR_THEME=Bibata-Modern-Classic " ..
         "XCURSOR_SIZE=24 XDG_SESSION_TYPE=x11 XDG_CURRENT_DESKTOP=awesome " ..
         "XDG_SESSION_DESKTOP=awesome; " ..

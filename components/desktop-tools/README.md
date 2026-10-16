@@ -52,5 +52,4 @@ pgrep -a -u "$USER" -f '[c]lipmenud'
 journalctl --user -b | rg -i 'clipmenu|flameshot|maim'
 ```
 
-Este componente no inicia servicios Wayland ni depende de Grim, Slurp,
-wl-clipboard o Cliphist.
+Todos sus procesos y dependencias pertenecen a la sesión X11.

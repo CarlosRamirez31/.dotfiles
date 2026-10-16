@@ -42,4 +42,4 @@ command -v alacritty dotfiles-terminal
 grep Alacritty ~/.config/xdg-terminals.list
 ```
 
-Si faltan iconos, reinstala `fonts` y ejecuta `fc-cache -f`. Si no cargan alias, reinstala `shell` o comprueba `zsh -l`. En Awesome confirma `echo "$XDG_SESSION_TYPE"` (`x11`) y `echo "$WAYLAND_DISPLAY"` (vacío).
+Si faltan iconos, reinstala `fonts` y ejecuta `fc-cache -f`. Si no cargan alias, reinstala `shell` o comprueba `zsh -l`. En Awesome confirma `echo "$XDG_SESSION_TYPE"` (`x11`).

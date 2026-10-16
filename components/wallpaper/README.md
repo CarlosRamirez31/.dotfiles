@@ -11,10 +11,10 @@ dotfiles-wallpaper
 dotfiles-wallpaper restore
 ```
 
-`Alt+W` abre el carrusel GTK como ventana X11 normal. Muestra la selección
-actual y sus vecinas con miniaturas cargadas fuera del hilo gráfico. Las flechas
-izquierda/derecha o `H/L` recorren los fondos, `Enter` aplica la selección y
-`Escape` sale. Una segunda pulsación no crea otra instancia.
+`Alt+W` abre una galería Rofi oscura con cuatro columnas de miniaturas. Escribe
+para filtrar, usa las flechas o el ratón para elegir, `Enter` aplica la imagen y
+`Escape` cierra sin cambiar nada. ImageMagick genera las miniaturas en la caché
+XDG y se reutilizan en las próximas aperturas.
 
 Feh aplica el fondo y la ruta elegida se guarda en
 `~/.local/state/dotfiles/wallpaper`. En cada inicio de Awesome se restaura la
@@ -37,5 +37,4 @@ echo "$XDG_SESSION_TYPE"
 test -r ~/.config/wallpapers/mocha-aurora.png
 ```
 
-La sesión debe indicar `x11`. Este componente no ejecuta Awww, Waypaper ni GTK
-Layer Shell.
+La sesión debe indicar `x11`. El fondo se aplica con Feh y el selector usa Rofi.

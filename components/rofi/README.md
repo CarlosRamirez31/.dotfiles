@@ -18,7 +18,7 @@ nombre; Enter ejecuta la aplicación seleccionada y Escape cancela.
 
 `.local/bin/dotfiles-app-launcher` asegura que `~/.local/bin` esté en `PATH`,
 activa iconos y refresca la caché de aplicaciones. Ejecuta las entradas dentro
-del display X11 actual sin UWSM ni variables Wayland.
+del display X11 actual.
 
 | Archivo | Función |
 | --- | --- |

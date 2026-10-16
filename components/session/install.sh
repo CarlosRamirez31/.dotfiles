@@ -19,5 +19,4 @@ else
 fi
 
 stow_component "$component_root"
-systemctl --user disable --now dotfiles-hypridle.service 2>/dev/null || true
 printf 'X11 lock screen, idle handling and safe suspend rules installed.\n'

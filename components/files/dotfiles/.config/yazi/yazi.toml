@@ -16,14 +16,6 @@ max_width = 1200
 max_height = 900
 image_delay = 40
 
-[plugin]
-prepend_preloaders = [
-    { mime = "image/*", run = "noop" },
-]
-prepend_previewers = [
-    { mime = "image/*", run = "noop" },
-]
-
 [tasks]
 micro_workers = 5
 macro_workers = 10

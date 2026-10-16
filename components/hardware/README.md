@@ -54,4 +54,4 @@ rfkill list bluetooth
 journalctl -u bluetooth.service -b
 ```
 
-Si Bluetooth figura bloqueado, usa `rfkill unblock bluetooth`. La applet de Blueman la inicia Hyprland si existe; `hardware` instala las herramientas pero no administra batería, audio ni teclas multimedia, que pertenecen a `session` y `system`.
+Si Bluetooth figura bloqueado, usa `rfkill unblock bluetooth`. `hardware` instala las herramientas pero no administra batería, audio ni teclas multimedia, que pertenecen a `session` y `system`.

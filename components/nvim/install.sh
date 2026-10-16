@@ -20,7 +20,7 @@ install_packages \
     npm \
     python \
     python-pip \
-    wl-clipboard \
+    xclip \
     lazygit \
     dotnet-sdk \
     lua \

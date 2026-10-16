@@ -4,7 +4,7 @@ Este componente instala una estación de edición basada en LazyVim, mantenida d
 
 ## Dependencias instaladas en Arch
 
-Además de `neovim`, instala Git, ripgrep, fd, FZF, unzip, curl, compiladores (`make`, GCC, CMake), Node/npm, Python/pip, portapapeles Wayland, Lazygit, .NET SDK, Lua/Luarocks, rust-analyzer y Tree-sitter CLI. Son dependencias usadas por Lazy.nvim, parsers, servidores de lenguaje y plugins nativos.
+Además de `neovim`, instala Git, ripgrep, fd, FZF, unzip, curl, compiladores (`make`, GCC, CMake), Node/npm, Python/pip, portapapeles X11, Lazygit, .NET SDK, Lua/Luarocks, rust-analyzer y Tree-sitter CLI. Son dependencias usadas por Lazy.nvim, parsers, servidores de lenguaje y plugins nativos.
 
 ## Instalación y protección de configuración previa
 

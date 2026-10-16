@@ -2,8 +2,8 @@
 
 set -uo pipefail
 
-# Display managers can give Hyprland a minimal PATH. Rofi launches desktop
-# entries directly, so expose the portable per-user command directory here.
+# Display managers can provide a minimal PATH. Rofi launches desktop entries
+# directly, so expose the portable per-user command directory here.
 case ":${PATH:-}:" in
     *":$HOME/.local/bin:"*) ;;
     *) export PATH="$HOME/.local/bin${PATH:+:$PATH}" ;;

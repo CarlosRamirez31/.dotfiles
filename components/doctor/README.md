@@ -28,7 +28,7 @@ existan advertencias.
 3. JetBrainsMono Nerd Font, Noto Color Emoji y Lexend para la Wibar.
 4. Zsh como shell de login, NetworkManager, firewall, timers y sockets de
    credenciales.
-5. En una sesión Awesome activa: tipo X11, ausencia de `WAYLAND_DISPLAY`,
+5. En una sesión Awesome activa: tipo X11,
    Picom, Xss-lock, una sola instancia de Clipmenu, sintaxis Lua y renderer GL.
 6. En VMware, detecta `llvmpipe` como error de aceleración.
 

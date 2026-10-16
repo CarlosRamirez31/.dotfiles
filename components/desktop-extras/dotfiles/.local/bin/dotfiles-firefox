@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Firefox draws client-side window controls itself, independently of Awesome
-# or Hyprland.  Keep only its browser UI; window actions belong to the WM.
+# or Awesome. Keep only its browser UI; window actions belong to the WM.
 profile_root="${MOZILLA_HOME:-$HOME/.mozilla/firefox}"
 css=$'/* Managed by dotfiles-firefox: window actions are handled by the WM. */\n.titlebar-buttonbox-container,\n#window-controls,\n.titlebar-spacer[type="post-tabs"] {\n    display: none !important;\n}\n'
 

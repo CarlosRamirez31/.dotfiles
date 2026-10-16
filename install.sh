@@ -32,13 +32,11 @@ default_components=(
     polybar
     doctor
 )
-rollback_components=(uwsm hyprpanel hyprland)
-available_components=("${default_components[@]}" "${rollback_components[@]}")
+available_components=("${default_components[@]}")
 
 usage() {
     printf 'Usage: %s [all|COMPONENT ...]\n' "${0##*/}"
     printf 'Components installed by default: %s\n' "${default_components[*]}"
-    printf 'Optional Hyprland rollback: %s\n' "${rollback_components[*]}"
 }
 
 component_exists() {

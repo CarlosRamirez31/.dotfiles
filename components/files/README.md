@@ -35,8 +35,7 @@ saltan a Descargas, Imágenes y el directorio personal. Los volúmenes aparecen
 en la barra lateral de Thunar y se montan mediante UDisks/GVfs; no hace falta
 `sudo mount` para el uso normal.
 
-En la sesión Awesome, el portal de archivos usa GTK, una implementación X11 que
-no depende de Hyprland ni de Wayland. Firefox y las aplicaciones compatibles
+En la sesión Awesome, el portal de archivos usa GTK y X11. Firefox y las aplicaciones compatibles
 abren ese selector al subir, abrir o guardar archivos. Yazi sigue disponible
 como gestor de terminal (`Alt+E`); Thunar es el respaldo gráfico.
 
@@ -57,7 +56,7 @@ En imv, `Shift++` amplía la imagen; `Shift+-` y `Ctrl+-` la reducen. Los dos
 atajos de reducción se declaran explícitamente.
 
 MPV conserva su selección normal de GPU. Awesome ejecuta aplicaciones gráficas
-en X11 y no exporta `LIBGL_ALWAYS_SOFTWARE` ni activa salidas Wayland.
+en X11 y no exporta `LIBGL_ALWAYS_SOFTWARE`.
 
 ## Efectos del instalador y diagnóstico
 

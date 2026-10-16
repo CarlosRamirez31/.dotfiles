@@ -21,6 +21,13 @@ return {
             screen = awful.screen.preferred,
             placement = awful.placement.no_overlap + awful.placement.no_offscreen,
             buttons = floating_client_buttons,
+            sticky = false,
+            -- Ordinary applications always join the active tag's tiling
+            -- layout.  Dialogs below deliberately override this behavior.
+            floating = false,
+            maximized = false,
+            fullscreen = false,
+            ontop = false,
         },
     },
     {
@@ -29,6 +36,7 @@ return {
             border_width = 0,
             focusable = false,
             floating = true,
+            sticky = true,
             ontop = true,
             skip_taskbar = true,
         },
@@ -40,6 +48,4 @@ return {
         },
         properties = { floating = true, placement = awful.placement.centered },
     },
-    { rule = { class = "Firefox" }, properties = { tag = "󰊢" } },
-    { rule = { class = "Alacritty" }, properties = { tag = "" } },
 }

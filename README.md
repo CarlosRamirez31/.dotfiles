@@ -25,8 +25,7 @@ mientras se ejecuta. Pacman acepta automáticamente cada transacción y usa los
 proveedores predeterminados de Arch; no hay que responder selectores y los
 dotfiles no fijan un proveedor innecesario. Al terminar, reinicia y selecciona
 `Awesome` en SDDM. El componente `system` instala y habilita SDDM para el
-próximo arranque sin interrumpir la sesión actual. Hyprland se conserva como
-sesión de rollback independiente.
+próximo arranque sin interrumpir la sesión actual.
 
 Para instalar componentes concretos:
 
@@ -177,13 +176,6 @@ Ese puerto solo se expone en interfaces VPN `tun*` y desaparece al reiniciar o
 recargar nftables.
 
 ## Contenedores de trabajo
-
-Los componentes Hyprland/UWSM se conservan fuera de la instalación `all`. Para
-reinstalar la sesión de rollback explícitamente:
-
-```bash
-./install.sh uwsm hyprpanel hyprland
-```
 
 Los contenedores no se crean automáticamente ni consumen espacio hasta que los
 pidas:

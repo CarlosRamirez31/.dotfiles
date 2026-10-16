@@ -2,7 +2,7 @@
 
 Este componente instala los validadores utilizados por `./check.sh`. Está
 separado del escritorio porque sus paquetes existen para desarrollar y mantener
-el repositorio, no para ejecutar Hyprland.
+el repositorio, no para ejecutar el escritorio.
 
 ## Herramientas
 
@@ -12,7 +12,7 @@ el repositorio, no para ejecutar Hyprland.
 | `shfmt` | Formato reproducible de los scripts Bash. |
 | `zsh` | Sintaxis de `.zshrc`, `.zshenv` y módulos `.zsh`. |
 | `jq` | Sintaxis de archivos JSON estrictos. |
-| `lua` | Sintaxis de Hyprland y la configuración de Neovim. |
+| `lua` | Sintaxis de la configuración de Awesome y Neovim. |
 
 ## Uso
 

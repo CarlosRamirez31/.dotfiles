@@ -47,5 +47,4 @@ pgrep -a ffmpeg
 echo "$XDG_SESSION_TYPE"
 ```
 
-La sesión debe indicar `x11`. Este componente no utiliza wf-recorder ni
-Hyprpicker.
+La sesión debe indicar `x11`.

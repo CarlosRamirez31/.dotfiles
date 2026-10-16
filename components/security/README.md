@@ -4,7 +4,7 @@ Este componente configura almacenamiento de credenciales, agente SSH y un firewa
 
 ## Credenciales y agente SSH
 
-Instala GNOME Keyring, libsecret, Seahorse y GCR 4. Habilita los sockets de usuario `gnome-keyring-daemon.socket` y `gcr-ssh-agent.socket`; `shell` y `uwsm` exportan `SSH_AUTH_SOCK=$XDG_RUNTIME_DIR/gcr/ssh`.
+Instala GNOME Keyring, libsecret, Seahorse y GCR 4. Habilita los sockets de usuario `gnome-keyring-daemon.socket` y `gcr-ssh-agent.socket`; `shell` exporta `SSH_AUTH_SOCK=$XDG_RUNTIME_DIR/gcr/ssh`.
 
 ```bash
 systemctl --user status gnome-keyring-daemon.socket gcr-ssh-agent.socket

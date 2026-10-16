@@ -53,4 +53,4 @@ journalctl -u NetworkManager.service -b
 systemd-detect-virt
 ```
 
-Tras una instalación completa reinicia y selecciona `Awesome` en SDDM. Hyprland/UWSM quedan fuera de `all` y pueden conservarse como sesión de rollback independiente.
+Tras una instalación completa reinicia y selecciona `Awesome` en SDDM.

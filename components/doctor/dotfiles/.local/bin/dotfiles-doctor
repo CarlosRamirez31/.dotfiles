@@ -173,11 +173,6 @@ fi
 
 if [[ ${XDG_SESSION_TYPE:-} == x11 && ${XDG_CURRENT_DESKTOP:-} == awesome ]]; then
     ok 'Awesome X11 session is active'
-    if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
-        ok 'No Wayland display is inherited by Awesome'
-    else
-        fail "WAYLAND_DISPLAY is set in Awesome: $WAYLAND_DISPLAY"
-    fi
     if pgrep -x awesome >/dev/null; then ok 'Awesome process is active'; else fail 'Awesome process is missing'; fi
     if pgrep -x picom >/dev/null; then ok 'Picom is active'; else warn 'Picom is not active'; fi
     if pgrep -x xss-lock >/dev/null; then ok 'Xss-lock is active'; else warn 'Xss-lock is not active'; fi

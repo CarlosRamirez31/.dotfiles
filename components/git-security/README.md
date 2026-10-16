@@ -41,4 +41,4 @@ ssh-add -L
 git log --show-signature -1
 ```
 
-Si una firma falla, confirma que `SSH_AUTH_SOCK` apunta al socket GCR, que el agente cargó la llave privada correspondiente y que la ruta configurada apunta a `.pub`. El componente instala `git` y `openssh`; el agente se configura en `security` y se exporta en `uwsm`/`shell`.
+Si una firma falla, confirma que `SSH_AUTH_SOCK` apunta al socket GCR, que el agente cargó la llave privada correspondiente y que la ruta configurada apunta a `.pub`. El componente instala `git` y `openssh`; el agente se configura en `security` y se exporta en `shell`.

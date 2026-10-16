@@ -41,5 +41,4 @@ systemd-detect-virt --vm
 ss -Htn state established '( sport = :ssh )'
 ```
 
-Este componente usa Xss-lock, Xsecurelock y XSet. Hypridle, Hyprlock y Gtklock
-no se instalan en la configuración Awesome/X11.
+Este componente usa Xss-lock, Xsecurelock y XSet.

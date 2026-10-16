@@ -58,7 +58,7 @@ Esto elimina los paquetes instalados dentro de ese contenedor. Los proyectos y d
 
 ## Qué prepara cada entorno de seguridad
 
-Ambos reciben Zsh, Starship, Fastfetch, eza, FZF, Zoxide, Vivid, Bat y los plugins de sugerencias y resaltado. También reciben Git, utilidades de descarga y compresión, compiladores, Node.js, Python, Neovim, Tree-sitter, portapapeles Wayland, `jq` y Lazygit. El bootstrap sincroniza LazyVim y sus parsers desde una copia temporal de la configuración para no modificar el repositorio.
+Ambos reciben Zsh, Starship, Fastfetch, eza, FZF, Zoxide, Vivid, Bat y los plugins de sugerencias y resaltado. También reciben Git, utilidades de descarga y compresión, compiladores, Node.js, Python, Neovim, Tree-sitter, portapapeles X11, `jq` y Lazygit. El bootstrap sincroniza LazyVim y sus parsers desde una copia temporal de la configuración para no modificar el repositorio.
 
 Kali añade una base deliberadamente limitada: Nmap, Ffuf, Gobuster, Feroxbuster, SQLmap, Nikto, WhatWeb, Netcat, Socat, DNS/Whois, clientes SMB, Enum4linux-ng, SecLists y Wordlists. No instala automáticamente todos los metapaquetes de Kali ni herramientas muy pesadas; se agregan cuando el laboratorio realmente las requiera.
 

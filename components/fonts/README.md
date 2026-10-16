@@ -1,16 +1,16 @@
 # Fonts
 
-Este componente instala las dos familias tipográficas que sostienen la interfaz: JetBrainsMono Nerd Font para terminal/código/iconos y Lexend para la Wibar de Awesome y la sesión Hyprland de rollback. Tenerlas en un módulo temprano evita cuadros vacíos y cambios de medida durante el resto de la instalación.
+Este componente instala las dos familias tipográficas que sostienen la interfaz: JetBrainsMono Nerd Font para terminal/código/iconos y Lexend para Awesome. Tenerlas en un módulo temprano evita cuadros vacíos y cambios de medida durante el resto de la instalación.
 
 ## Contenido
 
 | Fuente | Procedencia | Uso |
 | --- | --- | --- |
-| JetBrainsMono Nerd Font | Paquete Arch `ttf-jetbrains-mono-nerd` | Alacritty, Hyprlock, Starship e iconos Nerd Font. |
+| JetBrainsMono Nerd Font | Paquete Arch `ttf-jetbrains-mono-nerd` | Alacritty, Starship e iconos Nerd Font. |
 | Iosevka Nerd Font | Paquete Arch `ttf-iosevka-nerd` | Tipografía compacta de la barra inspirada en Ayamir/Yoru. |
 | Material Icons | Paquete Arch `ttf-material-icons` | Iconos de controles de la barra Ayamir/Yoru. |
 | Noto Color Emoji | Paquete Arch `noto-fonts-emoji` | Emojis de Starship, incluido el dragón que identifica Kali Linux. |
-| Lexend Variable | Archivo versionado bajo `.local/share/fonts/Lexend` | Texto y controles de HyprPanel. |
+| Lexend Variable | Archivo versionado bajo `.local/share/fonts/Lexend` | Texto y controles de Awesome. |
 
 El archivo `OFL.txt` conserva la licencia de Lexend junto a la fuente. El instalador añade `fontconfig`, enlaza los archivos y fuerza `fc-cache -f` para que aplicaciones ya instaladas puedan descubrirlos.
 
@@ -28,7 +28,7 @@ fc-list | rg 'JetBrains|Lexend'
 
 ## Relaciones y personalización
 
-Alacritty solicita estilos SemiBold/Bold de JetBrainsMono; Hyprlock la usa para reloj e iconos; HyprPanel solicita Lexend de peso 500. Cambiar el nombre o retirar una familia exige actualizar esas configuraciones para evitar fallback inconsistente.
+Alacritty solicita estilos SemiBold/Bold de JetBrainsMono y Awesome solicita Lexend de peso 500. Cambiar el nombre o retirar una familia exige actualizar esas configuraciones para evitar fallback inconsistente.
 
 Si aparecen glifos cuadrados, verifica primero que el proceso use esta cuenta de usuario y ejecuta:
 

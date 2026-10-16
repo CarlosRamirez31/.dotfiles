@@ -1,473 +1,76 @@
-#!/usr/bin/env python3
+#!/usr/bin/env bash
+set -euo pipefail
 
-from __future__ import annotations
+wallpaper_dir=${1:-"$HOME/Pictures/Wallpapers"}
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/dotfiles
+state_file="$state_dir/wallpaper"
+cache_dir=${XDG_CACHE_HOME:-"$HOME/.cache"}/dotfiles-wallpaper/thumbnails
 
-import hashlib
-import fcntl
-import math
-import os
-import subprocess
-import sys
-from collections import OrderedDict
-from concurrent.futures import Future, ThreadPoolExecutor
-from pathlib import Path
-from typing import Callable
+[[ -d $wallpaper_dir ]] || exit 0
+mapfile -d '' -t wallpapers < <(
+    find "$wallpaper_dir" -maxdepth 1 -type f \
+        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \
+        -o -iname '*.webp' -o -iname '*.gif' -o -iname '*.bmp' \
+        -o -iname '*.avif' \) -print0 | sort -z
+)
+((${#wallpapers[@]} > 0)) || exit 0
+install -d -m 0700 -- "$cache_dir"
 
-import gi
-
-gi.require_version("Gtk", "3.0")
-gi.require_version("Gdk", "3.0")
-gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
-
-
-FORMATS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif"}
-BACKGROUND_RGBA = 0x11111BFF
-CARD_RGBA = (0.094, 0.094, 0.145, 1.0)
-
-
-def image_dimensions(path: Path) -> tuple[int, int] | None:
-    try:
-        image_format, width, height = GdkPixbuf.Pixbuf.get_file_info(str(path))
-    except GLib.Error:
-        return None
-    if image_format is None or width <= 0 or height <= 0:
-        return None
-    return width, height
-
-
-def thumbnail_path(path: Path, width: int, height: int) -> Path:
-    stat = path.stat()
-    fingerprint = "\0".join(
-        (
-            str(path.resolve()),
-            str(stat.st_mtime_ns),
-            str(stat.st_size),
-            f"{width}x{height}",
-        )
-    )
-    digest = hashlib.sha256(fingerprint.encode()).hexdigest()
-    cache_home = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    return cache_home / "dotfiles-wallpaper" / f"{digest}.jpg"
-
-
-def load_thumbnail(path: Path, width: int, height: int):
-    cached = thumbnail_path(path, width, height)
-    if cached.is_file():
-        try:
-            return GdkPixbuf.Pixbuf.new_from_file(str(cached))
-        except GLib.Error:
-            cached.unlink(missing_ok=True)
-
-    dimensions = image_dimensions(path)
-    if dimensions is None:
-        return None
-    source_width, source_height = dimensions
-    scale = max(width / source_width, height / source_height)
-    scaled_width = max(1, round(source_width * scale))
-    scaled_height = max(1, round(source_height * scale))
-    try:
-        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-            str(path), scaled_width, scaled_height, False
-        )
-    except GLib.Error:
-        return None
-
-    if not pixbuf.get_has_alpha():
-        opaque = pixbuf
-    else:
-        opaque = GdkPixbuf.Pixbuf.new(
-            GdkPixbuf.Colorspace.RGB,
-            False,
-            8,
-            pixbuf.get_width(),
-            pixbuf.get_height(),
-        )
-        opaque.fill(BACKGROUND_RGBA)
-        pixbuf.composite(
-            opaque,
-            0,
-            0,
-            pixbuf.get_width(),
-            pixbuf.get_height(),
-            0,
-            0,
-            1,
-            1,
-            GdkPixbuf.InterpType.BILINEAR,
-            255,
-        )
-
-    try:
-        cached.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        temporary = cached.with_suffix(f".{os.getpid()}.tmp")
-        opaque.savev(str(temporary), "jpeg", ["quality"], ["90"])
-        os.replace(temporary, cached)
-    except (GLib.Error, OSError) as error:
-        print(f"No se pudo guardar la miniatura de {path}: {error}", file=sys.stderr)
-    return opaque
-
-
-class ThumbnailLoader:
-    def __init__(self):
-        self.executor = ThreadPoolExecutor(
-            max_workers=2,
-            thread_name_prefix="wallpaper-thumbnail",
-        )
-        self.cache = OrderedDict()
-        self.pending = {}
-        self.active_paths: set[Path] = set()
-        self.closed = False
-
-    def set_active_paths(self, paths: set[Path]):
-        self.active_paths = paths
-        for key in list(self.cache):
-            if key[0] not in paths:
-                del self.cache[key]
-        for key, (future, _callbacks) in list(self.pending.items()):
-            if key[0] not in paths and future.cancel():
-                del self.pending[key]
-
-    def request(
-        self,
-        path: Path,
-        width: int,
-        height: int,
-        callback: Callable | None = None,
-    ):
-        key = (path, width, height)
-        if key in self.cache:
-            pixbuf = self.cache[key]
-            self.cache.move_to_end(key)
-            if callback is not None:
-                callback(pixbuf)
+thumbnail_for() {
+    local wallpaper=$1 metadata digest thumbnail temporary
+    metadata=$(stat -Lc '%n:%Y:%s' -- "$wallpaper")
+    digest=$(printf '%s' "$metadata" | sha256sum | awk '{print $1}')
+    thumbnail="$cache_dir/$digest.png"
+    if [[ ! -s $thumbnail ]]; then
+        temporary=$(mktemp "$cache_dir/$digest.XXXXXX.png")
+        rm -f -- "$temporary"
+        if ! magick "${wallpaper}[0]" -auto-orient -thumbnail '480x270^' \
+            -gravity center -extent 480x270 "$temporary"; then
+            rm -f -- "$temporary"
+            printf '%s' "$wallpaper"
             return
+        fi
+        mv -- "$temporary" "$thumbnail"
+    fi
+    printf '%s' "$thumbnail"
+}
 
-        if key in self.pending:
-            if callback is not None:
-                self.pending[key][1].append(callback)
-            return
+thumbnail_size() {
+    local geometry width height window_width window_height cell_width cell_height size
 
-        callbacks = [] if callback is None else [callback]
-        future = self.executor.submit(load_thumbnail, path, width, height)
-        self.pending[key] = (future, callbacks)
-        future.add_done_callback(
-            lambda completed, request_key=key: GLib.idle_add(
-                self.complete,
-                request_key,
-                completed,
-            )
-        )
+    geometry=$(xrandr --current 2>/dev/null | awk '/\*/ { print $1; exit }') || true
+    [[ $geometry =~ ^([0-9]+)x([0-9]+) ]] || {
+        printf '%s' 180
+        return
+    }
+    width=${BASH_REMATCH[1]}
+    height=${BASH_REMATCH[2]}
+    window_width=$((width * 84 / 100))
+    window_height=$((height * 84 / 100))
+    cell_width=$(((window_width - 96) / 4))
+    cell_height=$(((window_height - 150) / 2))
+    size=$((cell_width - 20))
+    ((cell_height - 54 < size)) && size=$((cell_height - 54))
+    ((size < 96)) && size=96
+    printf '%s' "$size"
+}
 
-    def complete(self, key: tuple[Path, int, int], future: Future):
-        request = self.pending.pop(key, None)
-        if request is None or self.closed or key[0] not in self.active_paths:
-            return False
-        try:
-            pixbuf = future.result()
-        except Exception as error:
-            print(f"No se pudo cargar {key[0]}: {error}", file=sys.stderr)
-            return False
-        if pixbuf is None:
-            return False
+icon_size=$(thumbnail_size)
+selected=$(
+    for wallpaper in "${wallpapers[@]}"; do
+        printf '%s\0display\x1f%s\x1ficon\x1f%s\n' \
+            "$wallpaper" "$(basename -- "$wallpaper")" "$(thumbnail_for "$wallpaper")"
+    done | rofi -dmenu -i -show-icons \
+        -theme "$HOME/.config/rofi/wallpaper.rasi" \
+        -theme-str "element-icon { size: ${icon_size}px; }" \
+        -p '󰸉  Elegir wallpaper'
+) || exit 0
 
-        self.cache[key] = pixbuf
-        for callback in request[1]:
-            callback(pixbuf)
-        return False
-
-    def close(self):
-        self.closed = True
-        self.pending.clear()
-        self.cache.clear()
-        self.executor.shutdown(wait=False, cancel_futures=True)
-
-
-def rounded_rectangle(cr, x: float, y: float, width: float, height: float, radius: float):
-    radius = min(radius, width / 2, height / 2)
-    cr.new_sub_path()
-    cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)
-    cr.arc(x + width - radius, y + height - radius, radius, 0, math.pi / 2)
-    cr.arc(x + radius, y + height - radius, radius, math.pi / 2, math.pi)
-    cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)
-    cr.close_path()
-
-
-class Preview(Gtk.DrawingArea):
-    def __init__(
-        self,
-        loader: ThumbnailLoader,
-        path: Path,
-        width: int,
-        height: int,
-    ):
-        super().__init__()
-        self.path = path
-        self.set_size_request(width, height)
-        self.pixbuf = None
-        self.connect("draw", self.on_draw)
-        loader.request(path, width, height, self.set_pixbuf)
-
-    def set_pixbuf(self, pixbuf):
-        self.pixbuf = pixbuf
-        self.queue_draw()
-
-    def on_draw(self, _widget, cr):
-        allocation = self.get_allocation()
-        width, height = allocation.width, allocation.height
-        radius = max(14, round(min(width, height) * 0.045))
-
-        cr.save()
-        rounded_rectangle(cr, 0, 0, width, height, radius)
-        cr.clip()
-        cr.set_source_rgba(*CARD_RGBA)
-        cr.paint()
-        if self.pixbuf is not None:
-            x = (width - self.pixbuf.get_width()) / 2
-            y = (height - self.pixbuf.get_height()) / 2
-            Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, x, y)
-            cr.paint()
-        cr.restore()
-        return False
-
-
-class Carousel(Gtk.Window):
-    def __init__(self, folder: Path):
-        super().__init__(type=Gtk.WindowType.TOPLEVEL)
-        self.folder = folder
-        self.wallpapers: list[Path] = []
-        self.loader = ThumbnailLoader()
-        self.scanner = ThreadPoolExecutor(
-            max_workers=1,
-            thread_name_prefix="wallpaper-scan",
-        )
-        self.current = 0
-
-        self.set_name("wallpaper-carousel")
-        self.set_decorated(False)
-        self.set_app_paintable(True)
-        self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
-        self.set_skip_taskbar_hint(True)
-        self.set_skip_pager_hint(True)
-        self.set_accept_focus(True)
-        self.connect("key-press-event", self.on_key)
-        self.connect("destroy", Gtk.main_quit)
-        self.connect("destroy", lambda _window: self.loader.close())
-        self.connect(
-            "destroy",
-            lambda _window: self.scanner.shutdown(wait=False, cancel_futures=True),
-        )
-
-        screen = self.get_screen()
-        visual = screen.get_rgba_visual()
-        if visual is not None:
-            self.set_visual(visual)
-
-        display = Gdk.Display.get_default()
-        monitor = display.get_primary_monitor() or display.get_monitor(0)
-        geometry = monitor.get_geometry()
-        self.screen_width = geometry.width
-        self.screen_height = geometry.height
-        self.overlay_height = round(self.screen_height * 0.52)
-        self.set_size_request(self.screen_width, self.overlay_height)
-
-        self.set_default_size(self.screen_width, self.overlay_height)
-        self.set_position(Gtk.WindowPosition.CENTER)
-
-        css = Gtk.CssProvider()
-        css.load_from_data(
-            b"window#wallpaper-carousel { background-color: #11111b; }"
-            b".carousel-slot { background-color: transparent; }"
-        )
-        Gtk.StyleContext.add_provider_for_screen(
-            screen,
-            css,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-        )
-        self.loading = Gtk.Label(label="Cargando imágenes…")
-        self.loading.set_halign(Gtk.Align.CENTER)
-        self.loading.set_valign(Gtk.Align.CENTER)
-        self.add(self.loading)
-
-    def scan_wallpapers(self) -> list[Path]:
-        candidates = sorted(
-            path
-            for path in self.folder.iterdir()
-            if path.is_file() and path.suffix.lower() in FORMATS
-        )
-        return [path for path in candidates if image_dimensions(path) is not None]
-
-    def begin_scan(self):
-        future = self.scanner.submit(self.scan_wallpapers)
-        future.add_done_callback(
-            lambda completed: GLib.idle_add(self.finish_scan, completed)
-        )
-
-    def finish_scan(self, future: Future):
-        if self.loader.closed:
-            return False
-        try:
-            self.wallpapers = future.result()
-        except OSError as error:
-            print(f"No se pudo leer {self.folder}: {error}", file=sys.stderr)
-            self.wallpapers = []
-
-        if not self.wallpapers:
-            self.loading.set_text("No hay imágenes válidas")
-            return False
-
-        self.current = self.saved_index()
-        self.rebuild()
-        return False
-
-    def saved_index(self) -> int:
-        try:
-            saved = Path(
-                (Path.home() / ".local/state/dotfiles/wallpaper").read_text().strip()
-            ).expanduser()
-            return self.wallpapers.index(saved)
-        except (OSError, ValueError):
-            return 0
-
-    def visible_indices(self) -> list[int]:
-        count = len(self.wallpapers)
-        if count == 1:
-            return [self.current]
-        return [(self.current - 1) % count, self.current, (self.current + 1) % count]
-
-    def rebuild(self):
-        old = self.get_child()
-        if old is not None:
-            old.destroy()
-
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        row.get_style_context().add_class("carousel-slot")
-        row.set_halign(Gtk.Align.CENTER)
-        row.set_valign(Gtk.Align.END)
-        row.set_margin_bottom(round(self.screen_height * 0.04))
-        row.set_spacing(max(18, round(self.screen_width * 0.014)))
-
-        center_width = round(self.screen_width * 0.42)
-        center_height = round(self.screen_height * 0.43)
-        side_width = round(self.screen_width * 0.245)
-        side_height = round(self.screen_height * 0.34)
-        indices = self.visible_indices()
-        visible_paths = {self.wallpapers[index] for index in indices}
-        self.loader.set_active_paths(visible_paths)
-        center_position = 0 if len(indices) == 1 else 1
-        self.loader.request(
-            self.wallpapers[self.current],
-            center_width,
-            center_height,
-        )
-
-        for position, index in enumerate(indices):
-            selected = position == center_position
-            width = center_width if selected else side_width
-            height = center_height if selected else side_height
-            preview = Preview(self.loader, self.wallpapers[index], width, height)
-            event_box = Gtk.EventBox()
-            event_box.set_visible_window(False)
-            event_box.set_valign(Gtk.Align.END)
-            if selected and len(indices) > 1:
-                event_box.set_margin_bottom(round(self.screen_height * 0.035))
-            event_box.add(preview)
-            event_box.connect("button-press-event", self.on_click, index, selected)
-            row.pack_start(event_box, False, False, 0)
-
-        # Each visible side image is prepared at center resolution while GTK is
-        # idle. Advancing the carousel can therefore reuse it immediately.
-        if len(indices) > 1:
-            for index in indices:
-                self.loader.request(
-                    self.wallpapers[index],
-                    center_width,
-                    center_height,
-                )
-
-        self.add(row)
-        self.show_all()
-
-    def move(self, delta: int):
-        self.current = (self.current + delta) % len(self.wallpapers)
-        self.rebuild()
-
-    def apply(self):
-        result = subprocess.run(["feh", "--bg-fill", str(self.wallpapers[self.current])], check=False)
-        if result.returncode == 0:
-            state = Path.home() / ".local/state/dotfiles/wallpaper"
-            state.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            state.write_text(f"{self.wallpapers[self.current]}\n")
-            self.close_picker()
-
-    def close_picker(self):
-        self.hide()
-        self.destroy()
-
-    def on_key(self, _widget, event):
-        if not self.wallpapers:
-            if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_q):
-                self.close_picker()
-            return event.keyval in (
-                Gdk.KEY_Left,
-                Gdk.KEY_Right,
-                Gdk.KEY_h,
-                Gdk.KEY_l,
-                Gdk.KEY_Return,
-                Gdk.KEY_KP_Enter,
-                Gdk.KEY_Escape,
-                Gdk.KEY_q,
-            )
-        if event.keyval in (Gdk.KEY_Left, Gdk.KEY_h):
-            self.move(-1)
-            return True
-        if event.keyval in (Gdk.KEY_Right, Gdk.KEY_l):
-            self.move(1)
-            return True
-        if event.keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
-            self.apply()
-            return True
-        if event.keyval in (Gdk.KEY_Escape, Gdk.KEY_q):
-            self.close_picker()
-            return True
-        return False
-
-    def on_click(self, _widget, event, index: int, selected: bool):
-        if event.button != 1:
-            return False
-        if selected and event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
-            self.apply()
-        elif not selected:
-            self.current = index
-            self.rebuild()
-        return True
-
-
-def main() -> int:
-    if len(sys.argv) != 2:
-        print(f"Uso: {Path(sys.argv[0]).name} DIRECTORIO", file=sys.stderr)
-        return 2
-    folder = Path(sys.argv[1]).expanduser().resolve()
-    if not folder.is_dir():
-        return 1
-    runtime_dir = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
-    lock_path = runtime_dir / f"dotfiles-wallpaper-picker-{os.getuid()}.lock"
-    lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
-    try:
-        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        os.close(lock_fd)
-        return 0
-    try:
-        window = Carousel(folder)
-        window.show_all()
-        window.present()
-        window.begin_scan()
-        Gtk.main()
-    finally:
-        os.close(lock_fd)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+[[ -f $selected ]] || exit 0
+feh --bg-fill -- "$selected"
+install -d -m 0700 -- "$state_dir"
+temporary=$(mktemp "$state_file.XXXXXX")
+printf '%s\n' "$selected" >"$temporary"
+chmod 0600 -- "$temporary"
+mv -- "$temporary" "$state_file"
+notify-send -a Wallpaper -i "$selected" 'Wallpaper aplicado' "$(basename -- "$selected")"

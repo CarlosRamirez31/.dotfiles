@@ -16,6 +16,11 @@ rechaza huecos y superposiciones parciales antes de cambiar las salidas.
 las otras pantallas. Si no pulsas **Conservar** en 20 segundos, se restaura la
 configuración anterior y se actualizan los controles con el estado real.
 
+Puedes ajustar la altura relativa de los monitores para alinear el paso del
+mouse. Los desniveles pequeños se conservan al arrastrar. Awesome calcula el
+espacio reservado por Polybar desde el borde de cada monitor, de modo que bajar
+una pantalla no añada un margen superior extra ni comprima las ventanas.
+
 Con el panel integrado y dos monitores externos, el cambio de distribución
 reactiva ambas salidas externas juntas y reconstruye el framebuffer antes de
 encenderlas. La restauración utiliza el mismo procedimiento, conserva la

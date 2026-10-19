@@ -169,11 +169,12 @@ def snap_output(outputs, output, original_y):
         return
     # Reordering a horizontal row moves its neighbors too, instead of leaving
     # the old slot empty or stacking one output over another.
-    if all(o['y'] == original_y for o in others) and abs(output['y']-original_y) < 180:
+    if (all(o['y'] == original_y for o in others)
+            and abs(output['y']-original_y) < min(size(o)[1] for o in enabled)):
         ordered = sorted(enabled, key=lambda o: o['x'] + size(o)[0]/2)
         right = min(o['x'] for o in enabled)
         for o in ordered:
-            o.update(x=right, y=original_y)
+            o['x'] = right
             right += size(o)[0]
         return
     w, h = size(output)

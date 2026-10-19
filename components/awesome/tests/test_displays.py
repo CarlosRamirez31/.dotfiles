@@ -48,6 +48,14 @@ class DisplaysTest(unittest.TestCase):
             o['rate'] = '60.00'
         return detected
 
+    def test_small_vertical_offset_is_preserved_when_snapping_row(self):
+        detected = self.row()
+        detected[0]['y'] = 80
+        displays.snap_output(detected, detected[0], 0)
+        self.assertEqual(detected[0]['y'], 80)
+        self.assertEqual([o['y'] for o in detected[1:]], [0, 0])
+        displays.validate_layout(detected)
+
     def test_hybrid_change_rebuilds_framebuffer_with_external_outputs_off_together(self):
         before = self.hybrid()
         target = copy.deepcopy(before)

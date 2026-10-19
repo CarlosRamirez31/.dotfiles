@@ -29,3 +29,6 @@
 
 [gpg]
 	format = ssh
+[user]
+	name = Carlos Ramirez
+	email = cr2503150@gmail.com

@@ -8,7 +8,7 @@ cache_dir=${XDG_CACHE_HOME:-"$HOME/.cache"}/dotfiles-wallpaper/thumbnails
 
 [[ -d $wallpaper_dir ]] || exit 0
 mapfile -d '' -t wallpapers < <(
-    find "$wallpaper_dir" -maxdepth 1 -type f \
+    find "$wallpaper_dir" -type f \
         \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \
         -o -iname '*.webp' -o -iname '*.gif' -o -iname '*.bmp' \
         -o -iname '*.avif' \) -print0 | sort -z
@@ -57,13 +57,15 @@ thumbnail_size() {
 
 icon_size=$(thumbnail_size)
 selected=$(
-    for wallpaper in "${wallpapers[@]}"; do
-        printf '%s\0display\x1f%s\x1ficon\x1f%s\n' \
-            "$wallpaper" "$(basename -- "$wallpaper")" "$(thumbnail_for "$wallpaper")"
-    done | rofi -dmenu -i -show-icons \
+    rofi -dmenu -i -show-icons \
         -theme "$HOME/.config/rofi/wallpaper.rasi" \
         -theme-str "element-icon { size: ${icon_size}px; }" \
-        -p '󰸉  Elegir wallpaper'
+        -p '󰸉  Elegir wallpaper' < <(
+        for wallpaper in "${wallpapers[@]}"; do
+            printf '%s\0display\x1f%s\x1ficon\x1f%s\n' \
+                "$wallpaper" "$(basename -- "$wallpaper")" "$(thumbnail_for "$wallpaper")"
+        done
+    )
 ) || exit 0
 
 [[ -f $selected ]] || exit 0

@@ -21,8 +21,8 @@ Feh aplica el fondo y la ruta elegida se guarda en
 última selección; si el archivo desapareció, usa la primera imagen disponible y
 finalmente `.config/wallpapers/mocha-aurora.png`.
 
-Se reconocen JPG, JPEG, PNG, WebP, GIF, BMP y AVIF colocados directamente en
-la carpeta. Para usar otra ubicación puntualmente:
+Se reconocen JPG, JPEG, PNG, WebP, GIF, BMP y AVIF colocados en
+la carpeta o en cualquiera de sus subcarpetas. Para usar otra ubicación puntualmente:
 
 ```bash
 export DOTFILES_WALLPAPER_DIR="$HOME/Imagenes/Fondos"

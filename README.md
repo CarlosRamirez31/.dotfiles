@@ -93,6 +93,7 @@ Aplicaciones y sesión:
 | `Alt+E` | Yazi |
 | `Ctrl+Alt+E` | Thunar (respaldo gráfico) |
 | `Alt+W` | seleccionar wallpaper con vista previa |
+| `Super+Space` | alternar teclado US / Español Latinoamericano |
 | `Alt+C` | historial del portapapeles |
 | `Ctrl+Shift+B` | bloquear |
 | `Alt+Shift+E` | cerrar sesión |

@@ -15,7 +15,7 @@ once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
 -- XSecureLock owns its display state.  A second DPMS timeout could keep the
 -- monitor off after a successful unlock on some X11/VM graphics drivers.
 awful.spawn.with_shell("xset s 600 60 -dpms")
--- Start in US. Switching is handled by Super+K and the Polybar indicator.
+-- Start in US. Switching is handled by Super+Space and the Polybar indicator.
 awful.spawn.with_shell("setxkbmap -layout us,latam -option")
 -- Detect hotplug as well as displays present at login. The display panel holds
 -- a lock while editing, so automatic detection cannot interrupt a preview.

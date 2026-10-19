@@ -1,7 +1,6 @@
 # Atajos configurados
 
-`Alt` es la tecla modificadora principal del escritorio. `Super` es la tecla
-Windows. Estos son los atajos configurados actualmente, agrupados por función.
+`Alt` es la tecla modificadora principal del escritorio. `Super` es la tecla Windows. Estos son los atajos configurados actualmente, agrupados por función.
 
 ## Aplicaciones y sesión
 
@@ -62,7 +61,7 @@ una ventana nueva de Firefox en lugar de activar una que esté en otro tag.
 
 | Atajo | Acción |
 | --- | --- |
-| `Super+K` | Alternar entre teclado US y Español Latinoamericano. |
+| `Super+Space` | Alternar entre teclado US y Español Latinoamericano. |
 | `Super+P` | Configurar todas las pantallas: posición, principal, resolución y duplicado. |
 | Clic en `us`/`latam` de la barra | Alternar entre teclado US y Español Latinoamericano. |
 | Teclas de volumen | Subir, bajar o silenciar el volumen. |

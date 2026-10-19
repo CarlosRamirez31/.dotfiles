@@ -4,6 +4,14 @@ local wibox = require("wibox")
 
 local M = {}
 local popups = {}
+local network_view
+local network_host
+local network_spinner
+local network_busy = false
+local network_generation = 0
+local network_timer
+local network_page = 1
+local password_grabber
 local palette = {
     base = "#181825",
     surface = "#242438",
@@ -30,15 +38,31 @@ local function label(value, font, color)
     })
 end
 
-local function shell_quote(value)
-    return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
-end
 
 local function hide(kind)
+    if kind == "network" then
+        network_generation = network_generation + 1
+        network_busy = false
+        network_view = nil
+        if network_spinner then network_spinner:stop(); network_spinner = nil end
+    end
+    if kind == "network" and network_timer then network_timer:stop(); network_timer = nil end
+    if kind == "network" and password_grabber then
+        awful.keygrabber.stop(password_grabber)
+        password_grabber = nil
+    end
     if popups[kind] then popups[kind].visible = false end
 end
 
 local function make_popup(kind, title, subtitle, content, width)
+    if kind == "network" and popups.network and popups.network.visible then
+        network_host:set_widget(content)
+        return popups.network
+    end
+    if kind == "network" then
+        network_host = wibox.container.background(content)
+        content = network_host
+    end
     local close = wibox.widget({
         markup = '<span foreground="#a6adc8"></span>',
         font = "JetBrainsMono Nerd Font 14",
@@ -50,6 +74,19 @@ local function make_popup(kind, title, subtitle, content, width)
     })
     close:buttons(gears.table.join(awful.button({}, 1, function() hide(kind) end)))
 
+    local controls = wibox.widget({ spacing = 12, layout = wibox.layout.fixed.horizontal })
+    if kind == "network" then
+        local power = label("⏻", "JetBrainsMono Nerd Font 16", palette.lavender)
+        power.forced_width = 26
+        power.align = "center"
+        power:buttons(gears.table.join(awful.button({}, 1, function()
+            if not network_view then return end
+            awful.spawn.easy_async({ "nmcli", "radio", "wifi", network_view.wifi_enabled and "off" or "on" }, function() M.show_network() end)
+        end)))
+        awful.tooltip({ objects = { power }, text = "Encender / apagar Wi-Fi" })
+        controls:add(power)
+    end
+    controls:add(close)
     local heading = wibox.widget({
         {
             {
@@ -59,7 +96,7 @@ local function make_popup(kind, title, subtitle, content, width)
                 layout = wibox.layout.fixed.vertical,
             },
             nil,
-            close,
+            controls,
             layout = wibox.layout.align.horizontal,
         },
         bottom = 12,
@@ -173,142 +210,236 @@ function M.show_power(confirm_kind)
     make_popup("power", confirm_kind and "Confirmar acción" or "Energía", "Sesión y apagado", power_content(confirm_kind), 290)
 end
 
-local function network_row(ssid, signal, security, active)
-    local details = string.format("%s%%  ·  %s", signal ~= "" and signal or "--", security ~= "" and security or "Abierta")
-    local title = active and ("✓  " .. ssid) or ssid
-    return action_row("󰤨", title, details, active and palette.green or palette.lavender, function()
-        hide("network")
-        local command = "nmcli -w 12 device wifi connect " .. shell_quote(ssid)
-        awful.spawn.easy_async_with_shell(command .. " 2>&1", function(_, _, _, exit_code)
-            if exit_code == 0 then return end
-            awful.spawn.easy_async_with_shell("rofi -dmenu -password -p " .. shell_quote("Clave de " .. ssid), function(password)
-                password = password:gsub("[\r\n]+$", "")
-                if password == "" then return end
-                awful.spawn.easy_async_with_shell(
-                    command .. " password " .. shell_quote(password) .. " >/dev/null 2>&1",
-                    function() end
-                )
-            end)
+local function show_network_detail(network)
+    network_generation = network_generation + 1
+    network_busy = false
+    if network_timer then network_timer:stop(); network_timer = nil end
+    if network_spinner then network_spinner:stop(); network_spinner = nil end
+    network_view = nil
+    local rows = wibox.widget({ spacing = 9, layout = wibox.layout.fixed.vertical })
+    local password = ""
+    local busy = false
+    local message = label(network.uuid and "Red guardada · Puedes conectar directamente" or "Introduce la contraseña de la red", "Lexend 9", palette.muted)
+    rows:add(label(network.ssid, "Lexend Bold 12", palette.lavender))
+    rows:add(message)
+    local input = label("Pulsa aquí para escribir la contraseña", "Lexend 10", palette.text)
+    local function update_input()
+        input.text = password == "" and "Escribe la contraseña…" or string.rep("●", utf8.len(password) or #password)
+    end
+    local field = wibox.widget({ input, margins = 12, widget = wibox.container.margin })
+    field = wibox.widget({ field, bg = palette.surface, shape = gears.shape.rounded_rect, widget = wibox.container.background })
+    local function edit()
+        if busy or password_grabber then return end
+        update_input()
+        password_grabber = awful.keygrabber.run(function(modifiers, key, event)
+            if event == "release" then return end
+            if key == "Escape" or key == "Return" then
+                awful.keygrabber.stop(password_grabber)
+                password_grabber = nil
+            elseif key == "space" then
+                password = password .. " "
+                update_input()
+            elseif key == "BackSpace" then
+                local offset = utf8.offset(password, -1)
+                if offset then password = password:sub(1, offset - 1) end
+                update_input()
+            elseif not gears.table.hasitem(modifiers, "Control") and not gears.table.hasitem(modifiers, "Mod1") and utf8.len(key) == 1 then
+                password = password .. key
+                update_input()
+            end
         end)
-    end)
-end
-
-local function network_content(devices, wifi_enabled, networks)
-    local rows = wibox.widget({ spacing = 7, layout = wibox.layout.fixed.vertical })
-    local interface_count = #devices.ethernet + #devices.wifi
-
-    for _, device in ipairs(devices.ethernet) do
-        local connected = device.state == "connected" or device.state:match("^connected ") ~= nil
-        local detail = connected and ("Conectado · " .. (device.connection ~= "" and device.connection or device.name)) or "Cable desconectado"
-        rows:add(action_row("󰈀", "Ethernet", detail, connected and palette.green or palette.red, function() end))
     end
-
-    for _, device in ipairs(devices.wifi) do
-        local connected = device.state == "connected" or device.state:match("^connected ") ~= nil
-        local status
-        if not wifi_enabled then
-            status = "Wi-Fi apagado"
-        elseif connected then
-            status = "Conectado · " .. (device.ssid ~= "" and device.ssid or device.connection)
-        elseif device.state == "unavailable" then
-            status = "Adaptador no disponible"
+    field:buttons(gears.table.join(awful.button({}, 1, edit)))
+    if not network.uuid and network.security ~= "" and network.security ~= "--" then rows:add(field) end
+    rows:add(action_row("󰄬", "Conectar", network.uuid and "Usar la conexión guardada" or "Guardar y conectar a esta red", palette.green, function()
+        if busy then return end
+        local args
+        if network.uuid then
+            args = { "nmcli", "--wait", "25", "connection", "up", "uuid", network.uuid }
         else
-            status = "Sin una red conectada"
-        end
-        rows:add(action_row("󰤨", "Wi-Fi", status, connected and palette.green or (wifi_enabled and palette.muted or palette.yellow), function() end))
-    end
-
-    if interface_count == 0 then
-        rows:add(label("No se detectaron adaptadores de red", "Lexend 9", palette.muted))
-        return rows
-    end
-
-    if #devices.wifi == 0 then
-        rows:add(label("No hay adaptador Wi-Fi", "Lexend 9", palette.muted))
-        return rows
-    end
-
-    rows:add(wibox.widget({ forced_height = 5, widget = wibox.widget.textbox }))
-    if wifi_enabled then
-        rows:add(label("REDES WI-FI", "Lexend Bold 8", palette.muted))
-        rows:add(wibox.widget({ forced_height = 3, widget = wibox.widget.textbox }))
-        local count = 0
-        for _, network in ipairs(networks) do
-            if network.ssid ~= "" and count < 5 then
-                rows:add(network_row(network.ssid, network.signal, network.security, network.active))
-                count = count + 1
+            args = { "nmcli", "--wait", "25", "device", "wifi", "connect", network.ssid }
+            if network.security ~= "" and network.security ~= "--" then
+                if password == "" then message.text = "Escribe la contraseña antes de conectar"; edit(); return end
+                args[#args + 1] = "password"
+                args[#args + 1] = password
             end
         end
-        if count == 0 then rows:add(label("No se encontraron redes", "Lexend 9", palette.muted)) end
-    end
-
-    rows:add(wibox.widget({ forced_height = 5, widget = wibox.widget.textbox }))
-    rows:add(action_row(wifi_enabled and "󰖪" or "󰖩", wifi_enabled and "Apagar Wi-Fi" or "Encender Wi-Fi", "", wifi_enabled and palette.yellow or palette.green, function()
-        awful.spawn.easy_async_with_shell("nmcli radio wifi " .. (wifi_enabled and "off" or "on"), function()
-            M.show_network()
+        if password_grabber then awful.keygrabber.stop(password_grabber); password_grabber = nil end
+        busy = true
+        message.text = "Conectando…"
+        awful.spawn.easy_async(args, function(_, _, _, code)
+            busy = false
+            password = ""
+            update_input()
+            message.text = code == 0 and "Conectado correctamente" or "No se pudo conectar. Revisa la contraseña o la disponibilidad."
         end)
     end))
-    return rows
+    rows:add(action_row("󰜱", "Volver a las redes", "", palette.blue, function() M.show_network() end))
+    make_popup("network", "Conexiones", "Conectar a Wi-Fi", rows, 370)
 end
 
-function M.show_network()
-    hide("network")
-    make_popup("network", "Conexiones", "Estado y redes Wi-Fi", label("Revisando adaptadores…", "Lexend 9", palette.muted), 340)
+local function network_content()
+    local view = { wifi_enabled = true, networks = {}, devices = {}, signature = "", connection_signature = "" }
+    local rows = wibox.widget({ spacing = 9, layout = wibox.layout.fixed.vertical })
+    local refresh = label("󰜉", "JetBrainsMono Nerd Font 18", palette.blue)
+    refresh.align = "center"
+    refresh.forced_width = 38
+    refresh:buttons(gears.table.join(awful.button({}, 1, function() M.show_network(true) end)))
+    awful.tooltip({ objects = { refresh }, text = "Actualizar redes" })
+    view.status = label("Wi-Fi", "Lexend 10")
+    rows:add(view.status)
+    view.connection = wibox.container.background()
+    rows:add(view.connection)
+    rows:add(wibox.widget({ label("REDES DISPONIBLES", "Lexend Bold 8", palette.muted), nil, refresh, layout = wibox.layout.align.horizontal }))
+    view.spinner = wibox.widget.base.make_widget(nil, nil, { enable_properties = true })
+    view.spinner.fit = function() return 24, 24 end
+    view.spinner.forced_width = 24
+    view.spinner.forced_height = 24
+    view.phase = 0
+    view.spinner.draw = function(_, _, cr, width, height)
+        local radius = math.min(width, height) / 2 - 3
+        for index = 0, 11 do
+            local angle = (index / 12) * 2 * math.pi - math.pi / 2
+            local alpha = 0.15 + ((index - view.phase) % 12) / 11 * 0.85
+            cr:set_source_rgba(0.796, 0.651, 0.969, alpha)
+            cr:arc(width / 2 + math.cos(angle) * radius, height / 2 + math.sin(angle) * radius, 1.8, 0, 2 * math.pi)
+            cr:fill()
+        end
+    end
+    view.loading = wibox.container.place(view.spinner, "center", "center")
+    view.loading.forced_height = 32
+    view.loading.visible = false
+    rows:add(view.loading)
+    view.list = wibox.container.background()
+    rows:add(view.list)
+    view.widget = rows
+    return view
+end
 
-    awful.spawn.easy_async_with_shell("nmcli -t --escape no -f DEVICE,TYPE,STATE,CONNECTION device status 2>/dev/null", function(device_output)
-        local devices = { ethernet = {}, wifi = {} }
+local function render_connection(view)
+    local ethernet, wifi
+    for _, device in ipairs(view.devices) do
+        if device.state == "connected" then
+            if device.kind == "ethernet" then ethernet = device else wifi = device end
+        end
+    end
+    view.ethernet = ethernet
+    view.status.text = view.wifi_enabled and "Wi-Fi encendido" or "Wi-Fi apagado"
+    local connected = ethernet or wifi
+    local signature = connected and (connected.name .. connected.connection) or "none"
+    if view.connection_signature == signature then return end
+    view.connection_signature = signature
+    view.connection:set_widget(connected and action_row(ethernet and "󰈀" or "󰤨", connected.connection,
+        ethernet and "Ethernet · Conectado · Pulsa para desconectar" or "Wi-Fi · Conectada · Pulsa para desconectar", palette.green, function()
+            awful.spawn.easy_async({ "nmcli", "device", "disconnect", connected.name }, function() M.show_network(true) end)
+        end) or nil)
+end
+
+local function render_networks(view, scan_error)
+    local available, signature = {}, {}
+    for _, network in ipairs(view.networks) do
+        if network.available and (view.ethernet or not network.active) then
+            available[#available + 1] = network
+            signature[#signature + 1] = table.concat({network.ssid, network.signal, network.security, network.uuid or ""}, "\t")
+        end
+    end
+    network_page = math.min(network_page, math.max(1, math.ceil(#available / 5)))
+    local key = table.concat(signature, "\n") .. network_page .. tostring(scan_error)
+    view.empty = #available == 0
+    view.list.visible = true
+    if view.signature == key then return end
+    view.signature = key
+    local rows = wibox.widget({ spacing = 7, layout = wibox.layout.fixed.vertical })
+    for index = (network_page - 1) * 5 + 1, math.min(network_page * 5, #available) do
+        local network = available[index]
+        rows:add(action_row("󰤨", network.ssid, network.signal .. "% · " .. network.security .. (network.uuid and " · Guardada" or ""), palette.lavender, function() show_network_detail(network) end))
+    end
+    if #available == 0 then rows:add(label(scan_error and "No se pudo buscar redes; reintentando…" or "No hay otras redes disponibles", "Lexend 9", palette.muted)) end
+    if network_page > 1 then rows:add(action_row("󰜱", "Redes anteriores", "", palette.blue, function() network_page = network_page - 1; render_networks(view, scan_error) end)) end
+    if #available > network_page * 5 then rows:add(action_row("󰜴", "Más redes", "", palette.blue, function() network_page = network_page + 1; render_networks(view, scan_error) end)) end
+    view.list:set_widget(rows)
+end
+
+function M.show_network(refresh)
+    if not network_view or not popups.network or not popups.network.visible then
+        network_page = 1
+        network_view = network_content()
+        make_popup("network", "Conexiones", "Estado de Wi-Fi", network_view.widget, 370)
+    end
+    if network_busy then return end
+    network_busy = true
+    local view = network_view
+    local generation = network_generation
+    local popup = popups.network
+    local function valid() return network_generation == generation and network_view == view and popup.visible end
+    if not network_timer then
+        network_timer = gears.timer({ timeout = 5, autostart = true, callback = function() M.show_network(true) end })
+    end
+    view.loading.visible = true
+    if view.empty then view.list.visible = false end
+    network_spinner = gears.timer({ timeout = 0.065, autostart = true, callback = function()
+        view.phase = (view.phase + 1) % 12
+        view.spinner:emit_signal("widget::redraw_needed")
+    end })
+    awful.spawn.easy_async_with_shell("LC_ALL=C nmcli -t --escape no -f DEVICE,TYPE,STATE,CONNECTION device status", function(device_output)
+        if not valid() then return end
+        local devices, networks, seen = {}, {}, {}
+        local wifi_enabled = false
         for line in device_output:gmatch("[^\r\n]+") do
             local name, kind, state, connection = line:match("^([^:]*):([^:]*):([^:]*):(.*)$")
-            if name and (kind == "ethernet" or kind == "wifi") then
-                local entry = { name = name, state = state or "unknown", connection = connection or "" }
-                if kind == "ethernet" then
-                    devices.ethernet[#devices.ethernet + 1] = entry
-                else
-                    devices.wifi[#devices.wifi + 1] = entry
-                end
+            if kind == "wifi" or kind == "ethernet" then
+                devices[#devices + 1] = { name = name, kind = kind, state = state, connection = connection ~= "" and connection or state }
+                if kind == "wifi" and state ~= "unavailable" then wifi_enabled = true end
             end
         end
-
-        awful.spawn.easy_async_with_shell("nmcli -t -f WIFI general status 2>/dev/null", function(wifi_output)
-            local wifi_enabled = wifi_output:match("enabled") ~= nil
-            local function render(networks)
-                if popups.network and popups.network.visible then
-                    for _, device in ipairs(devices.wifi) do
-                        device.ssid = ""
-                        for _, network in ipairs(networks) do
-                            if network.active then device.ssid = network.ssid; break end
-                        end
-                    end
-                    hide("network")
-                    make_popup("network", "Conexiones", "Estado y redes Wi-Fi", network_content(devices, wifi_enabled, networks), 340)
+        view.devices = devices
+        view.wifi_enabled = wifi_enabled
+        render_connection(view)
+        awful.spawn.easy_async_with_shell("LC_ALL=C nmcli -t --escape no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan yes", function(output, _, _, scan_code)
+            for line in output:gmatch("[^\r\n]+") do
+                local active, ssid, signal, security = line:match("^([^:]*):(.*):(%d+):([^:]*)$")
+                if ssid and ssid ~= "" and not seen[ssid] then
+                    local network = { ssid = ssid, signal = signal, security = security, active = active == "*", available = true }
+                    networks[#networks + 1] = network
+                    seen[ssid] = network
                 end
             end
-
-            if #devices.wifi == 0 or not wifi_enabled then
-                render({})
-                return
-            end
-
-            awful.spawn.easy_async_with_shell(
-                "nmcli -t --escape no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan yes 2>/dev/null",
-                function(output)
-                    local networks, seen = {}, {}
-                    for line in output:gmatch("[^\r\n]+") do
-                        local in_use, ssid, signal, security = line:match("^([^:]*):([^:]*):([^:]*):(.*)$")
-                        if ssid and ssid ~= "" and not seen[ssid] then
-                            seen[ssid] = true
-                            networks[#networks + 1] = {
-                                ssid = ssid,
-                                signal = signal or "",
-                                security = security or "",
-                                active = in_use == "*" or in_use == "yes",
-                            }
-                        end
-                    end
-                    table.sort(networks, function(a, b) return (tonumber(a.signal) or 0) > (tonumber(b.signal) or 0) end)
-                    render(networks)
+            awful.spawn.easy_async_with_shell("LC_ALL=C nmcli -t -f UUID,TYPE connection show", function(profiles)
+                local uuids = {}
+                for line in profiles:gmatch("[^\r\n]+") do
+                    local uuid = line:match("^([^:]+):802%-11%-wireless$")
+                    if uuid then uuids[#uuids + 1] = uuid end
                 end
-            )
+                local remaining = #uuids
+                local function render()
+                    if not valid() then return end
+                    table.sort(networks, function(a, b)
+                        if (a.uuid ~= nil) ~= (b.uuid ~= nil) then return a.uuid ~= nil end
+                        if a.available ~= b.available then return a.available == true end
+                        return (tonumber(a.signal) or 0) > (tonumber(b.signal) or 0)
+                    end)
+                    view.networks = networks
+                    render_networks(view, scan_code ~= 0)
+                    network_busy = false
+                    if network_spinner then network_spinner:stop(); network_spinner = nil end
+                    view.loading.visible = false
+                end
+                if remaining == 0 then render(); return end
+                for _, uuid in ipairs(uuids) do
+                    awful.spawn.easy_async({ "nmcli", "--escape", "no", "-g", "802-11-wireless.ssid", "connection", "show", "uuid", uuid }, function(value)
+                        local ssid = value:gsub("[\r\n]+$", "")
+                        if ssid ~= "" then
+                            if seen[ssid] then seen[ssid].uuid = uuid else
+                                local network = { ssid = ssid, uuid = uuid, signal = "", security = "", active = false, available = false }
+                                networks[#networks + 1] = network
+                                seen[ssid] = network
+                            end
+                        end
+                        remaining = remaining - 1
+                        if remaining == 0 then render() end
+                    end)
+                end
+            end)
         end)
     end)
 end

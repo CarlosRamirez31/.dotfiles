@@ -1,20 +1,61 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ ${1:-} == --volume ]]; then
+    case ${2:-status} in
+        up) wpctl set-volume --limit 1 @DEFAULT_AUDIO_SINK@ 5%+ ;;
+        down) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
+        mute) wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+        status)
+            wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '
+                /MUTED/ {print "󰖁"; next}
+                {printf "%%{F#d35f5e}󰕾%%{F-} %d%%\n", $2 * 100 + 0.5}'
+            ;;
+        *) exit 2 ;;
+    esac
+    exit
+fi
+
+if [[ ${1:-} == --brightness ]]; then
+    case ${2:-status} in
+        up | down)
+            card=$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -print -quit)
+            [[ -n $card ]] || exit 0
+            current=$(<"$card/brightness")
+            maximum=$(<"$card/max_brightness")
+            step=$(((maximum + 19) / 20))
+            if [[ $2 == up ]]; then target=$((current + step)); else target=$((current - step)); fi
+            ((target > maximum)) && target=$maximum
+            ((target < step)) && target=$step
+            if ! brightnessctl --device="${card##*/}" --quiet set "$target" 2>/dev/null; then
+                busctl --system call org.freedesktop.login1 /org/freedesktop/login1/session/auto \
+                    org.freedesktop.login1.Session SetBrightness ssu backlight "${card##*/}" "$target"
+            fi
+            ;;
+        status)
+            brightnessctl --class=backlight --machine-readable info 2>/dev/null | awk -F, '{print $4}'
+            ;;
+        *) exit 2 ;;
+    esac
+    exit
+fi
+
 pkill -x polybar 2>/dev/null || true
 
-export MONITOR="$(xrandr --query | awk '/ primary/{print $1; exit}')"
+MONITOR="$(xrandr --query | awk '/ primary/{print $1; exit}')"
 if [[ -z ${MONITOR:-} ]]; then
-    export MONITOR="$(xrandr --query | awk '/ connected/{print $1; exit}')"
+    MONITOR="$(xrandr --query | awk '/ connected/{print $1; exit}')"
 fi
-export WLAN_IFACE="$(ip -o link show | awk -F': ' '$2 ~ /^wl/{print $2; exit}')"
-export BATTERY="$(find /sys/class/power_supply -maxdepth 1 -name 'BAT*' -printf '%f\n' 2>/dev/null | head -n1)"
-export ADAPTER="$(find /sys/class/power_supply -maxdepth 1 \( -name 'AC*' -o -name 'ADP*' \) -printf '%f\n' 2>/dev/null | head -n1)"
+WLAN_IFACE="$(ip -o link show | awk -F': ' '$2 ~ /^wl/{print $2; exit}')"
+BATTERY="$(find /sys/class/power_supply -maxdepth 1 -name 'BAT*' -printf '%f\n' 2>/dev/null | head -n1)"
+ADAPTER="$(find /sys/class/power_supply -maxdepth 1 \( -name 'AC*' -o -name 'ADP*' \) -printf '%f\n' 2>/dev/null | head -n1)"
 backlight_card="$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -n1)"
 if [[ -n $backlight_card ]]; then
     export BACKLIGHT_CARD="$backlight_card"
 else
     unset BACKLIGHT_CARD
 fi
+
+export MONITOR WLAN_IFACE BATTERY ADAPTER
 
 exec polybar top >>"${XDG_RUNTIME_DIR:-/tmp}/polybar.log" 2>&1

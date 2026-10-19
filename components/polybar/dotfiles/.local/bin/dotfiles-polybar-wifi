@@ -1,36 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-status() {
-    local devices wifi_present=0 wifi_connected=0 ethernet_present=0 ethernet_connected=0
-    devices=$(nmcli -t -f TYPE,STATE device 2>/dev/null || true)
-    while IFS=: read -r type state; do
-        case "$type" in
-            wifi)
-                wifi_present=1
-                [[ $state == connected ]] && wifi_connected=1
-                ;;
-            ethernet)
-                ethernet_present=1
-                [[ $state == connected ]] && ethernet_connected=1
-                ;;
-        esac
-    done <<< "$devices"
+export LC_ALL=C
 
-    if (( ethernet_present )); then
-        if (( ethernet_connected )); then
-            printf '%%{F#a3be8c}󰈀%%{F-} '
-        else
-            printf '%%{F#d35f5e}󰈀%%{F-} '
-        fi
-    fi
-    if (( wifi_present )); then
-        if (( wifi_connected )); then
-            printf '%%{F#a3be8c}%%{F-}\n'
-        else
-            printf '%%{F#d35f5e}󰖪%%{F-}\n'
-        fi
-    elif (( ! ethernet_present )); then
+status() {
+    local devices
+    devices=$(nmcli -t -f TYPE,STATE device 2>/dev/null || true)
+    if [[ $devices == *'ethernet:connected'* ]]; then
+        printf '%%{F#a3be8c}󰈀%%{F-}\n'
+    elif [[ $devices == *'wifi:connected'* ]]; then
+        printf '%%{F#a3be8c}%%{F-}\n'
+    else
         printf '%%{F#d35f5e}󰖪%%{F-}\n'
     fi
 }
@@ -47,25 +27,37 @@ menu() {
         'Conectar o cambiar Wi-Fi' \
         'Desconectar Wi-Fi' \
         'Olvidar una red Wi-Fi' \
-        "$([[ $wifi_enabled == enabled ]] && printf 'Apagar Wi-Fi' || printf 'Encender Wi-Fi')" \
-        | rofi -dmenu -i -p 'Redes Wi-Fi') || return 0
+        "$([[ $wifi_enabled == enabled ]] && printf 'Apagar Wi-Fi' || printf 'Encender Wi-Fi')" |
+        rofi -dmenu -i -p 'Redes Wi-Fi') || return 0
 
     case "$choice" in
         '') return 0 ;;
         'Conectar o cambiar Wi-Fi')
-            nmcli device wifi rescan >/dev/null 2>&1 || true
-            networks=$(nmcli -g SSID device wifi list 2>/dev/null | awk 'NF && !seen[$0]++')
+            if ! nmcli radio wifi on || ! nmcli device wifi rescan; then
+                rofi -e 'No se pudo activar o buscar Wi-Fi. Revisa el adaptador y el modo avión.'
+                return 0
+            fi
+            networks=$(nmcli --escape no -g SSID device wifi list 2>/dev/null | awk 'NF && !seen[$0]++')
+            if [[ -z $networks ]]; then
+                rofi -e 'No se encontraron redes Wi-Fi disponibles.'
+                return 0
+            fi
             ssid=$(printf '%s\n' "$networks" | rofi -dmenu -i -p 'Elige una red') || return 0
             [[ -n $ssid ]] || return 0
             if nmcli device wifi connect "$ssid" >/dev/null 2>&1; then
                 return 0
             fi
             password=$(rofi -dmenu -password -p "Clave de $ssid") || return 0
-            [[ -n $password ]] && nmcli device wifi connect "$ssid" password "$password"
-            return ;;
+            [[ -n $password ]] || return 0
+            if ! nmcli --wait 20 device wifi connect "$ssid" password "$password"; then
+                rofi -e 'No se pudo conectar. Comprueba la contraseña y vuelve a intentarlo.'
+            fi
+            return
+            ;;
         'Desconectar Wi-Fi')
             [[ -n $active_device ]] && nmcli device disconnect "$active_device"
-            return ;;
+            return
+            ;;
         'Olvidar una red Wi-Fi')
             local -a profiles=()
             while IFS= read -r uuid; do
@@ -77,9 +69,16 @@ menu() {
             [[ -n $profile ]] || return 0
             uuid=${profile%%  *}
             nmcli connection delete uuid "$uuid"
-            return ;;
-        'Apagar Wi-Fi') nmcli radio wifi off; return ;;
-        'Encender Wi-Fi') nmcli radio wifi on; return ;;
+            return
+            ;;
+        'Apagar Wi-Fi')
+            nmcli radio wifi off
+            return
+            ;;
+        'Encender Wi-Fi')
+            nmcli radio wifi on
+            return
+            ;;
     esac
 }
 

@@ -20,16 +20,16 @@ fi
 capacity=$(<"$capacity_file")
 [[ $capacity =~ ^[0-9]+$ ]] || capacity=100
 
-if (( capacity >= 80 )); then
+if ((capacity >= 80)); then
     icon=''
     color='#a0e8a2'
-elif (( capacity >= 60 )); then
+elif ((capacity >= 60)); then
     icon=''
     color='#a0e8a2'
-elif (( capacity >= 40 )); then
+elif ((capacity >= 40)); then
     icon=''
     color='#f9de8f'
-elif (( capacity >= 20 )); then
+elif ((capacity >= 20)); then
     icon=''
     color='#df8890'
 else
@@ -38,8 +38,19 @@ else
 fi
 
 state_file="${capacity_file%capacity}status"
-if [[ -r $state_file ]] && [[ $(<"$state_file") == Charging ]]; then
-    icon='󰂄'
+plugged_in=0
+for supply in /sys/class/power_supply/*; do
+    [[ -r $supply/type && -r $supply/online ]] || continue
+    [[ $(<"$supply/type") != Battery ]] || continue
+    if [[ $(<"$supply/online") == 1 ]]; then
+        plugged_in=1
+        break
+    fi
+done
+if ((plugged_in)) || { [[ -r $state_file ]] && [[ $(<"$state_file") == Charging ]]; }; then
+    # Keep the capacity icon and show a small bolt before it while plugged in.
+    icon="%{T5}%{T-} $icon"
+    color='#a0e8a2'
 fi
 
 printf '%%{F%s}%s %s%%{F-}\n' "$color" "$icon" "$capacity%"

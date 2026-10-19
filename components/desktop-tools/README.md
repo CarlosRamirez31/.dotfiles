@@ -39,10 +39,17 @@ dotfiles-clipboard
 dotfiles-clipboard-clear
 ```
 
-`Alt+C` abre el historial en Rofi. Elegir una entrada la copia al portapapeles;
-la aplicación receptora puede pegarla con su atajo habitual. `clipmenud` observa
-el portapapeles X11 durante la sesión Awesome. La limpieza exige confirmar en
-Rofi.
+`Alt+C` abre el historial en Rofi. Elegir una entrada con Enter la copia al
+portapapeles y la pega en la ventana original, usando `Ctrl+Shift+V` en
+Alacritty y otras terminales, o `Ctrl+V` en aplicaciones gráficas. Requiere
+`xdotool` y `xorg-xprop`. La captura de historial está desactivada al iniciar
+Awesome: durante el diagnóstico, pausar `clipmenud` coincidió con una bajada
+de consumo de aproximadamente 44 W a 33 W. Copiar y pegar normalmente sigue
+funcionando, pero las nuevas copias no se guardan en el historial.
+
+Para activar la captura manualmente durante la sesión, ejecuta `clipmenud`
+en una terminal; detenlo con `Ctrl+C` cuando termines. `Alt+C` permite elegir
+las entradas ya disponibles. La limpieza exige confirmar en Rofi.
 
 ## Diagnóstico
 

@@ -373,7 +373,7 @@ function M.show_network(refresh)
     local popup = popups.network
     local function valid() return network_generation == generation and network_view == view and popup.visible end
     if not network_timer then
-        network_timer = gears.timer({ timeout = 5, autostart = true, callback = function() M.show_network(true) end })
+        network_timer = gears.timer({ timeout = 60, autostart = true, callback = function() M.show_network(true) end })
     end
     view.loading.visible = true
     if view.empty then view.list.visible = false end

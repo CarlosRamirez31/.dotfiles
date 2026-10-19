@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-selection=$(CM_LAUNCHER=rofi clipmenu -p '󰅇 Portapapeles') || exit 0
-[[ -n $selection ]] || exit 0
-printf '%s' "$selection" | xclip -selection clipboard
+target=$(xdotool getactivewindow)
+window_class=$(xprop -id "$target" WM_CLASS 2>/dev/null || true)
+
+# clipmenu restores the full entry itself, including multiline text.
+CM_LAUNCHER=rofi clipmenu -p '󰅇 Portapapeles' || exit 0
+
+xdotool windowactivate --sync "$target"
+# Allow the Return release and Rofi's keyboard grab to finish before pasting.
+sleep 0.15
+case ${window_class,,} in
+    *alacritty* | *kitty* | *wezterm* | *gnome-terminal* | *terminator* | *xfce4-terminal*)
+        xdotool key --clearmodifiers ctrl+shift+v
+        ;;
+    *xterm* | *urxvt*)
+        xdotool key --clearmodifiers shift+Insert
+        ;;
+    *)
+        xdotool key --clearmodifiers ctrl+v
+        ;;
+esac

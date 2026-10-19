@@ -42,12 +42,6 @@ case $virtualization in
         ;;
 esac
 
-current_display_manager=$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null || true)
-if [[ -n $current_display_manager && $current_display_manager != */sddm.service ]]; then
-    current_display_manager=${current_display_manager##*/}
-    printf 'Selecting SDDM for the next boot (current session stays active; replacing %s).\n' "$current_display_manager"
-    sudo systemctl disable "$current_display_manager"
-fi
 sudo systemctl enable sddm.service
 
 printf 'Base desktop services installed and configured.\n'

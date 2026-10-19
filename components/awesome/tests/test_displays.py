@@ -26,6 +26,121 @@ def outputs(count=20):
 
 
 class DisplaysTest(unittest.TestCase):
+    def row(self, count=3):
+        detected = outputs(count)
+        for i, output in enumerate(detected):
+            output.update(enabled=True, mode='1920x1080', x=1920*i, y=0)
+        return detected
+
+    def test_reordering_row_keeps_all_monitors_adjacent(self):
+        detected = self.row()
+        detected[2].update(x=-1600, y=40)
+        displays.snap_output(detected, detected[2], 0)
+        displays.validate_layout(detected)
+        ordered = sorted(detected, key=lambda o: o['x'])
+        self.assertEqual([o['name'] for o in ordered], ['DP-2', 'DP-0', 'DP-1'])
+        self.assertEqual([o['x']-ordered[0]['x'] for o in ordered], [0, 1920, 3840])
+
+    def test_gap_rejected_before_hardware_changes(self):
+        detected = self.row(2)
+        detected[1]['x'] += 100
+        with patch.object(displays.subprocess, 'run') as run:
+            with self.assertRaisesRegex(ValueError, 'hueco'):
+                displays.apply(detected)
+        run.assert_not_called()
+
+    def test_partial_overlap_rejected(self):
+        detected = self.row(2)
+        detected[1]['x'] = 1500
+        with self.assertRaisesRegex(ValueError, 'superpuestas'):
+            displays.validate_layout(detected)
+
+    def test_mirror_and_vertical_layout_are_valid(self):
+        detected = self.row(2)
+        detected[1].update(x=0, y=0)
+        displays.validate_layout(detected)
+        detected[1]['y'] = 1080
+        displays.validate_layout(detected)
+
+    def test_diagonal_corner_alone_does_not_connect_screens(self):
+        detected = self.row(2)
+        detected[1]['y'] = 1080
+        with self.assertRaisesRegex(ValueError, 'hueco'):
+            displays.validate_layout(detected)
+
+    def test_closed_lid_in_middle_of_row_does_not_leave_gap(self):
+        detected = self.row()
+        detected[1]['name'] = 'eDP-1'
+        with patch.object(displays, 'lid_closed', return_value=True), patch.object(displays, 'load', return_value={}), patch.object(displays, 'query', return_value=copy.deepcopy(detected)), patch.object(displays, 'apply'):
+            displays.automatic(detected)
+        displays.validate_layout(detected)
+        self.assertEqual(detected[2]['x'] - detected[0]['x'], 1920)
+
+    def test_lid_policy_reads_effective_overrides_and_ac_fallback(self):
+        listing = ('# HandleLidSwitch=poweroff\n[Login]\nHandleLidSwitch=suspend\n'
+                   '[Other]\nHandleLidSwitch=poweroff\n'
+                   '[Login]\nHandleLidSwitch=lock\nHandleLidSwitchDocked=ignore\n')
+        with patch.object(displays.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, listing)):
+            self.assertEqual(displays.lid_policy(), ['lock', 'lock', 'ignore'])
+
+    def test_graphical_lid_save_sends_password_through_stdin(self):
+        actions = ['suspend', 'suspend', 'ignore']
+        with patch.object(displays.subprocess, 'run') as run, patch.object(displays, 'lid_policy', return_value=actions):
+            displays.configure_lid(actions, password='test-password')
+        self.assertEqual(run.call_count, 2)
+        for call in run.call_args_list:
+            self.assertNotIn('test-password', call.args[0])
+            self.assertEqual(call.kwargs['input'], 'test-password\n')
+        self.assertIn('install', run.call_args_list[0].args[0])
+        self.assertIn('--signal=HUP', run.call_args_list[1].args[0])
+
+    def test_closed_lid_leaves_two_external_outputs(self):
+        detected = outputs(3)
+        detected[0]['name'] = 'eDP-1'
+        with patch.object(displays, 'lid_closed', return_value=True), patch.object(displays, 'load', return_value={}), patch.object(displays, 'query', return_value=copy.deepcopy(detected)), patch.object(displays, 'apply') as apply:
+            displays.automatic(detected)
+        configured = apply.call_args.args[0]
+        self.assertFalse(configured[0]['enabled'])
+        self.assertEqual(sum(o['enabled'] for o in configured), 2)
+        self.assertTrue(configured[1]['primary'])
+        self.assertEqual([o['x'] for o in configured[1:]], [0, 1920])
+
+    def test_closed_lid_without_external_keeps_internal(self):
+        detected = outputs(1)
+        detected[0]['name'] = 'eDP-1'
+        with patch.object(displays, 'lid_closed', return_value=True):
+            self.assertFalse(displays.docked(detected))
+
+    def test_lid_option_can_be_disabled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            options = Path(directory) / 'options.json'
+            options.write_text('{"external_only_when_closed": false}')
+            with patch.object(displays, 'OPTIONS', options), patch.object(displays, 'lid_closed', return_value=True):
+                self.assertFalse(displays.docked(outputs(2)))
+
+    def test_closed_and_open_lid_use_separate_profiles(self):
+        detected = outputs(2)
+        detected[0]['name'] = 'eDP-1'
+        with patch.object(displays, 'lid_closed', return_value=False):
+            opened = displays.key(detected)
+        with patch.object(displays, 'lid_closed', return_value=True):
+            closed = displays.key(detected)
+        self.assertNotEqual(opened, closed)
+
+    def test_opening_lid_enables_internal_again(self):
+        detected = outputs(2)
+        detected[0].update(name='eDP-1', enabled=False, primary=False)
+        detected[1].update(enabled=True, primary=True, mode='1920x1080')
+        with patch.object(displays, 'lid_closed', return_value=False), patch.object(displays, 'load', return_value={}), patch.object(displays, 'query', return_value=copy.deepcopy(detected)), patch.object(displays, 'apply'):
+            displays.automatic(detected)
+        self.assertTrue(detected[0]['enabled'])
+
+    def test_invalid_lid_policy_does_not_run_sudo(self):
+        with patch.object(displays.subprocess, 'run') as run:
+            with self.assertRaises(ValueError):
+                displays.configure_lid(['suspend', 'suspend', 'unknown'])
+        run.assert_not_called()
+
     def test_modes_sorted_by_maximum_resolution_without_duplicates(self):
         listing = ('DP-0 connected primary 1920x1080+0+0\n'
                    '   1920x1080 60.00*\n'

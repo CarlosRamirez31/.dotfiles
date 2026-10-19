@@ -8,8 +8,76 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
+import threading
 
 CONFIG = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'dotfiles/displays.json'
+OPTIONS = CONFIG.with_name('display-options.json')
+
+
+def lid_closed():
+    for state in Path('/proc/acpi/button/lid').glob('*/state'):
+        try:
+            if re.search(r'\bclosed\b', state.read_text()):
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def docked(outputs):
+    try:
+        enabled = json.loads(OPTIONS.read_text()).get('external_only_when_closed', True)
+    except (OSError, ValueError, AttributeError):
+        enabled = True
+    return bool(enabled and lid_closed() and any(
+        not internal(o) and o['modes'] for o in outputs))
+
+
+def internal(output):
+    return output['name'].startswith(('eDP', 'LVDS', 'DSI'))
+
+
+def lid_policy():
+    result = subprocess.run(['systemd-analyze', 'cat-config', 'systemd/logind.conf'],
+                            capture_output=True, text=True, check=True, timeout=10)
+    values = {'HandleLidSwitch': 'suspend', 'HandleLidSwitchDocked': 'ignore'}
+    section = ''
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if line.startswith('['):
+            section = line
+        elif section == '[Login]' and '=' in line and not line.startswith(('#', ';')):
+            key, value = line.split('=', 1)
+            values[key.strip()] = value.strip()
+    battery = values['HandleLidSwitch']
+    return [battery, values.get('HandleLidSwitchExternalPower') or battery,
+            values['HandleLidSwitchDocked']]
+
+
+def configure_lid(actions, password=None):
+    """Set logind policy independently of the X11 session, using sudo."""
+    allowed = {'ignore', 'suspend', 'hibernate', 'lock', 'poweroff'}
+    if len(actions) != 3 or any(action not in allowed for action in actions):
+        raise ValueError('--lid-policy requiere tres acciones: batería, corriente y monitores externos. '
+                         'Opciones: ignore, suspend, hibernate, lock, poweroff.')
+    settings = ('HandleLidSwitch', 'HandleLidSwitchExternalPower', 'HandleLidSwitchDocked')
+    def privileged(args):
+        if password is None:
+            subprocess.run(['sudo'] + args, check=True)
+        else:
+            subprocess.run(['sudo', '-S', '-p', ''] + args, input=password + '\n',
+                           capture_output=True, text=True, check=True, timeout=45)
+    with tempfile.TemporaryDirectory(prefix='dotfiles-lid-') as directory:
+        policy = Path(directory) / '90-dotfiles-lid.conf'
+        policy.write_text('[Login]\n' + ''.join(f'{key}={value}\n' for key, value in zip(settings, actions)))
+        privileged(['install', '-D', '-m', '644', str(policy),
+                    '/etc/systemd/logind.conf.d/90-dotfiles-lid.conf'])
+    privileged(['systemctl', 'kill', '--kill-whom=main', '--signal=HUP',
+                'systemd-logind.service'])
+    if lid_policy() != actions:
+        raise ValueError('Otra configuración del sistema tiene prioridad. No se pudieron activar estas opciones.')
+    print('Política de tapa aplicada: batería={}, corriente={}, monitores externos={}.'.format(*actions))
 
 
 def query():
@@ -59,7 +127,71 @@ def normalize(outputs):
     return outputs
 
 
+def validate_layout(outputs):
+    enabled = [o for o in outputs if o['enabled']]
+    if not enabled:
+        raise ValueError('Activa al menos una pantalla.')
+    for o in enabled:
+        if o['mode'] not in o['modes']:
+            raise ValueError('Selecciona una resolución disponible para ' + o['name'])
+    neighbors = {o['name']: set() for o in enabled}
+    for i, a in enumerate(enabled):
+        aw, ah = size(a)
+        for b in enabled[i+1:]:
+            bw, bh = size(b)
+            dx = min(a['x']+aw, b['x']+bw) - max(a['x'], b['x'])
+            dy = min(a['y']+ah, b['y']+bh) - max(a['y'], b['y'])
+            mirrored = (a['x'], a['y'], aw, ah) == (b['x'], b['y'], bw, bh)
+            if dx > 0 and dy > 0 and not mirrored:
+                raise ValueError('Hay pantallas superpuestas. Sepáralas o usa Duplicar.')
+            if mirrored or (dx == 0 and dy > 0) or (dy == 0 and dx > 0):
+                neighbors[a['name']].add(b['name'])
+                neighbors[b['name']].add(a['name'])
+    seen, pending = set(), [enabled[0]['name']]
+    while pending:
+        name = pending.pop()
+        if name not in seen:
+            seen.add(name)
+            pending.extend(neighbors[name] - seen)
+    if len(seen) != len(enabled):
+        raise ValueError('Hay pantallas separadas por un hueco. Junta sus bordes para poder pasar el mouse.')
+
+
+def snap_output(outputs, output, original_y):
+    enabled = [o for o in outputs if o['enabled']]
+    others = [o for o in enabled if o is not output]
+    if not others:
+        return
+    # Reordering a horizontal row moves its neighbors too, instead of leaving
+    # the old slot empty or stacking one output over another.
+    if all(o['y'] == original_y for o in others) and abs(output['y']-original_y) < 180:
+        ordered = sorted(enabled, key=lambda o: o['x'] + size(o)[0]/2)
+        right = min(o['x'] for o in enabled)
+        for o in ordered:
+            o.update(x=right, y=original_y)
+            right += size(o)[0]
+        return
+    w, h = size(output)
+    candidates = []
+    for other in others:
+        ow, oh = size(other)
+        y = min(max(output['y'], other['y']-h+1), other['y']+oh-1)
+        x = min(max(output['x'], other['x']-w+1), other['x']+ow-1)
+        candidates.extend([(other['x']-w, y), (other['x']+ow, y),
+                           (x, other['y']-h), (x, other['y']+oh)])
+    for x, y in sorted(candidates, key=lambda p: (p[0]-output['x'])**2+(p[1]-output['y'])**2):
+        trial = copy.deepcopy(outputs)
+        next(o for o in trial if o['name'] == output['name']).update(x=x, y=y)
+        try:
+            validate_layout(trial)
+        except ValueError:
+            continue
+        output.update(x=x, y=y)
+        return
+
+
 def apply(outputs):
+    validate_layout(outputs)
     args = ['xrandr']
     for output in normalize(copy.deepcopy(outputs)):
         args += ['--output', output['name']]
@@ -86,7 +218,7 @@ def refresh_bar():
 
 
 def key(outputs):
-    return '|'.join(sorted(o['name'] for o in outputs))
+    return '|'.join(sorted(o['name'] for o in outputs)) + ('|lid-closed' if docked(outputs) else '')
 
 
 def load():
@@ -108,6 +240,7 @@ def save(outputs):
 def automatic(outputs):
     if not outputs:
         return
+    external_only = docked(outputs)
     stored = load().get(key(outputs))
     if stored:
         by_name = {o['name']: o for o in stored}
@@ -118,9 +251,29 @@ def automatic(outputs):
     else:
         right = max((o['x'] + size(o)[0] for o in outputs if o['enabled']), default=0)
         for output in outputs:
+            if external_only and internal(output):
+                continue
             if not output['enabled'] and output['modes']:
                 output.update(enabled=True, mode=output['modes'][0], x=right, y=0)
                 right += size(output)[0]
+    if external_only:
+        for output in outputs:
+            if internal(output):
+                output.update(enabled=False, primary=False)
+        # A saved profile may have disabled every external screen. Never
+        # leave the session without a usable output when closing the lid.
+        if not any(o['enabled'] for o in outputs):
+            external = next(o for o in outputs if not internal(o) and o['modes'])
+            external.update(enabled=True, mode=external['mode'] or external['modes'][0], x=0, y=0)
+    normalize(outputs)
+    try:
+        validate_layout(outputs)
+    except ValueError:
+        # Removing the internal panel can leave a hole in a saved arrangement.
+        right = 0
+        for output in sorted((o for o in outputs if o['enabled']), key=lambda o: (o['x'], o['y'])):
+            output.update(x=right, y=0)
+            right += size(output)[0]
     if outputs != query():
         apply(outputs)
 
@@ -133,17 +286,48 @@ def gui(outputs):
     class Panel(Gtk.Window):
         def __init__(self):
             super().__init__(title='Pantallas')
-            self.set_default_size(920, 650)
+            self.set_wmclass('dotfiles-displays', 'DotfilesDisplays')
+            self.set_role('dotfiles-displays')
+            self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+            self.set_position(Gtk.WindowPosition.CENTER)
+            self.set_default_size(900, 660)
+            self.set_name('display-panel')
+            self.css = Gtk.CssProvider()
+            self.css.load_from_data(b'''
+                #display-panel { background: #181825; color: #cdd6f4; font-family: Lexend; }
+                #display-panel headerbar { background: #1e1e2e; color: #cdd6f4; border: 0; box-shadow: none; }
+                #display-panel .section-title { color: #cba6f7; font-weight: bold; font-size: 14px; }
+                #display-panel .muted { color: #a6adc8; }
+                #display-panel .monitor-row { background: #262637; border: 1px solid #36364b; border-radius: 12px; padding: 12px; }
+                #display-panel button { background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 8px; box-shadow: none; text-shadow: none; padding: 8px 14px; }
+                #display-panel button:hover { background: #45475a; border-color: #cba6f7; }
+                #display-panel button.suggested-action { background: #cba6f7; color: #181825; border-color: #cba6f7; font-weight: bold; }
+                #display-panel button.suggested-action:hover { background: #dcc4ff; }
+                #display-panel check, #display-panel radio { background: #181825; border-color: #585b70; }
+                #display-panel check:checked, #display-panel radio:checked { background: #cba6f7; color: #181825; }
+                #display-panel scrolledwindow { border: 0; }
+            ''')
+            Gtk.StyleContext.add_provider_for_screen(self.get_screen(), self.css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            header = Gtk.HeaderBar(title='Pantallas', subtitle='Tu espacio de trabajo')
+            header.set_show_close_button(True)
+            self.set_titlebar(header)
             self.outputs = outputs
             self.drag = None
             self.pending = None
+            self.preview_timer = None
+            self.output_widgets = []
             self.connect('delete-event', self.close)
-            root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin=16)
+            root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin=22)
             self.add(root)
-            root.pack_start(Gtk.Label(label='Arrastra las pantallas para indicar por dónde pasa el mouse. Haz clic en Aplicar para probar.', xalign=0), False, False, 0)
+            heading = Gtk.Label(label='Organiza tus monitores', xalign=0)
+            heading.get_style_context().add_class('section-title')
+            root.pack_start(heading, False, False, 0)
+            hint = Gtk.Label(label='Arrastra cada pantalla para que coincida con su posición en tu escritorio.', xalign=0, wrap=True)
+            hint.get_style_context().add_class('muted')
+            root.pack_start(hint, False, False, 0)
             scroll = Gtk.ScrolledWindow()
             self.canvas = Gtk.DrawingArea()
-            self.canvas.set_size_request(850, 320)
+            self.canvas.set_size_request(760, 240)
             self.canvas.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
             self.canvas.connect('draw', self.draw)
             self.canvas.connect('button-press-event', self.press)
@@ -153,7 +337,7 @@ def gui(outputs):
             root.pack_start(scroll, True, True, 0)
             controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
             list_scroll = Gtk.ScrolledWindow()
-            list_scroll.set_min_content_height(150)
+            list_scroll.set_min_content_height(120)
             list_scroll.add(controls)
             root.pack_start(list_scroll, True, True, 0)
             self.primary_buttons = []
@@ -164,10 +348,11 @@ def gui(outputs):
                     output.update(mode=output['modes'][0], x=right)
                     right += size(output)[0]
                 row = Gtk.Box(spacing=12)
+                row.get_style_context().add_class('monitor-row')
                 enabled = Gtk.CheckButton(label=output['name'])
                 enabled.set_active(output['enabled'])
                 enabled.connect('toggled', self.enable, output)
-                row.pack_start(enabled, False, False, 0)
+                row.pack_start(enabled, True, True, 0)
                 primary = Gtk.RadioButton.new_with_label_from_widget(group, 'Principal')
                 group = primary
                 self.primary_buttons.append((primary, output))
@@ -184,6 +369,7 @@ def gui(outputs):
                 maximum.connect('clicked', lambda _, combo=modes: combo.set_active(0))
                 row.pack_start(maximum, False, False, 0)
                 controls.pack_start(row, False, False, 0)
+                self.output_widgets.append((output, enabled, primary, modes))
             chosen = next((button for button, o in self.primary_buttons if o['primary']), group)
             if chosen:
                 chosen.set_active(True)
@@ -191,17 +377,163 @@ def gui(outputs):
                 button.connect('toggled', self.primary, output)
             self.message = Gtk.Label(xalign=0, wrap=True)
             root.pack_start(self.message, False, False, 0)
-            actions = Gtk.Box(spacing=12)
+            actions = Gtk.Box(spacing=10)
+            lid = Gtk.Button(label='Tapa y energía…')
+            lid.connect('clicked', self.lid_settings)
+            actions.pack_start(lid, False, False, 0)
             for title, callback in [('Extender en fila', self.extend), ('Duplicar', self.mirror), ('Aplicar', self.commit)]:
                 button = Gtk.Button(label=title)
                 button.connect('clicked', callback)
-                actions.pack_start(button, False, False, 0)
+                if title == 'Aplicar':
+                    button.get_style_context().add_class('suggested-action')
+                    actions.pack_end(button, False, False, 0)
+                else:
+                    actions.pack_start(button, False, False, 0)
             root.pack_start(actions, False, False, 0)
+            self.editing_widgets = [self.canvas, controls, actions]
+            self.confirmation = Gtk.Box(spacing=12)
+            self.confirmation.get_style_context().add_class('monitor-row')
+            self.confirmation_label = Gtk.Label(xalign=0, wrap=True)
+            self.confirmation.pack_start(self.confirmation_label, True, True, 0)
+            revert = Gtk.Button(label='Restaurar')
+            revert.connect('clicked', self.finish_preview, False)
+            self.confirmation.pack_start(revert, False, False, 0)
+            keep = Gtk.Button(label='Conservar')
+            keep.get_style_context().add_class('suggested-action')
+            keep.connect('clicked', self.finish_preview, True)
+            self.confirmation.pack_start(keep, False, False, 0)
+            root.pack_start(self.confirmation, False, False, 0)
+            self.confirmation.set_no_show_all(True)
             self.connect('destroy', Gtk.main_quit)
+            self.connect('destroy', lambda *_: Gtk.StyleContext.remove_provider_for_screen(self.get_screen(), self.css))
             self.show_all()
 
         def changed(self):
             self.canvas.queue_draw()
+
+        def lid_settings(self, _):
+            dialog = Gtk.Dialog(title='Tapa y energía', transient_for=self, modal=True)
+            dialog.set_default_size(560, 440)
+            dialog.set_name('lid-settings')
+            css = Gtk.CssProvider()
+            css.load_from_data(b'''
+                #lid-settings { background: #181825; color: #cdd6f4; }
+                #lid-settings .lid-card { background: #313244; border-radius: 12px; padding: 16px; }
+                #lid-settings .lid-title { color: #cba6f7; font-size: 22px; font-weight: bold; }
+                #lid-settings button.suggested-action { background: #cba6f7; color: #181825; }
+            ''')
+            Gtk.StyleContext.add_provider_for_screen(dialog.get_screen(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            box = dialog.get_content_area()
+            box.set_spacing(16)
+            box.set_border_width(24)
+            title = Gtk.Label(label='Al cerrar la tapa', xalign=0)
+            title.get_style_context().add_class('lid-title')
+            box.pack_start(title, False, False, 0)
+            box.pack_start(Gtk.Label(label='Elige cómo se comporta tu laptop en cada situación.', xalign=0, wrap=True), False, False, 0)
+            grid = Gtk.Grid(column_spacing=24, row_spacing=14)
+            grid.get_style_context().add_class('lid-card')
+            box.pack_start(grid, False, False, 0)
+            choices = [('suspend', 'Suspender'), ('ignore', 'Seguir funcionando'),
+                       ('lock', 'Bloquear sesión'), ('hibernate', 'Hibernar'), ('poweroff', 'Apagar')]
+            status = Gtk.Label(xalign=0, wrap=True)
+            combos = []
+            try:
+                current = lid_policy()
+            except (OSError, subprocess.SubprocessError):
+                current = [None] * 3
+                status.set_text('No se pudo leer la configuración. Cierra este menú y vuelve a intentarlo.')
+            for index, (icon, label) in enumerate([
+                    ('battery-good-symbolic', 'Con batería'),
+                    ('ac-adapter-symbolic', 'Conectada a corriente'),
+                    ('video-display-symbolic', 'Con monitores externos')]):
+                row = Gtk.Box(spacing=10)
+                row.pack_start(Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.LARGE_TOOLBAR), False, False, 0)
+                row.pack_start(Gtk.Label(label=label, xalign=0), False, False, 0)
+                grid.attach(row, 0, index, 1, 1)
+                combo = Gtk.ComboBoxText()
+                for value, text in choices:
+                    combo.append(value, text)
+                if current[index] and current[index] not in dict(choices):
+                    combo.append(current[index], 'Actual: ' + current[index])
+                if current[index]:
+                    combo.set_active_id(current[index])
+                grid.attach(combo, 1, index, 1, 1)
+                combos.append(combo)
+            lid = Gtk.CheckButton(label='Usar solo los monitores externos con la tapa cerrada')
+            try:
+                option = json.loads(OPTIONS.read_text()).get('external_only_when_closed', True)
+            except (OSError, ValueError, AttributeError):
+                option = True
+            lid.set_active(bool(option))
+            lid.connect('toggled', self.lid_option, status)
+            box.pack_start(lid, False, False, 0)
+            box.pack_start(Gtk.Label(label='Con monitores externos se usa la tercera opción.\nLa hibernación requiere estar configurada en el sistema.', xalign=0, wrap=True), False, False, 0)
+            box.pack_start(status, False, False, 0)
+            dialog.add_button('Cerrar', Gtk.ResponseType.CLOSE)
+            save = dialog.add_button('Guardar cambios', Gtk.ResponseType.APPLY)
+            save.get_style_context().add_class('suggested-action')
+            save.set_sensitive(all(current))
+            busy = [False]
+
+            def finish(error):
+                busy[0] = False
+                save.set_sensitive(True)
+                status.set_text(error or 'Cambios guardados y activos.')
+                return False
+
+            def response(_, response_id):
+                if busy[0]:
+                    return
+                if response_id != Gtk.ResponseType.APPLY:
+                    dialog.destroy()
+                    return
+                auth = Gtk.Dialog(title='Autorizar cambios', transient_for=dialog, modal=True)
+                auth.add_buttons('Cancelar', Gtk.ResponseType.CANCEL, 'Guardar', Gtk.ResponseType.OK)
+                content = auth.get_content_area()
+                content.set_border_width(20)
+                content.set_spacing(12)
+                content.add(Gtk.Label(label='Introduce tu contraseña para cambiar la política de energía.', wrap=True))
+                entry = Gtk.Entry(visibility=False, activates_default=True)
+                entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
+                content.add(entry)
+                auth.set_default_response(Gtk.ResponseType.OK)
+                auth.show_all()
+                answer = auth.run()
+                password = entry.get_text()
+                entry.set_text('')
+                auth.destroy()
+                if answer != Gtk.ResponseType.OK:
+                    return
+                actions = [combo.get_active_id() for combo in combos]
+                busy[0] = True
+                save.set_sensitive(False)
+                status.set_text('Guardando…')
+                def worker():
+                    error = None
+                    try:
+                        configure_lid(actions, password=password)
+                    except subprocess.CalledProcessError:
+                        error = 'No se pudo guardar. Verifica tu contraseña y los permisos de administración.'
+                    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+                        error = 'No se pudo completar el cambio: ' + str(exc)
+                    GLib.idle_add(finish, error)
+                threading.Thread(target=worker, daemon=True).start()
+
+            dialog.connect('response', response)
+            dialog.connect('delete-event', lambda *_: busy[0])
+            dialog.connect('destroy', lambda *_: Gtk.StyleContext.remove_provider_for_screen(self.get_screen(), css))
+            dialog.show_all()
+
+        def lid_option(self, button, status=None):
+            message = status if status is not None else self.message
+            try:
+                OPTIONS.parent.mkdir(parents=True, exist_ok=True)
+                temporary = OPTIONS.with_suffix('.tmp')
+                temporary.write_text(json.dumps({'external_only_when_closed': button.get_active()}) + '\n')
+                temporary.replace(OPTIONS)
+                message.set_text('Preferencia de pantallas guardada. Se aplicará al cerrar el panel de pantallas.')
+            except OSError as error:
+                message.set_text('No se pudo guardar: ' + str(error))
 
         def enable(self, button, output):
             output['enabled'] = button.get_active()
@@ -223,25 +555,53 @@ def gui(outputs):
             enabled = [o for o in self.outputs if o['enabled'] and o['mode']]
             left = min((o['x'] for o in enabled), default=0)
             top = min((o['y'] for o in enabled), default=0)
+            extent_w = max((o['x'] - left + size(o)[0] for o in enabled), default=1)
+            extent_h = max((o['y'] - top + size(o)[1] for o in enabled), default=1)
+            if not self.drag:
+                self.preview_scale = min(.18, max(1, self.canvas.get_allocated_width()-64)/extent_w,
+                                         max(1, self.canvas.get_allocated_height()-64)/extent_h)
+            scale = self.preview_scale
+            offset_x = (self.canvas.get_allocated_width() - extent_w * scale) / 2
+            offset_y = (self.canvas.get_allocated_height() - extent_h * scale) / 2
+            if self.drag:
+                left, top, offset_x, offset_y = self.drag_transform
+            else:
+                self.drag_transform = (left, top, offset_x, offset_y)
             for o in enabled:
                 w, h = size(o)
-                yield o, (o['x'] - left) * .12 + 30, (o['y'] - top) * .12 + 30, w * .12, h * .12
+                yield o, (o['x'] - left) * scale + offset_x, (o['y'] - top) * scale + offset_y, w * scale, h * scale
 
         def draw(self, widget, cr):
-            cr.set_source_rgb(.09, .09, .14)
+            cr.set_source_rgb(.12, .12, .18)
             cr.paint()
             rectangles = list(self.rectangles())
-            widget.set_size_request(max([850] + [int(x+w+30) for _, x, y, w, h in rectangles]), max([320] + [int(y+h+30) for _, x, y, w, h in rectangles]))
-            for o, x, y, w, h in rectangles:
-                cr.set_source_rgb(*((.44, .36, .65) if o['primary'] else (.22, .28, .38)))
-                cr.rectangle(x, y, w-2, h-2)
-                cr.fill()
-                cr.set_source_rgb(1, 1, 1)
-                cr.set_font_size(14)
-                cr.move_to(x+12, y+30)
-                cr.show_text(o['name'] + (' · Principal' if o['primary'] else ''))
-                cr.move_to(x+12, y+52)
-                cr.show_text(o['mode'])
+            for index, (o, x, y, w, h) in enumerate(rectangles, 1):
+                cr.save()
+                gap = min(5, w/10, h/10)
+                x, y, w, h = x+gap, y+gap, w-2*gap, h-2*gap
+                radius = min(12, w/4, h/4)
+                from math import pi
+                cr.new_sub_path()
+                for cx, cy, start in [(x+w-radius, y+radius, -pi/2), (x+w-radius, y+h-radius, 0),
+                                       (x+radius, y+h-radius, pi/2), (x+radius, y+radius, pi)]:
+                    cr.arc(cx, cy, radius, start, start+pi/2)
+                cr.close_path()
+                cr.set_source_rgb(*((.26, .23, .37) if o['primary'] else (.19, .20, .28)))
+                cr.fill_preserve()
+                cr.set_source_rgb(*((.80, .65, .97) if o['primary'] else (.38, .41, .53)))
+                cr.set_line_width(2)
+                cr.stroke_preserve()
+                cr.clip()
+                for text, font_size, baseline, color in [
+                        (str(index), 30, y+h/2-6, (.80, .65, .97)),
+                        (o['name'] + (' · Principal' if o['primary'] else ''), 12, y+h/2+18, (.90, .90, .96)),
+                        (o['mode'], 11, y+h/2+38, (.65, .68, .78))]:
+                    cr.set_source_rgb(*color)
+                    cr.set_font_size(font_size)
+                    extents = cr.text_extents(text)
+                    cr.move_to(x+(w-extents[2])/2-extents[0], baseline)
+                    cr.show_text(text)
+                cr.restore()
 
         def press(self, _, event):
             if event.button != 1:
@@ -254,25 +614,13 @@ def gui(outputs):
         def motion(self, _, event):
             if self.drag:
                 o, x, y, ox, oy = self.drag
-                o['x'], o['y'] = round(ox+(event.x-x)/.12), round(oy+(event.y-y)/.12)
+                o['x'], o['y'] = round(ox+(event.x-x)/self.preview_scale), round(oy+(event.y-y)/self.preview_scale)
                 self.changed()
 
         def release(self, *_):
             if self.drag:
                 output = self.drag[0]
-                w, h = size(output)
-                # Snap nearby edges so adjacent screens share a mouse boundary.
-                for axis, length in [('x', w), ('y', h)]:
-                    targets = []
-                    for other in self.outputs:
-                        if other is output or not other['enabled']:
-                            continue
-                        extent = size(other)[0 if axis == 'x' else 1]
-                        targets.extend([other[axis], other[axis]+extent, other[axis]-length])
-                    if targets:
-                        target = min(targets, key=lambda value: abs(value-output[axis]))
-                        if abs(target-output[axis]) < 180:
-                            output[axis] = target
+                snap_output(self.outputs, output, self.drag[4])
                 self.drag = None
                 self.changed()
 
@@ -296,40 +644,78 @@ def gui(outputs):
             self.changed()
 
         def commit(self, *_):
+            if self.pending is not None:
+                return
             try:
+                validate_layout(self.outputs)
                 before = query()
                 apply(self.outputs)
             except (ValueError, subprocess.SubprocessError) as error:
                 if 'before' in locals():
                     self.restore(before)
+                    self.sync_outputs()
                 self.message.set_text('No se pudo aplicar: ' + str(error))
                 return
             self.pending = before
-            dialog = Gtk.MessageDialog(transient_for=self, modal=True, text='¿Conservar esta configuración?', buttons=Gtk.ButtonsType.YES_NO)
-            remaining = [15]
+            self.remaining = 20
+            for widget in self.editing_widgets:
+                widget.set_sensitive(False)
+            self.confirmation.set_no_show_all(False)
+            self.confirmation.show_all()
+            self.confirmation_label.set_text('Prueba tus monitores. Se restaura en 20 segundos.')
             def tick():
-                remaining[0] -= 1
-                dialog.format_secondary_text(f'Se restaura la anterior en {remaining[0]} segundos.')
-                if remaining[0] <= 0:
-                    dialog.response(Gtk.ResponseType.NO)
+                self.remaining -= 1
+                self.confirmation_label.set_text(f'¿Se ven bien? Se restaura en {self.remaining} segundos.')
+                if self.remaining <= 0:
+                    self.preview_timer = None
+                    self.finish_preview(None, False)
                     return False
                 return True
-            timer = GLib.timeout_add_seconds(1, tick)
-            response = dialog.run()
-            if remaining[0] > 0:
-                GLib.source_remove(timer)
-            dialog.destroy()
-            if response == Gtk.ResponseType.YES:
+            self.preview_timer = GLib.timeout_add_seconds(1, tick)
+
+        def finish_preview(self, _, keep):
+            if self.pending is None:
+                return
+            before, self.pending = self.pending, None
+            if self.preview_timer is not None:
+                GLib.source_remove(self.preview_timer)
+                self.preview_timer = None
+            if keep:
                 try:
-                    save(self.outputs)
+                    actual = query()
+                    if {o['name'] for o in actual} != {o['name'] for o in before}:
+                        raise ValueError('Las pantallas conectadas cambiaron durante la prueba.')
+                    save(actual)
                     self.message.set_text('Configuración guardada para este conjunto de pantallas.')
-                except OSError as error:
+                except (OSError, ValueError, subprocess.SubprocessError) as error:
                     self.restore(before)
                     self.message.set_text('No se pudo guardar: ' + str(error))
             else:
                 self.restore(before)
                 self.message.set_text('Se restauró la configuración anterior.')
-            self.pending = None
+            self.confirmation.hide()
+            self.confirmation.set_no_show_all(True)
+            for widget in self.editing_widgets:
+                widget.set_sensitive(True)
+            self.sync_outputs()
+
+        def sync_outputs(self):
+            try:
+                actual = {o['name']: o for o in query()}
+                for output, enabled, primary, modes in self.output_widgets:
+                    if output['name'] not in actual:
+                        continue
+                    output.update(actual[output['name']])
+                    enabled.set_active(output['enabled'])
+                    primary.set_active(output['primary'])
+                    modes.remove_all()
+                    for index, mode in enumerate(output['modes']):
+                        modes.append_text(mode + (' · Máxima' if index == 0 else ''))
+                    if output['mode'] in output['modes']:
+                        modes.set_active(output['modes'].index(output['mode']))
+                self.changed()
+            except (OSError, subprocess.SubprocessError) as error:
+                self.message.set_text('No se pudo actualizar el panel: ' + str(error))
 
         def restore(self, before):
             try:
@@ -340,15 +726,20 @@ def gui(outputs):
                 automatic(query())
 
         def close(self, *_):
-            if self.pending:
-                self.restore(self.pending)
+            if self.pending is not None:
+                self.finish_preview(None, False)
             return False
 
-    Panel()
+    panel = Panel()
+    if '--lid-settings' in sys.argv:
+        GLib.idle_add(panel.lid_settings, None)
     Gtk.main()
 
 
 def main():
+    if '--lid-policy' in sys.argv:
+        configure_lid(sys.argv[sys.argv.index('--lid-policy') + 1:])
+        return
     runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/tmp/dotfiles-display-{os.getuid()}'))
     runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (runtime / 'dotfiles-display.lock').open('w') as lock:

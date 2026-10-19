@@ -49,6 +49,14 @@ return {
         },
     },
     {
+        rule = { role = "dotfiles-displays" },
+        properties = {
+            floating = true,
+            placement = awful.placement.centered,
+            titlebars_enabled = false,
+        },
+    },
+    {
         rule_any = {
             type = { "dialog", "utility", "toolbar", "splash" },
             class = { "Gpick", "flameshot" },

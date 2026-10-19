@@ -16,6 +16,14 @@ rechaza huecos y superposiciones parciales antes de cambiar las salidas.
 las otras pantallas. Si no pulsas **Conservar** en 20 segundos, se restaura la
 configuración anterior y se actualizan los controles con el estado real.
 
+Con el panel integrado y dos monitores externos, el cambio de distribución
+reactiva ambas salidas externas juntas y reconstruye el framebuffer antes de
+encenderlas. La restauración utiliza el mismo procedimiento, conserva la
+frecuencia actual si no cambia la resolución e intenta mantener las ventanas
+en su monitor y tag. Durante el cambio las pantallas externas parpadean.
+El botón **Recuperar imagen de los monitores** y `dotfiles-display --recover`
+repiten esta recuperación sin guardar otra distribución.
+
 ## Tapa de la laptop
 
 En **Super+P → Tapa y energía…** puedes elegir qué hacer con batería, corriente

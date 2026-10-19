@@ -41,6 +41,73 @@ class DisplaysTest(unittest.TestCase):
         self.assertEqual([o['name'] for o in ordered], ['DP-2', 'DP-0', 'DP-1'])
         self.assertEqual([o['x']-ordered[0]['x'] for o in ordered], [0, 1920, 3840])
 
+    def hybrid(self):
+        detected = self.row()
+        detected[0]['name'] = 'eDP-1'
+        for o in detected:
+            o['rate'] = '60.00'
+        return detected
+
+    def test_hybrid_change_rebuilds_framebuffer_with_external_outputs_off_together(self):
+        before = self.hybrid()
+        target = copy.deepcopy(before)
+        target[1]['x'], target[2]['x'] = target[2]['x'], target[1]['x']
+        with patch.object(displays, 'query', return_value=before), patch.object(displays.subprocess, 'run') as run, patch.object(displays, 'desktop_state') as state, patch.object(displays, 'refresh_bar'):
+            displays.apply(target)
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(len(commands), 4)
+        self.assertIn('--dryrun', commands[0])
+        self.assertEqual(commands[1].count('--off'), 2)
+        self.assertEqual(commands[2], ['xrandr', '--fb', '1920x1080'])
+        self.assertNotIn('--off', commands[3])
+        self.assertEqual(commands[3].count('--mode'), 3)
+        self.assertEqual(commands[3].count('--rate'), 3)
+        self.assertEqual(state.call_args_list[0].kwargs, {})
+        self.assertEqual(state.call_args_list[1].kwargs, {'restore': True})
+        self.assertEqual(before[1]['x'], 1920)
+
+    def test_rebuild_failure_restores_previous_positions_using_same_recovery(self):
+        before = self.hybrid()
+        target = copy.deepcopy(before)
+        target[1]['x'], target[2]['x'] = target[2]['x'], target[1]['x']
+        results = [None, None, None, subprocess.CalledProcessError(1, 'xrandr'), None, None, None]
+        with patch.object(displays, 'query', return_value=before), patch.object(displays.subprocess, 'run', side_effect=results) as run, patch.object(displays, 'desktop_state'), patch.object(displays, 'refresh_bar'):
+            with self.assertRaisesRegex(ValueError, 'se restauró'):
+                displays.apply(target)
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(commands[4].count('--off'), 2)
+        self.assertEqual(commands[5], ['xrandr', '--fb', '1920x1080'])
+        self.assertEqual(commands[6], displays.layout_args(before))
+
+    def test_recovery_restores_even_if_framebuffer_shrink_fails(self):
+        before = self.hybrid()
+        results = [None, None, subprocess.CalledProcessError(1, 'xrandr'), None, None, None]
+        with patch.object(displays, 'query', return_value=before), patch.object(displays.subprocess, 'run', side_effect=results) as run, patch.object(displays, 'desktop_state'), patch.object(displays, 'refresh_bar'):
+            with self.assertRaisesRegex(ValueError, 'se restauró'):
+                displays.apply(before)
+        self.assertEqual(run.call_args_list[-1].args[0], displays.layout_args(before))
+
+    def test_rate_is_not_reused_after_resolution_change(self):
+        before = self.hybrid()
+        target = copy.deepcopy(before)
+        target[2].update(mode='1280x720', modes=['1920x1080', '1280x720'])
+        with patch.object(displays, 'query', return_value=before), patch.object(displays.subprocess, 'run') as run, patch.object(displays, 'desktop_state'), patch.object(displays, 'refresh_bar'):
+            displays.apply(target)
+        final = run.call_args.args[0]
+        last_output = final[final.index('DP-2'):]
+        self.assertNotIn('--rate', last_output)
+
+    def test_closed_lid_target_returns_internal_screen_to_off_after_reset(self):
+        before = self.hybrid()
+        target = copy.deepcopy(before)
+        target[0].update(enabled=False, primary=False)
+        target[1].update(x=0, primary=True)
+        target[2]['x'] = 1920
+        with patch.object(displays, 'query', return_value=before), patch.object(displays.subprocess, 'run') as run, patch.object(displays, 'desktop_state'), patch.object(displays, 'refresh_bar'):
+            displays.apply(target)
+        final = run.call_args.args[0]
+        self.assertEqual(final[1:4], ['--output', 'eDP-1', '--off'])
+
     def test_gap_rejected_before_hardware_changes(self):
         detected = self.row(2)
         detected[1]['x'] += 100
@@ -207,7 +274,7 @@ class DisplaysTest(unittest.TestCase):
         detected = outputs()
         for i, output in enumerate(detected):
             output.update(enabled=True, mode='1920x1080', x=i*1920)
-        with patch.object(displays.subprocess, 'run') as run, patch.object(displays, 'refresh_bar'):
+        with patch.object(displays.subprocess, 'run') as run, patch.object(displays, 'query', return_value=copy.deepcopy(detected)), patch.object(displays, 'refresh_bar'):
             displays.apply(detected)
         self.assertEqual(run.call_count, 2)
         self.assertEqual(run.call_args.args[0].count('--output'), 20)

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -99,6 +100,10 @@ def query():
             mode = re.match(r'^\s+(\d+x\d+)\s', line)
             if mode and mode[1] not in current['modes']:
                 current['modes'].append(mode[1])
+            if mode and '*' in line:
+                rate = re.search(r'(\d+(?:\.\d+)?)\*', line)
+                if rate:
+                    current['rate'] = rate[1]
     for output in outputs:
         output['modes'].sort(key=mode_size, reverse=True)
     return outputs
@@ -190,20 +195,137 @@ def snap_output(outputs, output, original_y):
         return
 
 
-def apply(outputs):
-    validate_layout(outputs)
+def layout_args(outputs):
     args = ['xrandr']
     for output in normalize(copy.deepcopy(outputs)):
         args += ['--output', output['name']]
         if output['enabled']:
             args += ['--mode', output['mode'], '--pos', f"{output['x']}x{output['y']}"]
+            if output.get('rate'):
+                args += ['--rate', output['rate']]
             if output['primary']:
                 args += ['--primary']
         else:
             args += ['--off']
-    subprocess.run(args + ['--dryrun'], check=True, capture_output=True, text=True, timeout=15)
-    subprocess.run(args, check=True, capture_output=True, text=True, timeout=15)
-    refresh_bar()
+    return args
+
+
+def desktop_state(restore=False):
+    """Keep Awesome clients on their outputs/tags across the brief reset."""
+    if not shutil.which('awesome-client'):
+        return
+    if restore:
+        code = '''if awesome._dotfiles_restore_displays then
+            require('gears').timer.start_new(0.3, function()
+                if awesome._dotfiles_restore_displays then
+                    awesome._dotfiles_restore_displays()
+                    awesome._dotfiles_restore_displays = nil
+                end
+                return false
+            end)
+        end'''
+    else:
+        code = '''local screens, clients = {}, {}
+        for s in screen do
+            local output = next(s.outputs)
+            if output then
+                local selected = {}
+                for i,t in ipairs(s.tags) do if t.selected then table.insert(selected,i) end end
+                screens[output] = selected
+            end
+        end
+        for _,c in ipairs(client.get()) do
+            local tags = {}
+            for _,t in ipairs(c:tags()) do table.insert(tags,t.index) end
+            local geometry=c:geometry()
+            geometry.x=geometry.x-c.screen.geometry.x
+            geometry.y=geometry.y-c.screen.geometry.y
+            table.insert(clients,{c=c,output=next(c.screen.outputs),tags=tags,
+                floating=c.floating,geometry=geometry})
+        end
+        awesome._dotfiles_restore_displays = function()
+            local outputs = {}
+            for s in screen do for name in pairs(s.outputs) do outputs[name]=s end end
+            for _,v in ipairs(clients) do
+                local s=outputs[v.output]
+                if v.c.valid and s then
+                    v.c:move_to_screen(s)
+                    local tags={}
+                    for _,i in ipairs(v.tags) do if s.tags[i] then table.insert(tags,s.tags[i]) end end
+                    if #tags>0 then v.c:tags(tags) end
+                    if v.floating then
+                        v.geometry.x=v.geometry.x+s.geometry.x
+                        v.geometry.y=v.geometry.y+s.geometry.y
+                        v.c:geometry(v.geometry)
+                    end
+                end
+            end
+            for name,selected in pairs(screens) do
+                local s=outputs[name]
+                if s and #selected>0 and s.tags[selected[1]] then
+                    s.tags[selected[1]]:view_only()
+                    for i=2,#selected do if s.tags[selected[i]] then s.tags[selected[i]].selected=true end end
+                end
+            end
+        end'''
+    try:
+        subprocess.run(['awesome-client', code], capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def run_layout(outputs, rebuild=False):
+    if rebuild:
+        # Keep the laptop panel as an anchor while BOTH external outputs are
+        # off. Shrinking the framebuffer releases stale Reverse PRIME images.
+        anchor = next(o for o in outputs if internal(o) and o['modes'])
+        interim = copy.deepcopy(outputs)
+        for output in interim:
+            output.update(enabled=output['name'] == anchor['name'], primary=output['name'] == anchor['name'])
+            if output['enabled']:
+                output.update(x=0, y=0, mode=output['mode'] or output['modes'][0])
+        args = layout_args(interim)
+        width, height = size(next(o for o in interim if o['enabled']))
+        subprocess.run(args, check=True, capture_output=True, text=True, timeout=15)
+        subprocess.run(['xrandr', '--fb', f'{width}x{height}'], check=True,
+                       capture_output=True, text=True, timeout=15)
+    # One invocation enables all external outputs together, including rollback.
+    subprocess.run(layout_args(outputs), check=True, capture_output=True, text=True, timeout=15)
+
+
+def apply(outputs, force_reset=False):
+    validate_layout(outputs)
+    target = normalize(copy.deepcopy(outputs))
+    for output in target:
+        output.pop('rate', None)
+    subprocess.run(layout_args(target) + ['--dryrun'], check=True,
+                   capture_output=True, text=True, timeout=15)
+    before = query()
+    # Preserve refresh rates only when keeping the same resolution.
+    previous = {o['name']: o for o in before}
+    for output in target:
+        old = previous.get(output['name'], {})
+        if output['mode'] == old.get('mode') and old.get('rate'):
+            output['rate'] = old['rate']
+        else:
+            output.pop('rate', None)
+    rebuild = (any(internal(o) and o['modes'] for o in target)
+               and (force_reset or max(sum(not internal(o) and o['enabled'] for o in items)
+                                       for items in (before, target)) >= 2))
+    if rebuild:
+        desktop_state()
+    try:
+        run_layout(target, rebuild=rebuild)
+    except (OSError, subprocess.SubprocessError) as error:
+        try:
+            run_layout(before, rebuild=rebuild and any(internal(o) and o['modes'] for o in before))
+        except (OSError, ValueError, StopIteration, subprocess.SubprocessError) as rollback:
+            raise ValueError('Falló el cambio y no se pudo restaurar la imagen: ' + str(rollback)) from error
+        raise ValueError('No se pudo aplicar el cambio; se restauró la configuración anterior.') from error
+    finally:
+        if rebuild:
+            desktop_state(restore=True)
+        refresh_bar()
 
 
 def refresh_bar():
@@ -390,6 +512,11 @@ def gui(outputs):
                 else:
                     actions.pack_start(button, False, False, 0)
             root.pack_start(actions, False, False, 0)
+            recover = Gtk.Button(label='Recuperar imagen de los monitores')
+            recover.set_tooltip_text('Reactiva juntas las salidas externas sin guardar otra distribución.')
+            recover.connect('clicked', self.recover_image)
+            root.pack_start(recover, False, False, 0)
+            self.recover_button = recover
             self.editing_widgets = [self.canvas, controls, actions]
             self.confirmation = Gtk.Box(spacing=12)
             self.confirmation.get_style_context().add_class('monitor-row')
@@ -673,6 +800,17 @@ def gui(outputs):
                 return True
             self.preview_timer = GLib.timeout_add_seconds(1, tick)
 
+        def recover_image(self, *_):
+            if self.pending is not None:
+                self.finish_preview(None, False)
+                return
+            try:
+                apply(query(), force_reset=True)
+                self.sync_outputs()
+                self.message.set_text('Salidas externas reactivadas juntas. Comprueba la imagen en cada monitor.')
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                self.message.set_text('No se pudo recuperar la imagen: ' + str(error))
+
         def finish_preview(self, _, keep):
             if self.pending is None:
                 return
@@ -755,8 +893,8 @@ def main():
                 report.append(' '.join(args) + '\n' + result.stdout + result.stderr)
             CONFIG.parent.mkdir(parents=True, exist_ok=True)
             (CONFIG.parent / 'display-diagnostics.log').write_text('\n'.join(report))
-            refresh_bar()
-            print('Barra y fondo reiniciados. Diagnóstico guardado en ' + str(CONFIG.parent / 'display-diagnostics.log'))
+            apply(outputs, force_reset=True)
+            print('Salidas reactivadas juntas. Diagnóstico guardado en ' + str(CONFIG.parent / 'display-diagnostics.log'))
         elif '--auto' in sys.argv:
             # Act on connection changes, rather than repeatedly forcing a saved
             # layout over the live session every five seconds.

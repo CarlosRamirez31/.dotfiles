@@ -20,6 +20,14 @@ Este componente define una política Git global portable y mantiene nombre, corr
 
 ## Identidad y firma
 
+Las credenciales HTTPS se guardan en el llavero del sistema mediante
+`credential.helper=libsecret`. El usuario de GitHub se toma de la configuración
+global para todos sus repositorios; es independiente del nombre del autor de
+los commits. En el próximo push introduce tu token como contraseña una vez:
+Git lo guardará en el llavero tras autenticar correctamente. El token no se
+incluye en estos dotfiles. El llavero debe estar desbloqueado; SDDM puede
+desbloquearlo al iniciar sesión si usa la misma contraseña.
+
 ```bash
 ./install.sh git-security
 git identity setup "Tu Nombre" correo@example.com

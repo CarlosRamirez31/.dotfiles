@@ -16,13 +16,22 @@ status() {
 }
 
 menu() {
-    if command -v awesome-client >/dev/null 2>&1 && awesome-client 'require("quickmenus").toggle("network")' >/dev/null 2>&1; then
+    local reply
+    # awesome-client can exit successfully even when the evaluated Lua failed.
+    # Only skip the standalone menu when Awesome confirms it opened the popup.
+    if command -v awesome-client >/dev/null 2>&1 &&
+        reply=$(awesome-client 'local ok = pcall(function() require("quickmenus").toggle("network") end); return ok' 2>/dev/null) &&
+        [[ $reply == *'boolean true'* ]]; then
         return 0
     fi
 
     local active_device wifi_enabled choice ssid password networks profile uuid profile_name
+    if ! nmcli -t -f RUNNING general status >/dev/null 2>&1; then
+        rofi -e 'No se puede acceder a NetworkManager. Vuelve a intentarlo en unos segundos.'
+        return 0
+    fi
     wifi_enabled=$(nmcli -t -f WIFI general status 2>/dev/null || true)
-    active_device=$(nmcli -t -f DEVICE,TYPE,STATE device 2>/dev/null | awk -F: '$2 == "wifi" && $3 == "connected" {print $1; exit}')
+    active_device=$(nmcli -t -f DEVICE,TYPE,STATE device 2>/dev/null | awk -F: '$2 == "wifi" && $3 == "connected" {print $1; exit}' || true)
     choice=$(printf '%s\n' \
         'Conectar o cambiar Wi-Fi' \
         'Desconectar Wi-Fi' \
@@ -33,11 +42,14 @@ menu() {
     case "$choice" in
         '') return 0 ;;
         'Conectar o cambiar Wi-Fi')
-            if ! nmcli radio wifi on || ! nmcli device wifi rescan; then
+            if ! nmcli radio wifi on >/dev/null 2>&1 || ! nmcli device wifi rescan >/dev/null 2>&1; then
                 rofi -e 'No se pudo activar o buscar Wi-Fi. Revisa el adaptador y el modo avión.'
                 return 0
             fi
-            networks=$(nmcli --escape no -g SSID device wifi list 2>/dev/null | awk 'NF && !seen[$0]++')
+            if ! networks=$(nmcli --escape no -g SSID device wifi list 2>/dev/null | awk 'NF && !seen[$0]++'); then
+                rofi -e 'No se pudieron buscar las redes. Vuelve a intentarlo en unos segundos.'
+                return 0
+            fi
             if [[ -z $networks ]]; then
                 rofi -e 'No se encontraron redes Wi-Fi disponibles.'
                 return 0
@@ -49,7 +61,7 @@ menu() {
             fi
             password=$(rofi -dmenu -password -p "Clave de $ssid") || return 0
             [[ -n $password ]] || return 0
-            if ! nmcli --wait 20 device wifi connect "$ssid" password "$password"; then
+            if ! nmcli --wait 20 device wifi connect "$ssid" password "$password" >/dev/null 2>&1; then
                 rofi -e 'No se pudo conectar. Comprueba la contraseña y vuelve a intentarlo.'
             fi
             return

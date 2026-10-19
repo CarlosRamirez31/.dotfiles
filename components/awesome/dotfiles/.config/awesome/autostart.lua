@@ -17,7 +17,16 @@ once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
 awful.spawn.with_shell("xset s 600 60 -dpms")
 -- Start in US. Switching is handled by Super+K and the Polybar indicator.
 awful.spawn.with_shell("setxkbmap -layout us,latam -option")
-awful.spawn.with_shell("$HOME/.local/bin/dotfiles-display")
+-- Detect hotplug as well as displays present at login. The display panel holds
+-- a lock while editing, so automatic detection cannot interrupt a preview.
+require("gears").timer({
+    timeout = 5,
+    autostart = true,
+    call_now = true,
+    callback = function()
+        awful.spawn.easy_async({ os.getenv("HOME") .. "/.local/bin/dotfiles-display", "--auto" }, function() end)
+    end,
+})
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-wallpaper restore")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-polybar")
 awful.spawn.with_shell(

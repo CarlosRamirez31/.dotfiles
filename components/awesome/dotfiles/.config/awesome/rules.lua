@@ -19,6 +19,13 @@ return {
             focus = awful.client.focus.filter,
             raise = true,
             screen = awful.screen.preferred,
+            -- Ignore a new application's remembered desktop. Keep restored
+            -- windows in place on restart and dialogs with their parent.
+            tag = function(c)
+                if awesome.startup or c.type == "dock" or c.type == "desktop" then return nil end
+                if c.transient_for then return c.transient_for.first_tag end
+                return awful.screen.focused().selected_tag
+            end,
             placement = awful.placement.no_overlap + awful.placement.no_offscreen,
             buttons = floating_client_buttons,
             sticky = false,

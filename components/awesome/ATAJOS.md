@@ -21,6 +21,10 @@ Windows. Estos son los atajos configurados actualmente, agrupados por función.
 
 ## Ventanas
 
+Las ventanas nuevas se abren en la pantalla y el tag activos. Pasar el mouse
+sobre una ventana le da el foco, además de los atajos de teclado. `Alt+B` abre
+una ventana nueva de Firefox en lugar de activar una que esté en otro tag.
+
 | Atajo | Acción |
 | --- | --- |
 | `Alt+Q` | Cerrar la ventana enfocada. |
@@ -59,6 +63,7 @@ Windows. Estos son los atajos configurados actualmente, agrupados por función.
 | Atajo | Acción |
 | --- | --- |
 | `Super+K` | Alternar entre teclado US y Español Latinoamericano. |
+| `Super+P` | Configurar todas las pantallas: posición, principal, resolución y duplicado. |
 | Clic en `us`/`latam` de la barra | Alternar entre teclado US y Español Latinoamericano. |
 | Teclas de volumen | Subir, bajar o silenciar el volumen. |
 | Tecla de silenciar micrófono | Silenciar o activar el micrófono. |

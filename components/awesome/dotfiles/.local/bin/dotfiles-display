@@ -1,13 +1,386 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Configure any number of RandR outputs; restore layouts on hotplug."""
+import copy
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
 
-output=$(xrandr --query | awk '
-    / connected primary/ { print $1; primary = 1; exit }
-    / connected / && !fallback { fallback = $1 }
-    END { if (!primary) print fallback }
-')
-[[ -n $output ]] || exit 0
+CONFIG = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'dotfiles/displays.json'
 
-if xrandr --query | awk '$1 == "1920x1080" { available = 1 } END { exit !available }'; then
-    xrandr --output "$output" --mode 1920x1080 --rate 60
-fi
+
+def query():
+    result = subprocess.run(['xrandr', '--query'], capture_output=True, text=True, check=True, timeout=10)
+    outputs = []
+    current = None
+    for line in result.stdout.splitlines():
+        match = re.match(r'^(\S+) connected\b(.*)', line)
+        if match:
+            name, details = match.groups()
+            geometry = re.search(r'(\d+)x(\d+)\+(-?\d+)\+(-?\d+)', details)
+            current = dict(name=name, primary=' primary ' in ' ' + details + ' ', enabled=bool(geometry),
+                           x=int(geometry[3]) if geometry else 0, y=int(geometry[4]) if geometry else 0,
+                           mode=f'{geometry[1]}x{geometry[2]}' if geometry else '', modes=[])
+            outputs.append(current)
+        elif line and not line[0].isspace():
+            current = None
+        elif current is not None:
+            mode = re.match(r'^\s+(\d+x\d+)\s', line)
+            if mode and mode[1] not in current['modes']:
+                current['modes'].append(mode[1])
+    for output in outputs:
+        output['modes'].sort(key=mode_size, reverse=True)
+    return outputs
+
+
+def mode_size(mode):
+    width, height = map(int, mode.split('x'))
+    return width * height, width, height
+
+
+def size(output):
+    return tuple(map(int, (output['mode'] or output['modes'][0]).split('x')))
+
+
+def normalize(outputs):
+    enabled = [o for o in outputs if o['enabled']]
+    if not enabled:
+        raise ValueError('Activa al menos una pantalla.')
+    left, top = min(o['x'] for o in enabled), min(o['y'] for o in enabled)
+    primary = next((o for o in enabled if o['primary']), enabled[0])
+    for output in outputs:
+        output['primary'] = output is primary
+        if output['enabled']:
+            output['x'] -= left
+            output['y'] -= top
+    return outputs
+
+
+def apply(outputs):
+    args = ['xrandr']
+    for output in normalize(copy.deepcopy(outputs)):
+        args += ['--output', output['name']]
+        if output['enabled']:
+            args += ['--mode', output['mode'], '--pos', f"{output['x']}x{output['y']}"]
+            if output['primary']:
+                args += ['--primary']
+        else:
+            args += ['--off']
+    subprocess.run(args + ['--dryrun'], check=True, capture_output=True, text=True, timeout=15)
+    subprocess.run(args, check=True, capture_output=True, text=True, timeout=15)
+    refresh_bar()
+
+
+def refresh_bar():
+    wallpaper = Path.home() / '.local/bin/dotfiles-wallpaper'
+    if wallpaper.is_file():
+        subprocess.Popen([str(wallpaper), 'restore'], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+    launcher = Path.home() / '.local/bin/dotfiles-polybar'
+    if launcher.is_file():
+        subprocess.Popen([str(launcher)], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def key(outputs):
+    return '|'.join(sorted(o['name'] for o in outputs))
+
+
+def load():
+    try:
+        return json.loads(CONFIG.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def save(outputs):
+    profiles = load()
+    profiles[key(outputs)] = normalize(copy.deepcopy(outputs))
+    CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    temporary = CONFIG.with_suffix('.tmp')
+    temporary.write_text(json.dumps(profiles, indent=2) + '\n')
+    temporary.replace(CONFIG)
+
+
+def automatic(outputs):
+    if not outputs:
+        return
+    stored = load().get(key(outputs))
+    if stored:
+        by_name = {o['name']: o for o in stored}
+        for output in outputs:
+            previous = by_name.get(output['name'], {})
+            if previous.get('mode') in output['modes']:
+                output.update({k: previous[k] for k in ('enabled', 'primary', 'mode', 'x', 'y')})
+    else:
+        right = max((o['x'] + size(o)[0] for o in outputs if o['enabled']), default=0)
+        for output in outputs:
+            if not output['enabled'] and output['modes']:
+                output.update(enabled=True, mode=output['modes'][0], x=right, y=0)
+                right += size(output)[0]
+    if outputs != query():
+        apply(outputs)
+
+
+def gui(outputs):
+    import gi
+    gi.require_version('Gtk', '3.0')
+    from gi.repository import Gtk, Gdk, GLib
+
+    class Panel(Gtk.Window):
+        def __init__(self):
+            super().__init__(title='Pantallas')
+            self.set_default_size(920, 650)
+            self.outputs = outputs
+            self.drag = None
+            self.pending = None
+            self.connect('delete-event', self.close)
+            root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin=16)
+            self.add(root)
+            root.pack_start(Gtk.Label(label='Arrastra las pantallas para indicar por dónde pasa el mouse. Haz clic en Aplicar para probar.', xalign=0), False, False, 0)
+            scroll = Gtk.ScrolledWindow()
+            self.canvas = Gtk.DrawingArea()
+            self.canvas.set_size_request(850, 320)
+            self.canvas.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
+            self.canvas.connect('draw', self.draw)
+            self.canvas.connect('button-press-event', self.press)
+            self.canvas.connect('motion-notify-event', self.motion)
+            self.canvas.connect('button-release-event', self.release)
+            scroll.add_with_viewport(self.canvas)
+            root.pack_start(scroll, True, True, 0)
+            controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            list_scroll = Gtk.ScrolledWindow()
+            list_scroll.set_min_content_height(150)
+            list_scroll.add(controls)
+            root.pack_start(list_scroll, True, True, 0)
+            self.primary_buttons = []
+            group = None
+            right = max((o['x'] + size(o)[0] for o in outputs if o['enabled']), default=0)
+            for output in outputs:
+                if not output['mode'] and output['modes']:
+                    output.update(mode=output['modes'][0], x=right)
+                    right += size(output)[0]
+                row = Gtk.Box(spacing=12)
+                enabled = Gtk.CheckButton(label=output['name'])
+                enabled.set_active(output['enabled'])
+                enabled.connect('toggled', self.enable, output)
+                row.pack_start(enabled, False, False, 0)
+                primary = Gtk.RadioButton.new_with_label_from_widget(group, 'Principal')
+                group = primary
+                self.primary_buttons.append((primary, output))
+                row.pack_start(primary, False, False, 0)
+                modes = Gtk.ComboBoxText()
+                for index, mode in enumerate(output['modes']):
+                    modes.append_text(mode + (' · Máxima' if index == 0 else ''))
+                if output['mode'] in output['modes']:
+                    modes.set_active(output['modes'].index(output['mode']))
+                modes.connect('changed', self.mode, output)
+                row.pack_start(modes, False, False, 0)
+                maximum = Gtk.Button(label='Máxima')
+                maximum.set_sensitive(bool(output['modes']))
+                maximum.connect('clicked', lambda _, combo=modes: combo.set_active(0))
+                row.pack_start(maximum, False, False, 0)
+                controls.pack_start(row, False, False, 0)
+            chosen = next((button for button, o in self.primary_buttons if o['primary']), group)
+            if chosen:
+                chosen.set_active(True)
+            for button, output in self.primary_buttons:
+                button.connect('toggled', self.primary, output)
+            self.message = Gtk.Label(xalign=0, wrap=True)
+            root.pack_start(self.message, False, False, 0)
+            actions = Gtk.Box(spacing=12)
+            for title, callback in [('Extender en fila', self.extend), ('Duplicar', self.mirror), ('Aplicar', self.commit)]:
+                button = Gtk.Button(label=title)
+                button.connect('clicked', callback)
+                actions.pack_start(button, False, False, 0)
+            root.pack_start(actions, False, False, 0)
+            self.connect('destroy', Gtk.main_quit)
+            self.show_all()
+
+        def changed(self):
+            self.canvas.queue_draw()
+
+        def enable(self, button, output):
+            output['enabled'] = button.get_active()
+            self.changed()
+
+        def primary(self, button, output):
+            if button.get_active():
+                for item in self.outputs:
+                    item['primary'] = item is output
+                self.changed()
+
+        def mode(self, combo, output):
+            index = combo.get_active()
+            if index >= 0:
+                output['mode'] = output['modes'][index]
+            self.changed()
+
+        def rectangles(self):
+            enabled = [o for o in self.outputs if o['enabled'] and o['mode']]
+            left = min((o['x'] for o in enabled), default=0)
+            top = min((o['y'] for o in enabled), default=0)
+            for o in enabled:
+                w, h = size(o)
+                yield o, (o['x'] - left) * .12 + 30, (o['y'] - top) * .12 + 30, w * .12, h * .12
+
+        def draw(self, widget, cr):
+            cr.set_source_rgb(.09, .09, .14)
+            cr.paint()
+            rectangles = list(self.rectangles())
+            widget.set_size_request(max([850] + [int(x+w+30) for _, x, y, w, h in rectangles]), max([320] + [int(y+h+30) for _, x, y, w, h in rectangles]))
+            for o, x, y, w, h in rectangles:
+                cr.set_source_rgb(*((.44, .36, .65) if o['primary'] else (.22, .28, .38)))
+                cr.rectangle(x, y, w-2, h-2)
+                cr.fill()
+                cr.set_source_rgb(1, 1, 1)
+                cr.set_font_size(14)
+                cr.move_to(x+12, y+30)
+                cr.show_text(o['name'] + (' · Principal' if o['primary'] else ''))
+                cr.move_to(x+12, y+52)
+                cr.show_text(o['mode'])
+
+        def press(self, _, event):
+            if event.button != 1:
+                return
+            for o, x, y, w, h in reversed(list(self.rectangles())):
+                if x <= event.x <= x+w and y <= event.y <= y+h:
+                    self.drag = (o, event.x, event.y, o['x'], o['y'])
+                    break
+
+        def motion(self, _, event):
+            if self.drag:
+                o, x, y, ox, oy = self.drag
+                o['x'], o['y'] = round(ox+(event.x-x)/.12), round(oy+(event.y-y)/.12)
+                self.changed()
+
+        def release(self, *_):
+            if self.drag:
+                output = self.drag[0]
+                w, h = size(output)
+                # Snap nearby edges so adjacent screens share a mouse boundary.
+                for axis, length in [('x', w), ('y', h)]:
+                    targets = []
+                    for other in self.outputs:
+                        if other is output or not other['enabled']:
+                            continue
+                        extent = size(other)[0 if axis == 'x' else 1]
+                        targets.extend([other[axis], other[axis]+extent, other[axis]-length])
+                    if targets:
+                        target = min(targets, key=lambda value: abs(value-output[axis]))
+                        if abs(target-output[axis]) < 180:
+                            output[axis] = target
+                self.drag = None
+                self.changed()
+
+        def extend(self, *_):
+            right = 0
+            for output in self.outputs:
+                if output['enabled']:
+                    output.update(x=right, y=0)
+                    right += size(output)[0]
+            self.changed()
+
+        def mirror(self, *_):
+            enabled = [o for o in self.outputs if o['enabled']]
+            common = set.intersection(*(set(o['modes']) for o in enabled)) if enabled else set()
+            if not common:
+                self.message.set_text('Estas pantallas no tienen una resolución común para duplicar.')
+                return
+            mode = max(common, key=lambda value: int(value.split('x')[0])*int(value.split('x')[1]))
+            for output in enabled:
+                output.update(mode=mode, x=0, y=0)
+            self.changed()
+
+        def commit(self, *_):
+            try:
+                before = query()
+                apply(self.outputs)
+            except (ValueError, subprocess.SubprocessError) as error:
+                if 'before' in locals():
+                    self.restore(before)
+                self.message.set_text('No se pudo aplicar: ' + str(error))
+                return
+            self.pending = before
+            dialog = Gtk.MessageDialog(transient_for=self, modal=True, text='¿Conservar esta configuración?', buttons=Gtk.ButtonsType.YES_NO)
+            remaining = [15]
+            def tick():
+                remaining[0] -= 1
+                dialog.format_secondary_text(f'Se restaura la anterior en {remaining[0]} segundos.')
+                if remaining[0] <= 0:
+                    dialog.response(Gtk.ResponseType.NO)
+                    return False
+                return True
+            timer = GLib.timeout_add_seconds(1, tick)
+            response = dialog.run()
+            if remaining[0] > 0:
+                GLib.source_remove(timer)
+            dialog.destroy()
+            if response == Gtk.ResponseType.YES:
+                try:
+                    save(self.outputs)
+                    self.message.set_text('Configuración guardada para este conjunto de pantallas.')
+                except OSError as error:
+                    self.restore(before)
+                    self.message.set_text('No se pudo guardar: ' + str(error))
+            else:
+                self.restore(before)
+                self.message.set_text('Se restauró la configuración anterior.')
+            self.pending = None
+
+        def restore(self, before):
+            try:
+                connected = {o['name'] for o in query()}
+                available = [o for o in before if o['name'] in connected]
+                apply(available)
+            except (ValueError, subprocess.SubprocessError):
+                automatic(query())
+
+        def close(self, *_):
+            if self.pending:
+                self.restore(self.pending)
+            return False
+
+    Panel()
+    Gtk.main()
+
+
+def main():
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/tmp/dotfiles-display-{os.getuid()}'))
+    runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (runtime / 'dotfiles-display.lock').open('w') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+        outputs = query()
+        if '--recover' in sys.argv:
+            report = []
+            for args in [['xrandr', '--query'], ['xrandr', '--listproviders'], ['xrandr', '--listmonitors']]:
+                result = subprocess.run(args, capture_output=True, text=True, timeout=15)
+                report.append(' '.join(args) + '\n' + result.stdout + result.stderr)
+            CONFIG.parent.mkdir(parents=True, exist_ok=True)
+            (CONFIG.parent / 'display-diagnostics.log').write_text('\n'.join(report))
+            refresh_bar()
+            print('Barra y fondo reiniciados. Diagnóstico guardado en ' + str(CONFIG.parent / 'display-diagnostics.log'))
+        elif '--auto' in sys.argv:
+            # Act on connection changes, rather than repeatedly forcing a saved
+            # layout over the live session every five seconds.
+            topology = key(outputs)
+            stamp = runtime / 'dotfiles-display-topology'
+            if not stamp.exists() or stamp.read_text() != topology:
+                automatic(outputs)
+                stamp.write_text(topology)
+        else:
+            gui(outputs)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (subprocess.SubprocessError, OSError, ValueError) as error:
+        print(f'Pantallas: {error}', file=sys.stderr)
+        sys.exit(1)

@@ -1,15 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Awesome exposes tags globally through EWMH. Ask it for this output's tags
+# instead, so identically named tags on other screens never leak into the bar.
+if [[ ${1:-} == --workspaces || ${1:-} == --tag ]]; then
+    action=$1
+    monitor=${2:-}
+    [[ $monitor =~ ^[a-zA-Z0-9_.:-]+$ ]] || exit 2
+    index=${3:-1}
+    [[ $index =~ ^[1-4]$ ]] || exit 2
+    if [[ $action == --tag ]]; then
+        awesome-client "for s in screen do if s.outputs['$monitor'] then local t=s.tags[$index]; if t then t:view_only() end end end" >/dev/null
+    else
+        awesome-client "local result={} for s in screen do if s.outputs['$monitor'] then for i,t in ipairs(s.tags) do local colors={'#f9de8f','#ff9b93','#95e1d3','#81a1c1'}; local color=colors[i] or '#cdd6f4'; local underline=t.selected and '%{u#565c64}%{+u}' or ''; local reset=t.selected and '%{-u}' or ''; table.insert(result, '%{A1:dotfiles-polybar --tag $monitor '..i..':}%{F'..color..'}'..underline..' '..t.name..' '..reset..'%{F-}%{A}') end end end return table.concat(result)" | sed -n 's/^ *string "\(.*\)"$/\1/p'
+    fi
+    exit
+fi
+
 if [[ ${1:-} == --volume ]]; then
     case ${2:-status} in
         up) wpctl set-volume --limit 1 @DEFAULT_AUDIO_SINK@ 5%+ ;;
         down) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
         mute) wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
         status)
-            wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '
+            # PipeWire may still be starting. Its diagnostic messages must
+            # never become the visible label of this custom module.
+            volume=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null) || volume=''
+            awk '
                 /MUTED/ {print "󰖁"; next}
-                {printf "%%{F#d35f5e}󰕾%%{F-} %d%%\n", $2 * 100 + 0.5}'
+                /^Volume: [0-9.]+/ {printf "%%{F#d35f5e}󰕾%%{F-} %d%%\n", $2 * 100 + 0.5; found=1; next}
+                END {if (!found && $0 !~ /MUTED/) print "󰕾 —"}' <<<"$volume"
             ;;
         *) exit 2 ;;
     esac
@@ -40,13 +60,10 @@ if [[ ${1:-} == --brightness ]]; then
     exit
 fi
 
-pkill -x polybar 2>/dev/null || true
-
-MONITOR="$(xrandr --query | awk '/ primary/{print $1; exit}')"
-if [[ -z ${MONITOR:-} ]]; then
-    MONITOR="$(xrandr --query | awk '/ connected/{print $1; exit}')"
-fi
-WLAN_IFACE="$(ip -o link show | awk -F': ' '$2 ~ /^wl/{print $2; exit}')"
+# Start one panel for each active output, including secondary monitors.
+mapfile -t monitors < <(polybar --list-monitors | cut -d: -f1)
+((${#monitors[@]})) || exit 0
+WLAN_IFACE=""
 BATTERY="$(find /sys/class/power_supply -maxdepth 1 -name 'BAT*' -printf '%f\n' 2>/dev/null | head -n1)"
 ADAPTER="$(find /sys/class/power_supply -maxdepth 1 \( -name 'AC*' -o -name 'ADP*' \) -printf '%f\n' 2>/dev/null | head -n1)"
 backlight_card="$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -n1)"
@@ -56,6 +73,11 @@ else
     unset BACKLIGHT_CARD
 fi
 
-export MONITOR WLAN_IFACE BATTERY ADAPTER
+export WLAN_IFACE BATTERY ADAPTER
 
-exec polybar top >>"${XDG_RUNTIME_DIR:-/tmp}/polybar.log" 2>&1
+pkill -x polybar 2>/dev/null || true
+
+for monitor in "${monitors[@]}"; do
+    MONITOR=$monitor polybar "$([[ $monitor == "${monitors[0]}" ]] && printf top || printf secondary)" >>"${XDG_RUNTIME_DIR:-/tmp}/polybar.log" 2>&1 &
+done
+wait

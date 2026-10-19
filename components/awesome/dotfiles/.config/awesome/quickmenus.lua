@@ -219,7 +219,7 @@ local function show_network_detail(network)
     local rows = wibox.widget({ spacing = 9, layout = wibox.layout.fixed.vertical })
     local password = ""
     local busy = false
-    local message = label(network.uuid and "Red guardada · Puedes conectar directamente" or "Introduce la contraseña de la red", "Lexend 9", palette.muted)
+    local message = label(network.uuid and "Red guardada · Conecta o escribe una nueva contraseña" or "Introduce la contraseña de la red", "Lexend 9", palette.muted)
     rows:add(label(network.ssid, "Lexend Bold 12", palette.lavender))
     rows:add(message)
     local input = label("Pulsa aquí para escribir la contraseña", "Lexend 10", palette.text)
@@ -250,11 +250,11 @@ local function show_network_detail(network)
         end)
     end
     field:buttons(gears.table.join(awful.button({}, 1, edit)))
-    if not network.uuid and network.security ~= "" and network.security ~= "--" then rows:add(field) end
+    if network.security ~= "" and network.security ~= "--" then rows:add(field) end
     rows:add(action_row("󰄬", "Conectar", network.uuid and "Usar la conexión guardada" or "Guardar y conectar a esta red", palette.green, function()
         if busy then return end
         local args
-        if network.uuid then
+        if network.uuid and password == "" then
             args = { "nmcli", "--wait", "25", "connection", "up", "uuid", network.uuid }
         else
             args = { "nmcli", "--wait", "25", "device", "wifi", "connect", network.ssid }
@@ -354,7 +354,12 @@ local function render_networks(view, scan_error)
         local network = available[index]
         rows:add(action_row("󰤨", network.ssid, network.signal .. "% · " .. network.security .. (network.uuid and " · Guardada" or ""), palette.lavender, function() show_network_detail(network) end))
     end
-    if #available == 0 then rows:add(label(scan_error and "No se pudo buscar redes; reintentando…" or "No hay otras redes disponibles", "Lexend 9", palette.muted)) end
+    if #available == 0 then
+        local message = not view.wifi_enabled and "Wi-Fi apagado o adaptador no disponible. Pulsa ⏻ para activarlo."
+            or (scan_error and "No se pudo buscar redes. Pulsa Actualizar para volver a intentarlo."
+                or "No hay redes disponibles. Pulsa Actualizar para buscar de nuevo.")
+        rows:add(label(message, "Lexend 9", palette.muted))
+    end
     if network_page > 1 then rows:add(action_row("󰜱", "Redes anteriores", "", palette.blue, function() network_page = network_page - 1; render_networks(view, scan_error) end)) end
     if #available > network_page * 5 then rows:add(action_row("󰜴", "Más redes", "", palette.blue, function() network_page = network_page + 1; render_networks(view, scan_error) end)) end
     view.list:set_widget(rows)
@@ -373,7 +378,7 @@ function M.show_network(refresh)
     local popup = popups.network
     local function valid() return network_generation == generation and network_view == view and popup.visible end
     if not network_timer then
-        network_timer = gears.timer({ timeout = 60, autostart = true, callback = function() M.show_network(true) end })
+        network_timer = gears.timer({ timeout = 10, autostart = true, callback = function() M.show_network() end })
     end
     view.loading.visible = true
     if view.empty then view.list.visible = false end
@@ -395,7 +400,9 @@ function M.show_network(refresh)
         view.devices = devices
         view.wifi_enabled = wifi_enabled
         render_connection(view)
-        awful.spawn.easy_async_with_shell("LC_ALL=C nmcli -t --escape no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan yes", function(output, _, _, scan_code)
+        local scan = "LC_ALL=C nmcli --wait 10 -t --escape no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan " .. (refresh and "yes" or "auto")
+        awful.spawn.easy_async_with_shell(scan, function(output, _, _, scan_code)
+            if not valid() then return end
             for line in output:gmatch("[^\r\n]+") do
                 local active, ssid, signal, security = line:match("^([^:]*):(.*):(%d+):([^:]*)$")
                 if ssid and ssid ~= "" and not seen[ssid] then
@@ -405,6 +412,7 @@ function M.show_network(refresh)
                 end
             end
             awful.spawn.easy_async_with_shell("LC_ALL=C nmcli -t -f UUID,TYPE connection show", function(profiles)
+                if not valid() then return end
                 local uuids = {}
                 for line in profiles:gmatch("[^\r\n]+") do
                     local uuid = line:match("^([^:]+):802%-11%-wireless$")

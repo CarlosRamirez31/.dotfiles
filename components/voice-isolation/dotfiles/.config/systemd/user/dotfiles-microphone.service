@@ -1,0 +1,14 @@
+[Unit]
+Description=Selectable microphone with optional noise and personal voice filtering
+After=pipewire-pulse.service wireplumber.service
+Wants=pipewire-pulse.service wireplumber.service
+PartOf=pipewire.service
+
+[Service]
+ExecStart=%h/.local/bin/dotfiles-microphone serve
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="${XDG_DATA_HOME:-$HOME/.local/share}/voice-isolation/personal-voice"
+mkdir -p -- "$root"
+if [[ ! -d $root/nomo-pvad/.git ]]; then
+    git clone https://github.com/tuya/nomo-pvad.git "$root/nomo-pvad"
+fi
+git -C "$root/nomo-pvad" fetch origin cb828468d183424fd574984f00b3ffbcce0be9bc
+git -C "$root/nomo-pvad" checkout --detach cb828468d183424fd574984f00b3ffbcce0be9bc
+python3 -m venv "$root/venv"
+"$root/venv/bin/python" -m pip install --only-binary=:all: torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+"$root/venv/bin/python" -m pip install -r "$root/nomo-pvad/requirements.txt"
+"$root/venv/bin/python" -m pip install addict simplejson sortedcontainers
+"$root/venv/bin/python" "$HOME/.local/bin/dotfiles-microphone" model-check

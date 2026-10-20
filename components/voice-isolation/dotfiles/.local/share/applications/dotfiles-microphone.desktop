@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Micrófono y aislamiento
+Comment=Seleccionar micrófono, reducir ruido y activar solo mi voz
+Exec=dotfiles-microphone
+Icon=audio-input-microphone
+Terminal=false
+Categories=AudioVideo;Audio;Settings;

@@ -98,3 +98,5 @@ Firma, notarización, licencias de distribución y desinstalación son puertas d
 
 Cloud queda fuera de implementación. Su diseño mantiene HTTP/SSE de control y evalúa WebRTC + Opus para
 audio remoto; gRPC se incorpora únicamente si un adaptador lo necesita.
+
+Configuración por entorno: [Options y .env](doc/configuration.md). Pruebas por módulo: [runner central](test/README.md).

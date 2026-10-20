@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from adapters.personal_voice.nomo_adapter import NomoAdapter  # noqa: E402
 from ports.personal_voice import PersonalVoiceAdapter  # noqa: E402
+from ports.result import Failure  # noqa: E402
 
 
 def parent_watchdog(parent):
@@ -40,7 +41,10 @@ def read_exact(size):
 def serve(adapter: PersonalVoiceAdapter, mode: str):
     send({"ready": True, "protocol": 1})
     if mode == "stream":
-        adapter.set_embedding(read_exact(192 * 4))
+        result = adapter.set_embedding(read_exact(192 * 4))
+        if isinstance(result, Failure):
+            send({"error": result.error})
+            return
     while True:
         size = struct.unpack("<I", read_exact(4))[0]
         expected = 160000 if mode == "enroll" else 2560
@@ -48,12 +52,11 @@ def serve(adapter: PersonalVoiceAdapter, mode: str):
             raise ValueError("invalid_frame_size")
         pcm = read_exact(size * 4)
         with contextlib.redirect_stdout(sys.stderr):
-            result = (
-                {"embedding": adapter.enroll(pcm)}
-                if mode == "enroll"
-                else {"probability": adapter.probability(pcm)}
-            )
-        send(result)
+            result = adapter.enroll(pcm) if mode == "enroll" else adapter.probability(pcm)
+        if isinstance(result, Failure):
+            send({"error": result.error})
+        else:
+            send({"embedding" if mode == "enroll" else "probability": result.value})
 
 
 def main():
@@ -63,8 +66,11 @@ def main():
         raise ValueError("invalid_mode")
     threading.Thread(target=parent_watchdog, args=(os.getppid(),), daemon=True).start()
     with contextlib.redirect_stdout(sys.stderr):
-        adapter = NomoAdapter(root, Path(__file__).with_name("artifacts.json"))
-    serve(adapter, mode)
+        result = NomoAdapter.create(root, Path(__file__).with_name("artifacts.json"))
+    if isinstance(result, Failure):
+        send({"error": result.error})
+        return
+    serve(result.value, mode)
 
 
 if __name__ == "__main__":

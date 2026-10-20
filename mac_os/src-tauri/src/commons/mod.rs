@@ -51,8 +51,4 @@ impl Command {
     }
 }
 
-pub mod configuration {
-    pub const MAX_PENDING: i64 = 16;
-    pub const EVENT_BATCH: i64 = 64;
-    pub const MAX_OPERATIONS: i64 = 10_000;
-}
+pub mod options;

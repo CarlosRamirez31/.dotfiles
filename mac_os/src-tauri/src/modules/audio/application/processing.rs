@@ -1,4 +1,5 @@
-use crate::commons::{Error, Result};
+use crate::commons::Error;
+use crate::modules::audio::domain::capability::CapabilityResult;
 pub use crate::modules::audio::domain::{FRAME, PcmFrame};
 use std::sync::{
     Arc,
@@ -6,11 +7,11 @@ use std::sync::{
 };
 
 pub trait NoiseReducer: Send {
-    fn process(&mut self, input: &PcmFrame, output: &mut PcmFrame);
+    fn process(&mut self, input: &PcmFrame, output: &mut PcmFrame) -> CapabilityResult<()>;
 }
 
 pub trait PersonalVoice: Send {
-    fn probability(&mut self, pcm_16k: &[f32]) -> Result<f32>;
+    fn probability(&mut self, pcm_16k: &[f32]) -> CapabilityResult<f32>;
 }
 
 pub fn cancelled(flag: &Arc<AtomicBool>) -> bool {

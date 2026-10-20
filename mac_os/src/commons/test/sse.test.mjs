@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SseParser } from '../src/commons/sse.ts';
+import { SseParser } from '../sse.ts';
 
 test('SSE supports every character boundary, CRLF, comments and multiline data', () => {
   const parser = new SseParser();

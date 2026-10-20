@@ -35,7 +35,8 @@
       "../runtime/personal-voice/worker.py": "personal-voice/worker.py",
       "../runtime/personal-voice/artifacts.json": "personal-voice/artifacts.json",
       "../runtime/adapters/personal_voice/nomo_adapter.py": "adapters/personal_voice/nomo_adapter.py",
-      "../runtime/ports/personal_voice.py": "ports/personal_voice.py"
+      "../runtime/ports/personal_voice.py": "ports/personal_voice.py",
+      "../runtime/ports/result.py": "ports/result.py"
     }
   }
 }

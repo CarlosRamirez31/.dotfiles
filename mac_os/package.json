@@ -13,7 +13,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "security:audit": "pnpm audit --audit-level=moderate",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node test/run.mjs",
+    "test:frontend": "node test/run.mjs frontend",
+    "test:models": "node test/run.mjs models"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",

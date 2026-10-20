@@ -1,4 +1,4 @@
-use crate::commons::{Command, Error, Result, configuration::*};
+use crate::commons::{Command, Error, Result};
 use crate::modules::operations::{
     application::{Completion, Journal, event_name},
     domain::{Event, Operation, Status},
@@ -8,9 +8,18 @@ use std::{path::Path, sync::Mutex};
 
 pub struct SqlCipherJournal {
     connection: Mutex<Connection>,
+    options: crate::modules::operations::application::options::OperationsOptions,
 }
 impl SqlCipherJournal {
+    #[cfg(test)]
     pub fn open(path: &Path, key: &str) -> Result<Self> {
+        Self::configured(path, key, Default::default())
+    }
+    pub fn configured(
+        path: &Path,
+        key: &str,
+        options: crate::modules::operations::application::options::OperationsOptions,
+    ) -> Result<Self> {
         let connection = Connection::open(path)?;
         connection.pragma_update(None, "key", key)?;
         let cipher: String = connection.query_row("PRAGMA cipher_version", [], |r| r.get(0))?;
@@ -29,13 +38,23 @@ impl SqlCipherJournal {
           PRAGMA user_version=1; COMMIT;")?;
         Ok(Self {
             connection: Mutex::new(connection),
+            options,
         })
     }
     fn transaction<T>(&self, f: impl FnOnce(&Transaction<'_>) -> Result<T>) -> Result<T> {
         let mut conn = self.connection.lock().map_err(|_| Error::Storage)?;
+        let start_id: i64 = conn.query_row(
+            "SELECT coalesce(max(id),0) FROM operation_events",
+            [],
+            |row| row.get(0),
+        )?;
         let tx = conn.transaction()?;
         let result = f(&tx)?;
         tx.commit()?;
+        // Only committed events; a diagnostic failure never changes a successful business transaction.
+        if let Err(_error) = copy_business_events(&conn, start_id) {
+            tracing::warn!(event = "logs.business_copy_failed");
+        }
         Ok(result)
     }
 }
@@ -111,7 +130,7 @@ impl Journal for SqlCipherJournal {
             }
             let total: i64 = tx.query_row("SELECT count(*) FROM operations", [], |r| r.get(0))?;
             let pending: i64 = tx.query_row("SELECT count(*) FROM operations WHERE json_extract(document,'$.status') IN ('accepted','running','cancellation_requested')", [], |r| r.get(0))?;
-            if total >= MAX_OPERATIONS || pending >= MAX_PENDING { return Err(Error::Capacity); }
+            if total >= self.options.max_operations || pending >= self.options.max_pending { return Err(Error::Capacity); }
             let operation = Operation { operation_id: uuid::Uuid::new_v4().to_string(), kind: kind.into(),
                 command, status: Status::Accepted, detail: None };
             tx.execute("INSERT INTO operations VALUES (?1,?2,?3)", params![operation.operation_id, key, encode(&operation)?])?;
@@ -138,7 +157,7 @@ impl Journal for SqlCipherJournal {
                 "SELECT id,document FROM operation_events WHERE id>?1 ORDER BY id LIMIT ?2",
             )?;
             query
-                .query_map(params![after, EVENT_BATCH], |r| {
+                .query_map(params![after, self.options.event_batch], |r| {
                     Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
                 })?
                 .map(|row| {
@@ -249,4 +268,21 @@ impl Journal for SqlCipherJournal {
             Ok(())
         })
     }
+}
+
+fn copy_business_events(connection: &Connection, after: i64) -> Result<()> {
+    let mut query =
+        connection.prepare("SELECT id,document FROM operation_events WHERE id>?1 ORDER BY id")?;
+    let rows = query.query_map([after], |row| {
+        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+    })?;
+    for row in rows {
+        let (id, document) = row?;
+        let event: Event = decode(document)?;
+        // Allowlist: never serialize the command, input device, embedding or arbitrary detail.
+        tracing::info!(target:"business", event_id=id, event_type=%event.event_type,
+          schema_version=event.schema_version, module=%event.module, operation_id=%event.operation_id,
+          occurred_at_utc=%event.occurred_at_utc, status=?event.operation.status);
+    }
+    Ok(())
 }

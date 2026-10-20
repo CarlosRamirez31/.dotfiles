@@ -1,16 +1,35 @@
+import { resultOf } from '../../../commons/result';
 import type { AudioPort, AudioDevices } from '../application/audio-port';
 import type { HttpRequest } from '../../../commons/http';
 
 export class HttpAudio implements AudioPort {
   constructor(private readonly request: HttpRequest) {}
-  async devices(signal: AbortSignal): Promise<AudioDevices> {
-    return (await this.request('/audio/devices', { signal })).json();
+  async devices(signal: AbortSignal): Promise<import('../../../commons/result').Result<AudioDevices>> {
+    return resultOf(async () => {
+      const value: unknown = await (await this.request('/audio/devices', { signal })).json();
+      if (
+        !value ||
+        typeof value !== 'object' ||
+        !('inputs' in value) ||
+        !Array.isArray(value.inputs) ||
+        !('blackholeAvailable' in value) ||
+        typeof value.blackholeAvailable !== 'boolean' ||
+        value.inputs.some((x) => !x || typeof x.id !== 'string' || typeof x.name !== 'string')
+      )
+        throw new Error('invalid_response');
+      return {
+        inputs: value.inputs.map((x) => ({ id: x.id, name: x.name })),
+        blackholeAvailable: value.blackholeAvailable,
+      };
+    });
   }
   private async command(command: object, key: string) {
-    await this.request('/commands', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
-      body: JSON.stringify(command),
+    return resultOf(async () => {
+      await this.request('/commands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+        body: JSON.stringify(command),
+      });
     });
   }
   start(inputId: string, personalVoice: boolean, key: string) {

@@ -1,50 +1,4 @@
-use crate::{
-    commons::{Command, Error},
-    modules::{
-        diagnostics::infrastructure::SqlCipherCheck,
-        operations::{
-            application::{Journal, Operations, StorageCheck},
-            domain::{Operation, Status},
-            infrastructure::SqlCipherJournal,
-            presentation::{Bff, router},
-        },
-    },
-};
-use axum::{
-    body::{Body, to_bytes},
-    http::{Request, StatusCode},
-};
-use std::{path::PathBuf, sync::Arc, time::Duration};
-use tower::ServiceExt;
-
-struct Database {
-    path: PathBuf,
-}
-impl Database {
-    fn new() -> Self {
-        let directory =
-            std::env::temp_dir().join(format!("microphone-test-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir(&directory).unwrap();
-        Self {
-            path: directory.join("test.db"),
-        }
-    }
-    fn open(&self) -> Arc<SqlCipherJournal> {
-        Arc::new(SqlCipherJournal::open(&self.path, "test-key-not-production").unwrap())
-    }
-}
-impl Drop for Database {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(self.path.parent().unwrap());
-    }
-}
-fn request(method: &str, path: &str) -> axum::http::request::Builder {
-    Request::builder()
-        .method(method)
-        .uri(path)
-        .header("Authorization", "Bearer test-token")
-}
-
+use crate::tests::support::*;
 #[test]
 fn encrypted_journal_survives_reopen_and_rejects_wrong_key() {
     let database = Database::new();
@@ -237,18 +191,6 @@ async fn http_acceptance_precedes_worker_and_authentication_is_required() {
     worker.abort();
 }
 
-struct TestHandler(Arc<SqlCipherCheck>);
-impl crate::modules::operations::application::CommandHandler for TestHandler {
-    fn execute(
-        &self,
-        _: Command,
-        _: Arc<std::sync::atomic::AtomicBool>,
-        _: &dyn Fn(&str) -> crate::commons::Result<()>,
-    ) -> crate::commons::Result<crate::modules::operations::application::Completion> {
-        self.0.check().map(Into::into)
-    }
-}
-
 #[test]
 fn audio_commands_never_resume_after_restart_and_idempotency_checks_payload() {
     let database = Database::new();
@@ -278,59 +220,6 @@ fn audio_commands_never_resume_after_restart_and_idempotency_checks_payload() {
         Status::Interrupted
     );
     assert!(journal.claim().unwrap().is_none());
-}
-
-#[test]
-fn rnnoise_executes_embedded_network_and_preserves_normalized_pcm() {
-    use crate::modules::audio::application::NoiseReducer;
-    let mut processor = crate::modules::ai_rnnoise::infrastructure::RnNoise::default();
-    let mut output = [0.0; 480];
-    let mut seed = 7_u32;
-    for _ in 0..100 {
-        let input = std::array::from_fn(|_| {
-            seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
-            ((seed >> 8) as f32 / 16777216.0 - 0.5) * 0.1
-        });
-        processor.process(&input, &mut output);
-        assert!(output.iter().all(|x| x.is_finite() && x.abs() <= 1.0));
-    }
-    assert!(output.iter().any(|x| x.abs() > 0.0));
-}
-
-#[test]
-fn downsample_preserves_block_continuity_and_suppresses_aliasing() {
-    use crate::modules::audio::infrastructure::Downsample;
-    let signal: Vec<f32> = (0..4800)
-        .map(|i| (2.0 * std::f32::consts::PI * 12000.0 * i as f32 / 48000.0).sin())
-        .collect();
-    let mut whole = Vec::new();
-    Downsample::default().process(&signal, &mut whole);
-    let mut split = Vec::new();
-    let mut converter = Downsample::default();
-    for chunk in signal.chunks(77) {
-        converter.process(chunk, &mut split);
-    }
-    assert_eq!(split, whole);
-    assert_eq!(whole.len(), 1600);
-    let rms = (whole[100..].iter().map(|x| x * x).sum::<f32>() / 1500.0).sqrt();
-    assert!(rms < 0.01, "Aliased 12 kHz energy: {rms}");
-}
-
-#[test]
-fn voice_embedding_is_persisted_inside_the_encrypted_database() {
-    let database = Database::new();
-    let _journal = database.open();
-    let store = crate::modules::personal_voice::infrastructure::VoiceStore {
-        path: database.path.clone(),
-        key: "test-key-not-production".into(),
-    };
-    assert!(matches!(
-        store.load(),
-        Err(Error::Audio("voice_enrollment_required"))
-    ));
-    assert!(store.save(&[f32::NAN; 192]).is_err());
-    store.save(&[0.125; 192]).unwrap();
-    assert_eq!(store.load().unwrap(), vec![0.125; 192]);
 }
 
 #[tokio::test]
@@ -373,30 +262,6 @@ async fn sse_replays_serialized_events_after_the_requested_cursor() {
 }
 
 #[test]
-#[ignore = "Requires the private arm64 model runtime; no microphone is opened"]
-fn real_personal_voice_adapter_roundtrip() {
-    use crate::modules::{
-        audio::application::PersonalVoice, personal_voice::infrastructure::NomoWorker,
-    };
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap();
-    let runtime = root.join(".runtime/personal-voice");
-    let script = root.join("runtime/personal-voice/worker.py");
-    let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let mut enrollment = NomoWorker::start(&runtime, &script, stop.clone(), None).unwrap();
-    let pcm: Vec<f32> = (0..160_000)
-        .map(|i| 0.05 * (i as f32 * 440.0 * 2.0 * std::f32::consts::PI / 16_000.0).sin())
-        .collect();
-    let embedding = enrollment.enroll(&pcm).unwrap();
-    assert_eq!(embedding.len(), 192);
-    drop(enrollment);
-    let mut worker = NomoWorker::start(&runtime, &script, stop, Some(&embedding)).unwrap();
-    let probability = worker.probability(&pcm[..2560]).unwrap();
-    assert!((0.0..=1.0).contains(&probability));
-}
-
-#[test]
 fn sql_values_cannot_inject_statements_and_recovery_is_idempotent() {
     let database = Database::new();
     let journal = database.open();
@@ -431,17 +296,70 @@ fn sql_values_cannot_inject_statements_and_recovery_is_idempotent() {
     assert!(events[1].event_id > events[0].event_id);
     assert_eq!(events[1].operation.status, Status::Interrupted);
 }
-
 #[test]
-fn client_logging_rejects_free_text_and_non_uuid_metadata() {
-    use crate::commons::logging::{ClientEvent, client_log};
-    assert!(serde_json::from_str::<ClientEvent>("\"Bearer secret\"").is_err());
-    assert!(
-        client_log(
-            ClientEvent::RequestAccepted,
-            Some("private voice sample".into())
-        )
-        .is_err()
+fn business_copy_contains_only_committed_allowlisted_metadata() {
+    // Tracing callsite caches are process-wide; isolate subscriber assertions from parallel tests.
+    if std::env::var_os("AUDIO_TEST_LOG_CHILD").is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "tests::operations::business_copy_contains_only_committed_allowlisted_metadata",
+                "--nocapture",
+            ])
+            .env("AUDIO_TEST_LOG_CHILD", "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        return;
+    }
+    use std::io::Write;
+    use std::sync::Mutex;
+    use tracing_subscriber::prelude::*;
+    #[derive(Clone)]
+    struct Writer(Arc<Mutex<Vec<u8>>>);
+    impl Write for Writer {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let output = Arc::new(Mutex::new(Vec::new()));
+    let capture = output.clone();
+    let subscriber = tracing_subscriber::registry().with(
+        tracing_subscriber::fmt::layer()
+            .json()
+            .with_writer(move || Writer(capture.clone()))
+            .with_filter(
+                tracing_subscriber::filter::Targets::new()
+                    .with_target("business", tracing::Level::INFO),
+            ),
     );
-    assert!(client_log(ClientEvent::Connected, None).is_ok());
+    tracing::subscriber::with_default(subscriber, || {
+        let db = Database::new();
+        let journal = db.open();
+        let command = Command::EnrollVoice {
+            input_id: "sensitive-device".into(),
+        };
+        let operation = journal.accept("idempotent-key", command.clone()).unwrap();
+        journal.accept("idempotent-key", command).unwrap();
+        assert!(
+            journal
+                .accept("idempotent-key", Command::CheckStorage)
+                .is_err()
+        );
+        let text = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert_eq!(text.lines().count(), 1);
+        assert!(text.contains(&operation.operation_id));
+        assert!(text.contains("operation.accepted"));
+        assert!(!text.contains("sensitive-device"));
+        assert!(!text.contains("idempotent-key"));
+        assert!(!text.contains("command"));
+    });
 }

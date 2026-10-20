@@ -18,8 +18,12 @@ export function AudioPanel({ audio }: { audio: AudioPort }) {
     void audio
       .devices(controller.signal)
       .then((result) => {
-        setDevices(result);
-        setInput(result.inputs[0]?.id ?? '');
+        if (!result.ok) {
+          if (!controller.signal.aborted) setMessage(result.error.message);
+          return;
+        }
+        setDevices(result.value);
+        setInput(result.value.inputs[0]?.id ?? '');
       })
       .catch(() => {
         if (!controller.signal.aborted) setMessage('No se pudieron consultar los dispositivos.');
@@ -31,8 +35,14 @@ export function AudioPanel({ audio }: { audio: AudioPort }) {
     setPending(request);
     setBusy(true);
     try {
-      if (request.kind === 'enroll') await audio.enroll(request.input, request.key);
-      else await audio.start(request.input, request.personal, request.key);
+      const result =
+        request.kind === 'enroll'
+          ? await audio.enroll(request.input, request.key)
+          : await audio.start(request.input, request.personal, request.key);
+      if (!result.ok) {
+        setMessage(result.error.message);
+        return;
+      }
       setPending(null);
       setMessage('Solicitud aceptada. Consulta el progreso debajo; puedes detenerla desde su operación.');
     } catch (error) {

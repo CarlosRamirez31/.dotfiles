@@ -10,6 +10,7 @@ use std::{
 
 #[derive(Serialize, Deserialize)]
 struct Launch {
+    options: crate::commons::options::Options,
     directory: PathBuf,
     token: String,
     voice_runtime: PathBuf,
@@ -20,6 +21,7 @@ pub struct Supervisor {
     child: Mutex<Child>,
     _pipe: ChildStdin,
     pub connection: ConnectionInfo,
+    pub reconnect_ms: u64,
 }
 impl Drop for Supervisor {
     fn drop(&mut self) {
@@ -35,7 +37,10 @@ impl Supervisor {
         directory: PathBuf,
         voice_runtime: PathBuf,
         voice_script: PathBuf,
+        options: crate::commons::options::Options,
     ) -> Result<Self, String> {
+        let startup_seconds = options.startup_seconds;
+        let reconnect_ms = options.reconnect_ms;
         let mut child =
             Command::new(std::env::current_exe().map_err(|_| "executable_unavailable")?)
                 .arg("--local-service")
@@ -52,6 +57,7 @@ impl Supervisor {
                 uuid::Uuid::new_v4().simple()
             );
             let launch = Launch {
+                options,
                 directory,
                 voice_runtime,
                 voice_script,
@@ -68,7 +74,7 @@ impl Supervisor {
                 let _ = sender.send(result);
             });
             let ready = receiver
-                .recv_timeout(Duration::from_secs(30))
+                .recv_timeout(Duration::from_secs(startup_seconds))
                 .map_err(|_| "service_start_timeout")?
                 .map_err(|_| "service_handshake_failed")?;
             let connection: ConnectionInfo =
@@ -86,6 +92,7 @@ impl Supervisor {
                 child: Mutex::new(child),
                 _pipe: pipe,
                 connection,
+                reconnect_ms,
             }),
             Err(error) => {
                 let _ = child.kill();
@@ -147,6 +154,7 @@ pub fn service() -> Result<(), Box<dyn std::error::Error>> {
     let mut line = String::new();
     input.read_line(&mut line)?;
     let launch: Launch = serde_json::from_str(&line)?;
+    launch.options.validate()?;
     std::fs::create_dir_all(&launch.directory)?;
     #[cfg(unix)]
     {
@@ -159,7 +167,11 @@ pub fn service() -> Result<(), Box<dyn std::error::Error>> {
         .write(true)
         .open(launch.directory.join("service.lock"))?;
     lock.try_lock()?;
-    let _logs = crate::commons::logging::initialize(&launch.directory.join("logs"), "service")?;
+    let _logs = crate::commons::logging::initialize(
+        &launch.directory.join("logs"),
+        "service",
+        &launch.options.logging,
+    )?;
     let path = launch.directory.join("local.db");
     let key = database_key(path.exists()).inspect_err(|_| {
         tracing::error!(
@@ -167,13 +179,14 @@ pub fn service() -> Result<(), Box<dyn std::error::Error>> {
             code = "keychain_unavailable"
         );
     })?;
-    let journal = SqlCipherJournal::open(&path, &key).map_err(|_| {
-        tracing::error!(
-            event = "service.start_failed",
-            code = "encrypted_database_unavailable"
-        );
-        "encrypted_database_unavailable"
-    })?;
+    let journal = SqlCipherJournal::configured(&path, &key, launch.options.operations.clone())
+        .map_err(|_| {
+            tracing::error!(
+                event = "service.start_failed",
+                code = "encrypted_database_unavailable"
+            );
+            "encrypted_database_unavailable"
+        })?;
     let checker = SqlCipherCheck {
         path: path.clone(),
         key: key.clone(),
@@ -183,6 +196,7 @@ pub fn service() -> Result<(), Box<dyn std::error::Error>> {
         voice: crate::modules::personal_voice::infrastructure::VoiceStore { path, key },
         runtime: launch.voice_runtime,
         script: launch.voice_script,
+        options: launch.options.voice,
     });
     let operations = Operations::new(Arc::new(journal));
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
@@ -216,6 +230,7 @@ struct LocalHandler {
     voice: crate::modules::personal_voice::infrastructure::VoiceStore,
     runtime: PathBuf,
     script: PathBuf,
+    options: crate::modules::personal_voice::options::VoiceOptions,
 }
 impl crate::modules::operations::application::CommandHandler for LocalHandler {
     fn execute(
@@ -232,8 +247,13 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
             crate::commons::Command::CheckStorage => self.checker.check().map(Into::into),
             crate::commons::Command::EnrollVoice { input_id } => {
                 progress("preparing_voice_model")?;
-                let mut worker =
-                    NomoWorker::start(&self.runtime, &self.script, cancelled.clone(), None)?;
+                let mut worker = NomoWorker::start(
+                    &self.runtime,
+                    &self.script,
+                    cancelled.clone(),
+                    None,
+                    self.options.clone(),
+                )?;
                 progress("recording_enrollment_10_seconds")?;
                 let pcm = infrastructure::enroll(&input_id, cancelled.clone())?;
                 progress("creating_voice_profile")?;
@@ -259,6 +279,7 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
                         &self.script,
                         cancelled.clone(),
                         Some(&embedding),
+                        self.options.clone(),
                     )?)
                         as Box<dyn crate::modules::audio::application::PersonalVoice>)
                 } else {
@@ -270,9 +291,19 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
                     voice,
                     Box::new(crate::modules::ai_rnnoise::infrastructure::RnNoise::default()),
                     progress,
+                    self.options.threshold,
                 )
                 .map(Into::into)
             }
         }
+    }
+}
+
+#[tauri::command]
+pub fn public_options(
+    state: tauri::State<'_, Supervisor>,
+) -> crate::commons::options::ClientOptions {
+    crate::commons::options::ClientOptions {
+        reconnect_ms: state.reconnect_ms,
     }
 }

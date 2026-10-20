@@ -2,8 +2,11 @@
 
 import hashlib
 import json
+import math
 import sys
 from pathlib import Path
+
+from ports.result import ErrorCode, Failure, Result, Success
 
 
 class NomoAdapter:
@@ -34,11 +37,49 @@ class NomoAdapter:
             raise ValueError("invalid_pcm")
         return values
 
-    def set_embedding(self, pcm: bytes) -> None:
-        self.session.set_enrollment_emb(self._decode(pcm))
+    def _call(self, pcm: bytes, size: int, operation, validate) -> Result:
+        if len(pcm) != size * 4:
+            return Failure(ErrorCode.INVALID_INPUT)
+        try:
+            values = self._decode(pcm)
+        except ValueError:
+            return Failure(ErrorCode.INVALID_INPUT)
+        try:
+            value = operation(values)
+        except TimeoutError:
+            return Failure(ErrorCode.TIMEOUT)
+        except RuntimeError, ValueError, OSError:
+            return Failure(ErrorCode.INFERENCE_FAILED)
+        if not validate(value):
+            return Failure(ErrorCode.INVALID_RESPONSE)
+        return Success(value)
 
-    def enroll(self, pcm: bytes) -> list[float]:
-        return self.model.extract_emb(self._decode(pcm)).cpu().numpy().reshape(-1).tolist()
+    def set_embedding(self, pcm: bytes) -> Result[None]:
+        return self._call(pcm, 192, self.session.set_enrollment_emb, lambda value: value is None)
 
-    def probability(self, pcm: bytes) -> float:
-        return self.session.process_chunk(self._decode(pcm))
+    def enroll(self, pcm: bytes) -> Result[list[float]]:
+        return self._call(
+            pcm,
+            160000,
+            lambda values: self.model.extract_emb(values).cpu().numpy().reshape(-1).tolist(),
+            lambda value: (
+                isinstance(value, list)
+                and len(value) == 192
+                and all(isinstance(x, (float, int)) and math.isfinite(x) for x in value)
+            ),
+        )
+
+    def probability(self, pcm: bytes) -> Result[float]:
+        return self._call(
+            pcm,
+            2560,
+            self.session.process_chunk,
+            lambda value: isinstance(value, (float, int)) and math.isfinite(value) and 0 <= value <= 1,
+        )
+
+    @classmethod
+    def create(cls, root: Path, manifest_path: Path) -> Result:
+        try:
+            return Success(cls(root, manifest_path))
+        except ImportError, OSError, RuntimeError, ValueError:
+            return Failure(ErrorCode.UNAVAILABLE)

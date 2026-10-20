@@ -71,9 +71,11 @@ jobs:
       - name: Check Rust
         run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
       - name: Run frontend tests
-        run: pnpm test
+        run: pnpm run test:frontend
+      - name: Run Python adapter boundary tests
+        run: MIC_TEST_PYTHON="$(command -v python3)" node test/run.mjs python
       - name: Run Rust tests
-        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+        run: node test/run.mjs rust
       - name: Build application bundle
         run: pnpm run tauri build --bundles app -- --locked
       - name: Archive application

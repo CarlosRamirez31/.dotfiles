@@ -7,14 +7,14 @@ Comprobaciones locales realizadas:
 
 - Prettier, ESLint y TypeScript: correctos.
 - Build de React con Vite: correcto.
-- Build Tauri de producción: bundle `mac_os.app` generado correctamente (10.13 MiB); no acredita
+- Build Tauri de producción: bundle `mac_os.app` generado correctamente ; no acredita
   firma de distribución, notarización ni instalación de modelos.
-- Node: dos pruebas del parser SSE aprobadas.
-- Rust: Clippy con warnings como errores, y once pruebas aprobadas de persistencia, recuperación,
-  idempotencia, HTTP/SSE, cifrado, logging y procesamiento.
+- Node: cinco pruebas de SSE, Result, Options y ACL aprobadas.
+- Rust: Clippy con warnings como errores, y dieciocho pruebas aprobadas de persistencia, recuperación,
+  idempotencia, HTTP/SSE, cifrado, Options, limpieza, copias de eventos, logging y procesamiento.
 - Prueba adicional del adaptador personal con runtime/modelo real: aprobada. No abre el micrófono;
   no mide la precisión de reconocimiento ni la compatibilidad con llamadas.
-- Python: Ruff lint y formato correctos.
+- Python: cuatro pruebas de la frontera del adaptador; Ruff lint y formato correctos.
 - Auditoría pnpm: sin vulnerabilidades conocidas reportadas en esta ejecución.
 - Workflow de GitHub Actions: validación estática con actionlint correcta; no equivale a ejecución remota.
 
@@ -22,5 +22,6 @@ La prueba SSE requiere abrir un puerto loopback. Falló inicialmente por la rest
 pasó al ejecutarse con ese permiso; no se omitió para aprobar la suite.
 
 No se han validado sesiones reales con BlackHole, Teams, Zoom, Meet o Slack, ni un instalador completo,
-notarización, desinstalación, limpieza efectiva de logs a 30 días o toda la configuración Options.
+notarización ni desinstalación. La limpieza por antigüedad, protección de archivos activos y Options
+tienen pruebas automatizadas; no se ha observado una ejecución continua de 30 días.
 Los modelos y el entorno Python de desarrollo no se incluyen en Git ni en el bundle actual.

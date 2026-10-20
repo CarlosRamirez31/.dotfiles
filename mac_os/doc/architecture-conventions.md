@@ -147,15 +147,19 @@ ciclo de vida y comunicación entre capacidades. Los detalles de aceptación est
 
 ## Estado de adopción
 
-Ya existen puertos/adaptadores, un Result común en Rust, comandos/eventos internos, SQLCipher, HTTP/SSE y
-logging estructurado. No existe todavía adopción completa de errores Result por capacidad en los tres
-lenguajes ni carga central Options por entorno.
+Implementado: Options tipadas cargadas en bootstrap, precedencia de entorno, validación y snapshot enviado
+al servicio; Result y ACL en RNNoise, nomo-pvad/Python y adaptadores HTTP React; pruebas en carpetas `test/`
+de los módulos con runner central; retención temporal de logs y copia de metadatos de eventos confirmados.
 
-Las pruebas actuales están en `src-tauri/src/tests.rs`, `tests/sse.test.mjs` y el smoke test del runtime.
-La carpeta central `test/` se incorpora como punto de organización; la migración de suites y su ejecutor
-central quedan pendientes. Los comandos actuales siguen documentados en [testing.md](testing.md).
+Las opciones admitidas y comandos están en [configuration.md](configuration.md). `pnpm test` ejecuta Node,
+Cargo y las pruebas Python sin modelos. `pnpm run test:models` ejecuta explícitamente el adaptador real
+con el runtime instalado. Los tests Rust se registran desde `test/rust.rs` únicamente bajo `cfg(test)`.
 
-El logging actual limita siete archivos diarios por componente. **La limpieza por antigüedad de 30 días y
-la copia diagnóstica de eventos aún requieren implementación y verificación**; esta decisión sustituye
-ese límite anterior sin cambiar la persistencia SQLCipher. No considerar estas convenciones como prueba
-de funcionamiento ni de compatibilidad con aplicaciones de llamadas.
+Los archivos diarios se eliminan cuando su partición completa supera 30 días; esto puede conservar las
+primeras entradas de una partición hasta un día adicional. Cada proceso limpia sus archivos y protege
+los que mantiene abiertos, incluso después de un período prolongado sin escribir. El hilo de mantenimiento
+termina al cerrar la app. SQLCipher no se poda mediante esta limpieza.
+
+La copia diagnóstica usa una cola acotada y puede perder entradas por saturación o cierre abrupto; no se
+reconstruye retroactivamente. El journal cifrado sigue siendo la fuente durable de recuperación. Las
+integraciones Cloud y OpenTelemetry siguen pendientes: no se simulan proveedores remotos ni su validación.

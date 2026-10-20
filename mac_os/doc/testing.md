@@ -2,7 +2,7 @@
 
 ## Situación actual
 
-Existen suites Rust de operaciones, persistencia, transporte y procesamiento, pruebas Node del parser SSE y un smoke test del runtime personal. Su existencia no acredita compatibilidad física ni precisión de reconocimiento. La estructura objetivo y la migración pendiente están en [convenciones de arquitectura](architecture-conventions.md#pruebas-por-módulo-y-entrada-central).
+Existen suites Rust de operaciones, persistencia, transporte y procesamiento, pruebas Node del parser SSE y un smoke test del runtime personal. Su existencia no acredita compatibilidad física ni precisión de reconocimiento. La estructura implementada está en [convenciones de arquitectura](architecture-conventions.md#pruebas-por-módulo-y-entrada-central).
 
 ## Matriz
 
@@ -34,6 +34,7 @@ pnpm run format:check
 pnpm run lint
 pnpm run typecheck
 pnpm test
+pnpm run test:models # explícito: requiere runtime privado instalado
 pnpm run build
 pnpm run security:audit
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check

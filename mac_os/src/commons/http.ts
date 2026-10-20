@@ -1,3 +1,4 @@
+import { RequestRejected } from './result';
 import type { ClientLogger } from './logging';
 export interface LocalConnection {
   endpoint: string;
@@ -18,13 +19,13 @@ export function createHttp(connection: LocalConnection, log: ClientLogger): Http
     if (!response.ok) {
       log('request_failed');
       const body = (await response.json().catch(() => null)) as { error?: string } | null;
-      const message =
+      throw new RequestRejected(
         body?.error === 'audio_session_active'
-          ? 'Detén la sesión o el registro actual antes de iniciar otro.'
+          ? 'busy'
           : body?.error === 'operation_capacity_reached'
-            ? 'La cola o el historial están llenos. Revisa las operaciones pendientes.'
-            : `El servicio no pudo completar la solicitud (${response.status}).`;
-      throw new Error(message);
+            ? 'capacity'
+            : 'other',
+      );
     }
     if (response.status === 202) log('request_accepted', response.headers.get('Location')?.split('/').pop());
     return response;

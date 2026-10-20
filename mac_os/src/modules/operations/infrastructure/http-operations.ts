@@ -1,3 +1,6 @@
+import type { ClientOptions } from '../../../commons/options';
+import { resultOf, type Result } from '../../../commons/result';
+import { operation } from './acl';
 import type { ClientLogger } from '../../../commons/logging';
 import type { OperationsPort } from '../application/operations-port';
 import type { Operation, OperationEvent } from '../domain/operation';
@@ -9,25 +12,38 @@ export class HttpOperations implements OperationsPort {
   constructor(
     private readonly request: HttpRequest,
     private readonly log: ClientLogger,
+    private readonly options: ClientOptions,
   ) {}
 
-  async recent(signal: AbortSignal): Promise<Operation[]> {
-    return (await this.request('/operations', { signal })).json();
+  async recent(signal: AbortSignal): Promise<Result<Operation[]>> {
+    return resultOf(async () => {
+      const value: unknown = await (await this.request('/operations', { signal })).json();
+      if (!Array.isArray(value)) throw new Error('invalid_response');
+      return value.map(operation);
+    });
   }
 
-  async checkStorage(idempotencyKey: string): Promise<Operation> {
-    return (
-      await this.request('/operations/storage-check', {
-        method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKey },
-      })
-    ).json();
+  async checkStorage(idempotencyKey: string): Promise<Result<Operation>> {
+    return resultOf(async () =>
+      operation(
+        await (
+          await this.request('/operations/storage-check', {
+            method: 'POST',
+            headers: { 'Idempotency-Key': idempotencyKey },
+          })
+        ).json(),
+      ),
+    );
   }
 
-  async cancel(operationId: string): Promise<Operation> {
-    return (
-      await this.request(`/operations/${encodeURIComponent(operationId)}/cancel`, { method: 'POST' })
-    ).json();
+  async cancel(operationId: string): Promise<Result<Operation>> {
+    return resultOf(async () =>
+      operation(
+        await (
+          await this.request(`/operations/${encodeURIComponent(operationId)}/cancel`, { method: 'POST' })
+        ).json(),
+      ),
+    );
   }
 
   async subscribe(
@@ -60,6 +76,7 @@ export class HttpOperations implements OperationsPort {
               ) {
                 throw new Error('invalid_event');
               }
+              event.operation = operation(event.operation);
               onEvent(event);
               cursor = frame.id;
             }
@@ -81,7 +98,7 @@ export class HttpOperations implements OperationsPort {
           signal.removeEventListener('abort', finish);
           resolve();
         };
-        const timer = setTimeout(finish, 1500);
+        const timer = setTimeout(finish, this.options.reconnectMs);
         signal.addEventListener('abort', finish, { once: true });
       });
     }

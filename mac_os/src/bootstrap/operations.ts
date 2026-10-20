@@ -1,3 +1,4 @@
+import { clientOptions } from '../commons/options';
 import { logClient } from './logging';
 import { invoke } from '@tauri-apps/api/core';
 import { HttpOperations } from '../modules/operations/infrastructure/http-operations';
@@ -12,6 +13,7 @@ export interface Services {
 }
 export async function createServices(): Promise<Services> {
   const connection = await invoke<LocalConnection>('local_connection');
+  const options = clientOptions(await invoke<unknown>('public_options'));
   const http = createHttp(connection, logClient);
-  return { operations: new HttpOperations(http, logClient), audio: new HttpAudio(http) };
+  return { operations: new HttpOperations(http, logClient, options), audio: new HttpAudio(http) };
 }

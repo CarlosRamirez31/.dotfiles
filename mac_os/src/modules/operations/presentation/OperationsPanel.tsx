@@ -29,7 +29,11 @@ export function OperationsPanel({ operations }: { operations: OperationsPort }) 
       try {
         const recent = await operations.recent(controller.signal);
         if (controller.signal.aborted) return;
-        setItems(recent);
+        if (!recent.ok) {
+          setError(recent.error.message);
+          return;
+        }
+        setItems(recent.value);
         await operations.subscribe((event) => update(event.operation), setConnected, controller.signal);
       } catch {
         if (!controller.signal.aborted)
@@ -45,7 +49,11 @@ export function OperationsPanel({ operations }: { operations: OperationsPort }) 
     const key = retryKey ?? crypto.randomUUID();
     setRetryKey(key);
     try {
-      await operations.checkStorage(key);
+      const result = await operations.checkStorage(key);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
       setRetryKey(null);
       // SSE owns status updates; a late HTTP response must not overwrite a completed event.
     } catch (error) {
@@ -56,7 +64,8 @@ export function OperationsPanel({ operations }: { operations: OperationsPort }) 
   }
   async function cancel(id: string) {
     try {
-      await operations.cancel(id);
+      const result = await operations.cancel(id);
+      if (!result.ok) setError(result.error.message);
     } catch {
       setError('No se pudo solicitar la cancelación.');
     }
@@ -113,6 +122,7 @@ const details: Record<string, string> = {
   audio_output_backpressure: 'Se detuvo porque la salida no consumía el audio a tiempo.',
   microphone_timeout_or_permission_denied: 'No llegó audio. Revisa los permisos de micrófono.',
   personal_voice_model_load_failed: 'No se pudo cargar el modelo local.',
+  noise_processing_failed: 'Falló el procesamiento de reducción de ruido.',
   personal_voice_inference_failed: 'Falló el procesamiento de voz personal.',
   personal_voice_timeout: 'El modelo no respondió a tiempo; se detuvo la sesión.',
   enrollment_too_quiet: 'El registro fue demasiado silencioso. Acércate al micrófono y repite.',

@@ -169,6 +169,7 @@ pub fn run(
     mut personal: Option<Box<dyn PersonalVoice>>,
     mut noise: Box<dyn crate::modules::audio::application::NoiseReducer>,
     progress: &dyn Fn(&str) -> Result<()>,
+    voice_threshold: f32,
 ) -> Result<String> {
     if cancelled(&stop) {
         return Ok("cancelled".into());
@@ -223,7 +224,9 @@ pub fn run(
                 return Err(Error::Audio("blackhole_output_failed"));
             }
             let mut filtered = [0.0; FRAME];
-            noise.process(&input, &mut filtered);
+            noise
+                .process(&input, &mut filtered)
+                .map_err(|_| Error::Audio("noise_processing_failed"))?;
             if let Some(voice) = personal.as_mut() {
                 downsample.process(&input, &mut input16);
                 pending.push(filtered);
@@ -235,7 +238,7 @@ pub fn run(
                     break;
                 }
                 for mut frame in pending.drain(..) {
-                    if probability < 0.7 {
+                    if probability < voice_threshold {
                         frame.fill(0.0);
                     }
                     output_frames

@@ -13,7 +13,9 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let directory = app.path().app_data_dir()?.join("local-service");
-            let logs = commons::logging::initialize(&directory.join("logs"), "host")?;
+            let options = commons::options::Options::load().map_err(std::io::Error::other)?;
+            let logs =
+                commons::logging::initialize(&directory.join("logs"), "host", &options.logging)?;
             app.manage(logs);
             let (runtime, script) = if cfg!(debug_assertions) {
                 let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -29,13 +31,15 @@ pub fn run() {
                     app.path().resource_dir()?.join("personal-voice/worker.py"),
                 )
             };
-            let supervisor = bootstrap::Supervisor::start(directory, runtime, script)
+            let runtime = options.voice.runtime.clone().unwrap_or(runtime);
+            let supervisor = bootstrap::Supervisor::start(directory, runtime, script, options)
                 .map_err(std::io::Error::other)?;
             app.manage(supervisor);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap::local_connection,
+            bootstrap::public_options,
             commons::logging::client_log
         ])
         .run(tauri::generate_context!())
@@ -43,4 +47,5 @@ pub fn run() {
 }
 
 #[cfg(test)]
+#[path = "../../test/rust.rs"]
 mod tests;

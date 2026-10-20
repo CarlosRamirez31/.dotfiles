@@ -21,3 +21,5 @@ SQLCipher está integrado. Distribución, compatibilidad física y calendario de
 Contrato implementado: [HTTP/SSE y operaciones](control.md).
 
 [Convenciones aprobadas de arquitectura](architecture-conventions.md): Options, Result, ACL, eventos, logs, SQL y pruebas por módulo.
+
+[Configuración por entorno](configuration.md): variables admitidas, validación e inyección de Options.

@@ -1,0 +1,8 @@
+minimumReleaseAge: 1440
+blockExoticSubdeps: true
+strictDepBuilds: true
+saveExact: true
+allowBuilds: {}
+
+resolutionMode: highest
+fetchFullMetadata: true

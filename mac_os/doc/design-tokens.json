@@ -1,0 +1,58 @@
+{
+  "status": "proposal-not-integrated",
+  "themes": {
+    "light": {
+      "background": "#F6F8FA",
+      "surface": "#FFFFFF",
+      "raised": "#EEF2F6",
+      "text": "#16202B",
+      "secondary": "#4B5D6B",
+      "border": "#718392",
+      "divider": "#D8E0E8",
+      "primary": "#155AC5",
+      "onPrimary": "#FFFFFF",
+      "success": "#146C43",
+      "warning": "#805500",
+      "danger": "#B42318",
+      "focus": "#155AC5"
+    },
+    "dark": {
+      "background": "#0F1720",
+      "surface": "#18232F",
+      "raised": "#223140",
+      "text": "#F2F6FA",
+      "secondary": "#AEBCCB",
+      "border": "#74879C",
+      "divider": "#344454",
+      "primary": "#82B4FF",
+      "onPrimary": "#0F1720",
+      "success": "#6BD6A3",
+      "warning": "#F4C66A",
+      "danger": "#FFAAA3",
+      "focus": "#82B4FF"
+    }
+  },
+  "spacingPx": [4, 8, 12, 16, 24, 32],
+  "radiusPx": [8, 12, 16],
+  "typography": {
+    "fontFamily": "system-ui, sans-serif",
+    "bodyPx": 13,
+    "largeBodyPx": 15,
+    "titlePx": 20,
+    "lineHeight": 1.4
+  },
+  "layout": {
+    "panelWidthPx": 360,
+    "panelMinWidthPx": 320,
+    "controlTargetPx": 36,
+    "primaryTargetPx": 40
+  },
+  "focus": {
+    "widthPx": 2,
+    "offsetPx": 2
+  },
+  "motion": {
+    "durationMs": 120,
+    "reducedMotionMs": 0
+  }
+}

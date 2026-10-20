@@ -191,12 +191,19 @@ pub fn service() -> Result<(), Box<dyn std::error::Error>> {
         path: path.clone(),
         key: key.clone(),
     };
+    let voice_factory = Arc::new(
+        crate::modules::personal_voice::infrastructure::NomoFactory::new(
+            launch.voice_runtime,
+            launch.voice_script,
+            launch.options.voice.clone(),
+        ),
+    );
     let handler = Arc::new(LocalHandler {
         checker,
         voice: crate::modules::personal_voice::infrastructure::VoiceStore { path, key },
-        runtime: launch.voice_runtime,
-        script: launch.voice_script,
-        options: launch.options.voice,
+        enrollment: voice_factory.clone(),
+        personal_voice: voice_factory,
+        voice_threshold: launch.options.voice.threshold,
     });
     let operations = Operations::new(Arc::new(journal));
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
@@ -228,9 +235,10 @@ pub fn service() -> Result<(), Box<dyn std::error::Error>> {
 struct LocalHandler {
     checker: crate::modules::diagnostics::infrastructure::SqlCipherCheck,
     voice: crate::modules::personal_voice::infrastructure::VoiceStore,
-    runtime: PathBuf,
-    script: PathBuf,
-    options: crate::modules::personal_voice::options::VoiceOptions,
+    enrollment: std::sync::Arc<dyn crate::modules::personal_voice::application::EnrollmentFactory>,
+    personal_voice:
+        std::sync::Arc<dyn crate::modules::personal_voice::application::PersonalVoiceFactory>,
+    voice_threshold: f32,
 }
 impl crate::modules::operations::application::CommandHandler for LocalHandler {
     fn execute(
@@ -239,25 +247,16 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
         cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
         progress: &dyn Fn(&str) -> crate::commons::Result<()>,
     ) -> crate::commons::Result<crate::modules::operations::application::Completion> {
-        use crate::modules::{
-            audio::infrastructure, operations::application::StorageCheck,
-            personal_voice::infrastructure::NomoWorker,
-        };
+        use crate::modules::{audio::infrastructure, operations::application::StorageCheck};
         match command {
             crate::commons::Command::CheckStorage => self.checker.check().map(Into::into),
             crate::commons::Command::EnrollVoice { input_id } => {
                 progress("preparing_voice_model")?;
-                let mut worker = NomoWorker::start(
-                    &self.runtime,
-                    &self.script,
-                    cancelled.clone(),
-                    None,
-                    self.options.clone(),
-                )?;
+                let mut enrollment = self.enrollment.prepare_enrollment(cancelled.clone())?;
                 progress("recording_enrollment_10_seconds")?;
                 let pcm = infrastructure::enroll(&input_id, cancelled.clone())?;
                 progress("creating_voice_profile")?;
-                let embedding = worker.enroll(&pcm)?;
+                let embedding = enrollment.enroll(&pcm)?;
                 if cancelled.load(std::sync::atomic::Ordering::Acquire) {
                     return Err(crate::commons::Error::Audio("enrollment_cancelled"));
                 }
@@ -274,14 +273,10 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
                 let voice = if personal_voice {
                     progress("preparing_voice_model")?;
                     let embedding = self.voice.load()?;
-                    Some(Box::new(NomoWorker::start(
-                        &self.runtime,
-                        &self.script,
-                        cancelled.clone(),
-                        Some(&embedding),
-                        self.options.clone(),
-                    )?)
-                        as Box<dyn crate::modules::audio::application::PersonalVoice>)
+                    Some(
+                        self.personal_voice
+                            .prepare_filter(cancelled.clone(), &embedding)?,
+                    )
                 } else {
                     None
                 };
@@ -291,7 +286,7 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
                     voice,
                     Box::new(crate::modules::ai_rnnoise::infrastructure::RnNoise::default()),
                     progress,
-                    self.options.threshold,
+                    self.voice_threshold,
                 )
                 .map(Into::into)
             }

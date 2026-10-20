@@ -1,30 +1,64 @@
 # Sprints y preparación de beta
 
-Estimación inicial: **8 semanas para una beta Local de reducción de ruido** y **10–12 semanas para incluir detección personal experimental**, con una persona dedicada y acceso a equipos/dispositivos de prueba. No es una fecha comprometida ni trabajo programado automáticamente. Comienza cuando se autorice implementar; no cuenta desde la creación de estos archivos.
+Revisión del 20 de octubre de 2026. La implementación ya comenzó: HTTP/SSE, SQLCipher, supervisor, audio,
+RNNoise, nomo-pvad, Options, Result/ACL, logs y pruebas existen. El plan anterior de 8/10–12 semanas era una
+estimación inicial; no representa trabajo restante ni una fecha comprometida. Se elimina el ejemplo de fechas
+porque no existe capacidad/fecha de inicio acordada para el trabajo pendiente.
 
-| Sprint | Duración      | Entrega y condición de salida                                                                                                                                                                                           |
-| ------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S01    | Semanas 1–2   | Spike audio/driver/IA y SQLCipher; benchmark M2, detección de consumidores del driver, licencias, puertos, protocolo y decisiones de runtime. Continuar solo con ruta viable de entrada/salida virtual.                 |
-| S02    | Semanas 3–4   | Separación UI/servicio, supervisor, Commons, DI, bus interno, perfiles sin login y repositorios cifrados; cierre y caída del padre sin procesos huérfanos.                                                              |
-| S03    | Semanas 5–6   | Pipeline, RNNoise u otro motor elegido, mute controlado, cambios de dispositivo, gestor de modelos y saga de activación; pruebas de llamadas reales en Teams, Zoom, Google Meet y Slack, con activación por consumidor. |
-| S04    | Semanas 7–8   | Panel/barra/atajos, errores, instalación, estabilidad, métricas, firma/notarización y QA; candidata beta de ruido.                                                                                                      |
-| S05    | Semanas 9–10  | Registro y detección personal, umbrales, benchmark de voces y latencia; decidir incluir experimental o retrasarlo.                                                                                                      |
-| S06    | Semanas 11–12 | Correcciones de detección personal, regresión, distribución y prueba con usuarios; candidata beta con voz personal.                                                                                                     |
+Conservamos S01–S06 como identificadores de planificación. Son paquetes de trabajo con dependencias, no
+sprints cerrados ni seis períodos ya calendarizados. Cadencia propuesta: iteraciones de dos semanas,
+revisando cuántos tickets caben según capacidad real. Un paquete puede necesitar más de una iteración.
+No se añaden bus genérico ni sagas vacías: solo coordinación que un flujo real necesite.
 
-Ejemplo orientativo: si se comienza el 26 de octubre de 2026, la revisión de beta base sería la semana del 21 de diciembre de 2026, y la revisión con voz personal entre el 4 y el 18 de enero de 2027. Festivos, licencias, firma y resultados de los spikes pueden mover las fechas. No asumir disponibilidad continua durante esas semanas.
+| Paquete                                | Situación                             | Trabajo restante / tickets         | Puerta de salida                                                                                   |
+| -------------------------------------- | ------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Base                                   | Verificada técnicamente               | T000; T001 implementado localmente | No equivale a beta; mantener pruebas y registrar commit de T001 cuando se solicite.                |
+| S01 — Viabilidad física y distribución | Parcial                               | T002, T003, T004, T020             | Audio virtual real, ciclo de vida correcto y decisiones viables de consumidores/runtime/licencias. |
+| S02 — Experiencia mínima y datos       | Parcial; T005 especificado            | T005, T006, T007, T015             | Panel accesible, perfiles persistidos, recuperación y Keychain probados.                           |
+| S03 — Audio controlable y llamadas     | Parcial                               | T008, T009, T010, T011             | Mute real, cambios de dispositivo, comparación y matriz de llamadas aprobados.                     |
+| S04 — Modelos, diagnóstico y demanda   | Parcial de infraestructura            | T014, T016, T017, T018, T021       | Gestor offline, diagnóstico, predeterminado/restauración, consumidores y CI real.                  |
+| S05 — Voz personal experimental        | Modelo integrado; benchmark pendiente | T012, T013, T019                   | Consentimiento y gestión, calidad cuantificada, continuidad y estabilidad.                         |
+| S06 — Distribución y aceptación        | Pendiente                             | T024, T022, T023                   | Desinstalación, instalador firmado/notarizado y QA en otro Mac.                                    |
 
-## Puertas de salida
+Dependencias exactas y subtareas: [backlog.md](backlog.md). En S06, completar T024 antes de aceptar T022.
+La especificación T005 puede revisarse durante S01; no bloquea las pruebas físicas. T013 puede recopilar
+métricas iniciales al cerrar T003, pero su aceptación pertenece a S05. No implica personas trabajando en paralelo.
 
-- CI verde para las arquitecturas anunciadas; sin fallos críticos conocidos ni dependencias con vulnerabilidades altas/críticas sin resolver.
-- Pruebas de hardware, permisos, reinicio, suspensión y llamadas completas con evidencia.
-- Servicio no arranca sin app; al salir no queda activo ni capturando.
-- Perfiles persistidos, separación de datos y cifrado/recovery probados.
-- Modelos y driver con condiciones de distribución resueltas; instalación y eliminación verificadas.
-- Sin login, sin envío de audio a red, sin logs de voz; interfaz declara limitaciones reales.
-- Firma/notarización e instalación en otro Mac verificadas para beta externa. Un binario CI sin firma no cumple esa puerta.
+## Próxima iteración propuesta
 
-Cloud no tiene sprint ni fecha en este plan; requerirá planificación propia cuando Local sea estable. El backlog se actualiza con evidencia por entrega, no se marca completado por existir un documento o pasar compilación.
+Objetivo: demostrar audio filtrado real y conocer los dos riesgos mayores antes de ampliar UI.
 
-El alcance de S04 incluye F14–F15: instalador completo, inventario, desinstalación desde la app y pruebas de limpieza. La estimación de 8 semanas es provisional: S01 debe estimar también empaquetado de runtimes, driver y auxiliar privilegiado; si no caben en S04 se amplía el calendario antes de comprometer la beta. No se publica beta externa omitiendo el desinstalador.
+1. T002: probar supervisión y salida sin huérfanos.
+2. T003: recorrer micrófono → filtros → BlackHole → grabador, con permiso del usuario para capturar.
+3. T004: confirmar si se pueden detectar consumidores fiablemente.
+4. T020: confirmar cómo distribuir runtime/pesos/driver.
+5. Revisar T005 como trabajo documental independiente, sin bloquear lo anterior.
 
-S01 valida PCM, buffers, calidad/latencia de ambas IA y driver. El control HTTP/SSE y la primera integración de desarrollo ya forman parte de esta entrega, pero eso no completa el sprint ni acredita hardware. S02 consolida perfiles, recuperación y UX. gRPC queda limitado a adaptadores que lo requieran. El usuario amplió el alcance inmediato a ruido y voz personal; las fechas siguen provisionales hasta medir esta integración y empaquetado.
+Si la capacidad no permite los cuatro tickets técnicos en una iteración, se termina primero T002/T003 y
+se replantea la siguiente. No se marca un spike como viable por tener un documento.
+
+## Cuándo estaría lista la beta
+
+No hay fecha defendible hasta cerrar S01 y estimar instalador/driver con evidencia. En esa revisión se
+asignarán esfuerzo, capacidad, contingencia y fechas al backlog restante. Las cifras antiguas se conservan
+solo como antecedente: 8 semanas para ruido y 10–12 con voz personal; no son una estimación actualizada.
+
+- **Prueba técnica interna:** audio virtual y supervisión comprobados; puede ser manual y usar BlackHole externo. No es beta externa.
+- **Beta externa de ruido:** F01–F06 y F08–F15 aceptados, incluido F13. No se exime la continuidad/detección de voz; cualquier cambio de alcance requiere acuerdo explícito.
+- **Beta externa con voz personal:** además F07 y F13 aprobados experimentalmente, con límites publicados.
+
+F12 sigue requerido: si la detección de consumidores no resulta viable, se debe acordar un cambio de alcance
+antes de denominar beta a una entrega manual. Tampoco se omite el desinstalador para adelantar una fecha.
+
+## Puertas comunes
+
+- CI verde para arquitecturas anunciadas, sin fallos críticos conocidos; hardware Intel antes de anunciar soporte funcional.
+- Evidencia de permisos, desconexión, suspensión, cierre y llamadas completas por aplicación.
+- Sin captura automática tras recuperación ni procesos huérfanos al salir.
+- Datos cifrados, perfiles consistentes y recuperación sin sobrescribir DB/clave.
+- Distribución de modelos/driver resuelta, instalación y eliminación verificadas.
+- Sin login, sin envío de audio a red, sin voz ni secretos en logs; la descarga explícita de modelos es un flujo separado.
+- Firma/notarización y prueba en otro Mac para beta externa; un artefacto CI sin firma no basta.
+
+Cloud y Windows no tienen fecha ni tickets de implementación en este backlog. La UI/UX se especifica en
+[ui-ux.md](ui-ux.md); su diseño no acredita implementación ni aprobación visual del usuario.

@@ -143,7 +143,9 @@ impl NomoWorker {
         self.write_pcm(pcm)?;
         self.receive(timeout)
     }
-    pub fn enroll(&mut self, pcm: &[f32]) -> Result<Vec<f32>> {
+}
+impl crate::modules::personal_voice::application::EnrollmentSession for NomoWorker {
+    fn enroll(&mut self, pcm: &[f32]) -> Result<Vec<f32>> {
         if pcm.len() != 160000 || pcm.iter().any(|v| !v.is_finite()) {
             return Err(Error::InvalidInput);
         }

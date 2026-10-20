@@ -163,3 +163,15 @@ termina al cerrar la app. SQLCipher no se poda mediante esta limpieza.
 La copia diagnóstica usa una cola acotada y puede perder entradas por saturación o cierre abrupto; no se
 reconstruye retroactivamente. El journal cifrado sigue siendo la fuente durable de recuperación. Las
 integraciones Cloud y OpenTelemetry siguen pendientes: no se simulan proveedores remotos ni su validación.
+
+### Inyección de voz personal
+
+`LocalHandler` recibe `EnrollmentFactory` y `PersonalVoiceFactory` por inyección. La primera prepara una
+`EnrollmentSession` antes de capturar audio; la segunda entrega el puerto `PersonalVoice` para el filtro.
+Bootstrap elige `NomoFactory`, que concentra rutas del runtime y `VoiceOptions`. Solo la infraestructura
+construye `NomoWorker`; el handler no conoce ese proceso ni el proveedor del modelo.
+
+Las sesiones retornan `CapabilityResult`, conservan la ACL existente y reciben la misma señal de cancelación.
+Al liberarlas se termina el worker. El registro conserva el orden preparar → capturar → calcular embedding
+→ comprobar cancelación → guardar cifrado, así como los eventos de progreso y el resultado de commit.
+La prueba explícita del modelo real utiliza estos puertos; no valida micrófono ni llamadas.

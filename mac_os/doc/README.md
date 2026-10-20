@@ -1,6 +1,6 @@
 # Plan de la edición Local
 
-Estado al 20 de octubre de 2026: implementación Local en desarrollo, con HTTP/SSE, persistencia y adaptadores de audio/IA. Las funcionalidades requieren verificaciones específicas; no es una beta completa. La beta se enfoca en macOS Apple Silicon; Intel se compila en CI, pero su soporte funcional requiere pruebas físicas.
+Estado al 20 de octubre de 2026: implementación Local en desarrollo, con HTTP/SSE, persistencia y adaptadores de audio/IA. Las funcionalidades requieren verificaciones específicas; no es una beta completa. La beta se enfoca en macOS Apple Silicon; el workflow contempla Intel, pero su ejecución remota y soporte funcional requieren evidencia.
 
 | Documento                                       | Contenido                                                                    |
 | ----------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -23,3 +23,10 @@ Contrato implementado: [HTTP/SSE y operaciones](control.md).
 [Convenciones aprobadas de arquitectura](architecture-conventions.md): Options, Result, ACL, eventos, logs, SQL y pruebas por módulo.
 
 [Configuración por entorno](configuration.md): variables admitidas, validación e inyección de Options.
+
+## Plan actualizado y diseño
+
+- [Tickets y tareas](backlog.md): T000–T024, dependencias, aceptación y evidencia pendiente.
+- [UI/UX](ui-ux.md): panel, estados, componentes y temas propuestos.
+- [Perfiles](profiles.md): plantillas predefinidas y varios perfiles personalizados por persona.
+- [Tokens](design-tokens.json) y [contraste](design-contrast.md): propuesta sin aplicar a la UI.

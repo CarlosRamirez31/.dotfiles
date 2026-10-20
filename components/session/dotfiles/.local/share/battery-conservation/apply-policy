@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Always evaluate the current time, including after a missed timer or reboot.
+hour=$(TZ=America/Santo_Domingo date +%H)
+if ((10#$hour >= 22 || 10#$hour < 6)); then
+    mode=Standard
+else
+    mode=Long_Life
+fi
+
+found=0
+for control in /sys/class/power_supply/BAT*/charge_types; do
+    [[ -r $control ]] || continue
+    available=$(<"$control")
+    [[ $available == *Long_Life* && $available == *Standard* ]] || continue
+    found=1
+    if [[ $available != *"[$mode]"* ]]; then
+        printf '%s\n' "$mode" > "$control"
+    fi
+    [[ $(<"$control") == *"[$mode]"* ]] || {
+        printf 'No se pudo confirmar el modo %s en %s\n' "$mode" "$control" >&2
+        exit 1
+    }
+    printf '%s: %s (America/Santo_Domingo)\n' "$control" "$mode"
+done
+
+if (( ! found )); then
+    printf 'No se encontró una batería compatible con Long_Life y Standard.\n' >&2
+    exit 1
+fi

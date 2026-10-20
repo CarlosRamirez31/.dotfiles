@@ -1,0 +1,10 @@
+[Unit]
+Description=Lenovo battery conservation with overnight full charging
+After=systemd-udev-trigger.service time-sync.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/dotfiles-battery-policy
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Allow full battery charging from 22:00 until 06:00 Santo Domingo
+
+[Timer]
+OnCalendar=*-*-* 06:00:00 America/Santo_Domingo
+OnCalendar=*-*-* 22:00:00 America/Santo_Domingo
+OnBootSec=30s
+Persistent=true
+AccuracySec=1s
+Unit=dotfiles-battery-policy.service
+
+[Install]
+WantedBy=timers.target

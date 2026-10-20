@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ((EUID != 0)); then
+    printf 'Ejecuta: sudo %s\n' "$0" >&2
+    exit 1
+fi
+
+script_path=$(readlink -f -- "${BASH_SOURCE[0]}")
+assets="$(dirname -- "$script_path")/../share/battery-conservation"
+compatible=0
+for control in /sys/class/power_supply/BAT*/charge_types; do
+    [[ -r $control ]] || continue
+    modes=$(<"$control")
+    if [[ $modes == *Long_Life* && $modes == *Standard* ]]; then
+        compatible=1
+    fi
+done
+if (( ! compatible )); then
+    printf 'No se encontró una batería compatible. No se instaló el horario.\n' >&2
+    exit 1
+fi
+
+install -D -o root -g root -m 0755 "$assets/apply-policy" /usr/local/libexec/dotfiles-battery-policy
+for unit in dotfiles-battery-policy.service dotfiles-battery-policy.timer; do
+    install -D -o root -g root -m 0644 "$assets/$unit" "/etc/systemd/system/$unit"
+done
+systemctl daemon-reload
+systemctl enable dotfiles-battery-policy.service
+systemctl restart dotfiles-battery-policy.service
+systemctl enable --now dotfiles-battery-policy.timer
+systemctl restart dotfiles-battery-policy.timer
+printf '\nHorario activado: 22:00–06:00 hasta 100%%; 06:00–22:00 conservación (75–80%%).\n'
+systemctl list-timers dotfiles-battery-policy.timer --no-pager

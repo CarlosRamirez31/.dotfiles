@@ -10,3 +10,7 @@ mod operations;
 mod personal_voice;
 #[path = "support.rs"]
 pub(crate) mod support;
+
+#[cfg(unix)]
+#[path = "../src-tauri/src/bootstrap/test/mod.rs"]
+mod lifecycle;

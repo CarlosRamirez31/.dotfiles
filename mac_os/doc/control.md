@@ -67,3 +67,12 @@ error de arranque; hoy se devuelve error de inicio de Tauri. No hay reinicio aut
 Fuentes: [Axum SSE](https://docs.rs/axum/0.8.9/axum/response/sse/),
 [Tokio Notify](https://docs.rs/tokio/latest/tokio/sync/struct.Notify.html),
 [SQLCipher](https://www.zetetic.net/sqlcipher/).
+
+## Gestión de voces
+
+[Voces con nombre](voice-profiles.md) añade consultas y configuraciones inmediatas, y nuevos comandos de registro/sesión personal. Conserva los comandos anteriores y la correlación 202/SSE.
+
+El prefijo HTTP procede de `MIC_API_VERSION` (por defecto `v1`) y se negocia en el handshake.
+`GET /{version}/operations` con cabecera `X-Event-Cursor` devuelve el listado y un cursor
+atómico en la cabecera homónima. El cliente inicia SSE desde ese cursor; sin esa cabecera
+se conserva el listado anterior. Un evento antiguo no retrocede un estado terminal.

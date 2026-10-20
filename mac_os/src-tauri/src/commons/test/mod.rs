@@ -27,6 +27,12 @@ fn options_validate_precedence_and_reject_unknown_or_unsafe_values() {
     for (key, value) in [
         ("MIC_VOICE_THRESHOLD", "NaN"),
         ("MIC_LOG_RETENTION_DAYS", "0"),
+        ("MIC_SHUTDOWN_SECONDS", "0"),
+        ("MIC_SHUTDOWN_SECONDS", "31"),
+        ("MIC_MAX_VOICE_PROFILES", "0"),
+        ("MIC_MAX_VOICE_PROFILES", "129"),
+        ("MIC_API_VERSION", "../v1"),
+        ("MIC_API_VERSION", "v0"),
         ("MIC_VOICE_RUNTIME", "relative"),
         ("MIC_SECRET", "anything"),
         ("MIC_MAX_PENDING", "99999999999999999999"),
@@ -149,4 +155,19 @@ fn logger_writes_separate_files_and_cleans_at_startup() {
     assert!(!technical.contains("operation.succeeded"));
     assert!(business.contains("operation.succeeded"));
     assert!(!business.contains("technical_probe"));
+}
+
+#[test]
+fn api_version_is_loaded_from_options_and_defaults_to_v1() {
+    use crate::commons::options::Options;
+    assert_eq!(
+        Options::default().api_version,
+        crate::commons::protocol::DEFAULT_API_VERSION
+    );
+    let configured = Options::from_values(
+        Default::default(),
+        [("MIC_API_VERSION".into(), "v7".into())].into(),
+    )
+    .unwrap();
+    assert_eq!(configured.api_version, "v7");
 }

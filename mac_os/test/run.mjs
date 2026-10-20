@@ -19,11 +19,12 @@ function run(command, args) {
   if (result.error || result.status !== 0) process.exit(result.status || 1);
 }
 const suite = process.argv[2] ?? 'all';
-if (!['all', 'frontend', 'rust', 'python', 'models'].includes(suite)) throw new Error('unknown_suite');
+if (!['all', 'frontend', 'rust', 'python', 'models', 'lifecycle', 'audio-hardware'].includes(suite))
+  throw new Error('unknown_suite');
 if (suite === 'all' || suite === 'frontend') {
   const files = find(resolve(root, 'src'));
   if (!files.length) throw new Error('no_frontend_tests');
-  run(process.execPath, ['--experimental-strip-types', '--test', ...files]);
+  run(process.execPath, ['--experimental-transform-types', '--test', ...files]);
 }
 if (suite === 'all' || suite === 'rust' || suite === 'models')
   run('cargo', [
@@ -37,4 +38,19 @@ if (suite === 'all' || suite === 'python')
   run(process.env.MIC_TEST_PYTHON ?? resolve(root, '.runtime/personal-voice/venv/bin/python'), [
     '-I',
     'test/python.py',
+  ]);
+
+if (suite === 'lifecycle') {
+  run('cargo', ['build', '--locked', '--manifest-path', 'src-tauri/Cargo.toml']);
+  run(process.env.MIC_TEST_PYTHON ?? resolve(root, '.runtime/personal-voice/venv/bin/python'), [
+    '-I',
+    'src-tauri/src/bootstrap/test/lifecycle.py',
+  ]);
+}
+
+if (suite === 'audio-hardware')
+  run(process.env.MIC_TEST_PYTHON ?? resolve(root, '.runtime/personal-voice/venv/bin/python'), [
+    '-I',
+    'src-tauri/src/modules/audio/test/blackhole_meter.py',
+    ...process.argv.slice(3),
   ]);

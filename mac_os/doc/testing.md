@@ -34,6 +34,7 @@ pnpm run format:check
 pnpm run lint
 pnpm run typecheck
 pnpm test
+pnpm test lifecycle # macOS: procesos reales, Keychain y loopback; sin micrófono
 pnpm run test:models # explícito: requiere runtime privado instalado
 pnpm run build
 pnpm run security:audit
@@ -51,3 +52,20 @@ Registrar versión de app y navegador, dispositivo, frecuencia de muestreo y for
 La matriz de instalación/desinstalación de [installation.md](installation.md) es obligatoria antes de beta externa, incluyendo conservación de DB y clave juntas, driver compartido, permisos denegados, limpieza parcial y reinstalación.
 
 Validar HTTP/SSE y los límites de audio descritos en [audio-transport.md](audio-transport.md), incluyendo cancelación con datos en vuelo. gRPC solo requiere pruebas si un adaptador concreto lo incorpora; no es el transporte general de control.
+
+## Supervisión T002
+
+Las pruebas de supervisor viven en `src-tauri/src/bootstrap/test/`, coordinadas por `test/rust.rs` y
+`test/run.mjs`. La suite optativa `lifecycle` compila el binario y prueba handshake ausente, instancia duplicada,
+EOF, reinicio y muerte del supervisor de servicio/worker real. Requiere el runtime privado instalado y acceso
+al Keychain local; usa bases temporales, no reemplaza la base del usuario ni imprime claves/tokens.
+Las pruebas normales usan un proceso simple solo para verificar espera cooperativa y fallback forzado;
+no se presentan como evidencia de IA ni de captura. La liberación del micrófono se verifica en T003.
+
+## Medición optativa de BlackHole
+
+`pnpm test audio-hardware --seconds 8 --expect silence` recibe PCM de BlackHole sin guardar audio.
+Con la sesión iniciada: `pnpm test audio-hardware --seconds 12 --speak --expect signal` reproduce una frase
+sintética por la salida actual y mide la señal recibida. Requiere ffmpeg instalado por separado y permiso de
+micrófono; no forma parte de CI ni se ejecuta en la suite normal. No cambiar la salida predeterminada a
+BlackHole para esta prueba. El conteo prueba recepción, no calidad, latencia ni ausencia de frames perdidos.

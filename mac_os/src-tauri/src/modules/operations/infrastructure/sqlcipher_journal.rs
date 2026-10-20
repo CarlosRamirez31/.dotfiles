@@ -1,7 +1,7 @@
 use crate::commons::{Command, Error, Result};
 use crate::modules::operations::{
     application::{Completion, Journal, event_name},
-    domain::{Event, Operation, Status},
+    domain::{Event, Operation, OperationKind, Status},
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use std::{path::Path, sync::Mutex};
@@ -110,11 +110,23 @@ impl Journal for SqlCipherJournal {
             return Err(Error::Invalid);
         }
         match &command {
-            Command::StartAudio { input_id, .. } | Command::EnrollVoice { input_id }
+            Command::StartAudio { input_id, .. }
+            | Command::EnrollVoice { input_id }
+            | Command::StartVoiceProfileAudio { input_id, .. }
+            | Command::EnrollVoiceProfile { input_id, .. }
                 if input_id.is_empty() || input_id.len() > 512 =>
             {
                 return Err(Error::Invalid);
             }
+            _ => {}
+        }
+        match &command {
+            Command::EnrollVoiceProfile {
+                profile_id, name, ..
+            } => crate::modules::personal_voice::domain::validate(profile_id, name)?,
+            Command::StartVoiceProfileAudio {
+                voice_profile_id, ..
+            } if uuid::Uuid::parse_str(voice_profile_id).is_err() => return Err(Error::Invalid),
             _ => {}
         }
         let kind = command.kind();
@@ -125,13 +137,13 @@ impl Journal for SqlCipherJournal {
                 return if operation.command == command { Ok(operation) } else { Err(Error::Conflict) };
             }
             if !matches!(command, Command::CheckStorage) {
-                let active: i64 = tx.query_row("SELECT count(*) FROM operations WHERE json_extract(document,'$.kind') != 'diagnostics.check_storage' AND json_extract(document,'$.status') IN ('accepted','running','cancellation_requested')", [], |r| r.get(0))?;
+                let active: i64 = tx.query_row("SELECT count(*) FROM operations WHERE json_extract(document,'$.kind') != ?1 AND json_extract(document,'$.status') IN (?2,?3,?4)", params![OperationKind::StorageCheck.as_str(),Status::Accepted.as_str(),Status::Running.as_str(),Status::CancellationRequested.as_str()], |r| r.get(0))?;
                 if active > 0 { return Err(Error::Busy); }
             }
             let total: i64 = tx.query_row("SELECT count(*) FROM operations", [], |r| r.get(0))?;
-            let pending: i64 = tx.query_row("SELECT count(*) FROM operations WHERE json_extract(document,'$.status') IN ('accepted','running','cancellation_requested')", [], |r| r.get(0))?;
+            let pending: i64 = tx.query_row("SELECT count(*) FROM operations WHERE json_extract(document,'$.status') IN (?1,?2,?3)",params![Status::Accepted.as_str(),Status::Running.as_str(),Status::CancellationRequested.as_str()], |r| r.get(0))?;
             if total >= self.options.max_operations || pending >= self.options.max_pending { return Err(Error::Capacity); }
-            let operation = Operation { operation_id: uuid::Uuid::new_v4().to_string(), kind: kind.into(),
+            let operation = Operation { operation_id: uuid::Uuid::new_v4().to_string(), kind,
                 command, status: Status::Accepted, detail: None };
             tx.execute("INSERT INTO operations VALUES (?1,?2,?3)", params![operation.operation_id, key, encode(&operation)?])?;
             save(tx, &operation)?;
@@ -149,6 +161,22 @@ impl Journal for SqlCipherJournal {
                 .query_map([], |r| r.get::<_, String>(0))?
                 .map(|row| decode(row?))
                 .collect()
+        })
+    }
+    fn snapshot(&self) -> Result<(Vec<Operation>, i64)> {
+        self.transaction(|tx| {
+            let cursor = tx.query_row(
+                "SELECT coalesce(max(id),0) FROM operation_events",
+                [],
+                |r| r.get(0),
+            )?;
+            let mut query =
+                tx.prepare("SELECT document FROM operations ORDER BY rowid DESC LIMIT 100")?;
+            let items = query
+                .query_map([], |r| r.get::<_, String>(0))?
+                .map(|row| decode(row?))
+                .collect::<Result<Vec<Operation>>>()?;
+            Ok((items, cursor))
         })
     }
     fn events(&self, after: i64) -> Result<Vec<Event>> {
@@ -180,7 +208,7 @@ impl Journal for SqlCipherJournal {
     }
     fn claim(&self) -> Result<Option<Operation>> {
         self.transaction(|tx| {
-            let document: Option<String> = tx.query_row("SELECT document FROM operations WHERE json_extract(document,'$.status')='accepted' ORDER BY rowid LIMIT 1", [], |r| r.get(0)).optional()?;
+            let document: Option<String> = tx.query_row("SELECT document FROM operations WHERE json_extract(document,'$.status')=?1 ORDER BY rowid LIMIT 1", [Status::Accepted.as_str()], |r| r.get(0)).optional()?;
             let Some(document) = document else { return Ok(None); };
             let mut operation: Operation = decode(document)?;
             operation.status = Status::Running;
@@ -204,7 +232,7 @@ impl Journal for SqlCipherJournal {
             } else {
                 match result {
                     Ok(outcome) => (Status::Succeeded, Some(outcome.detail)),
-                    Err(Error::Audio(code)) => (Status::Failed, Some(code.into())),
+                    Err(Error::Audio(code)) => (Status::Failed, Some(code.as_str().into())),
                     Err(_) => (Status::Failed, Some("processing_failed".into())),
                 }
             };
@@ -240,31 +268,17 @@ impl Journal for SqlCipherJournal {
         self.transaction(|tx| {
             // Fixed-size SQL batch, independent of the number of interrupted operations.
             // All identifiers/expressions are static. No client input forms SQL text.
-            tx.execute_batch(
-                "
-                CREATE TEMP TABLE IF NOT EXISTS operations_recovery(id TEXT PRIMARY KEY);
-                DELETE FROM operations_recovery;
-                INSERT INTO operations_recovery SELECT id FROM operations
-                  WHERE json_extract(document,'$.status') IN ('running','cancellation_requested')
-                  OR (json_extract(document,'$.status')='accepted'
-                    AND json_extract(document,'$.kind') != 'diagnostics.check_storage');
-                UPDATE operations SET document=json_set(document,
-                  '$.status', CASE WHEN json_extract(document,'$.status')='cancellation_requested'
-                    THEN 'cancelled' ELSE 'interrupted' END,
-                  '$.detail', 'service_restarted')
-                  WHERE id IN (SELECT id FROM operations_recovery);
-                INSERT INTO operation_events(document)
-                  SELECT json_object(
-                    'eventId',0,
-                    'eventType',CASE WHEN json_extract(document,'$.status')='cancelled'
-                      THEN 'operation.cancelled' ELSE 'operation.interrupted' END,
-                    'schemaVersion',1,'module','operations','operationId',id,
-                    'occurredAtUtc',strftime('%Y-%m-%dT%H:%M:%fZ','now'),
-                    'operation',json(document))
-                  FROM operations WHERE id IN (SELECT id FROM operations_recovery) ORDER BY rowid;
-                DELETE FROM operations_recovery;
-            ",
-            )?;
+            tx.execute_batch("CREATE TEMP TABLE IF NOT EXISTS operations_recovery(id TEXT PRIMARY KEY); DELETE FROM operations_recovery;")?;
+            tx.execute("INSERT INTO operations_recovery SELECT id FROM operations WHERE json_extract(document,'$.status') IN (?1,?2)
+              OR (json_extract(document,'$.status')=?3 AND json_extract(document,'$.kind') != ?4)",
+              params![Status::Running.as_str(),Status::CancellationRequested.as_str(),Status::Accepted.as_str(),OperationKind::StorageCheck.as_str()])?;
+            tx.execute("UPDATE operations SET document=json_set(document,'$.status',CASE WHEN json_extract(document,'$.status')=?1 THEN ?2 ELSE ?3 END,'$.detail',?4)
+              WHERE id IN (SELECT id FROM operations_recovery)",params![Status::CancellationRequested.as_str(),Status::Cancelled.as_str(),Status::Interrupted.as_str(),SERVICE_RESTARTED])?;
+            tx.execute("INSERT INTO operation_events(document) SELECT json_object('eventId',0,'eventType',CASE WHEN json_extract(document,'$.status')=?1 THEN ?2 ELSE ?3 END,
+              'schemaVersion',1,'module','operations','operationId',id,'occurredAtUtc',strftime('%Y-%m-%dT%H:%M:%fZ','now'),'operation',json(document))
+              FROM operations WHERE id IN (SELECT id FROM operations_recovery) ORDER BY rowid",
+              params![Status::Cancelled.as_str(),event_name(Status::Cancelled),event_name(Status::Interrupted)])?;
+            tx.execute("DELETE FROM operations_recovery",[])?;
             Ok(())
         })
     }
@@ -286,3 +300,5 @@ fn copy_business_events(connection: &Connection, after: i64) -> Result<()> {
     }
     Ok(())
 }
+
+const SERVICE_RESTARTED: &str = "service_restarted";

@@ -19,10 +19,12 @@ impl StorageCheck for SqlCipherCheck {
         let mut statement = connection.prepare("PRAGMA integrity_check")?;
         let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
         for row in rows {
-            if row? != "ok" {
+            if row? != INTEGRITY_OK {
                 return Err(Error::Storage);
             }
         }
         Ok("integrity_ok".into())
     }
 }
+
+const INTEGRITY_OK: &str = "ok";

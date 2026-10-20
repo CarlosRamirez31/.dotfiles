@@ -30,3 +30,7 @@ Contrato implementado: [HTTP/SSE y operaciones](control.md).
 - [UI/UX](ui-ux.md): panel, estados, componentes y temas propuestos.
 - [Perfiles](profiles.md): plantillas predefinidas y varios perfiles personalizados por persona.
 - [Tokens](design-tokens.json) y [contraste](design-contrast.md): propuesta sin aplicar a la UI.
+
+[Validación T002](lifecycle-validation.md): cierre, pérdida de supervisor, instancia duplicada y límites de evidencia.
+
+[Voces con nombre](voice-profiles.md): predeterminada, reemplazo, eliminación y migración cifrada.

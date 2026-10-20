@@ -42,7 +42,7 @@ Instalar [BlackHole 2ch](https://github.com/ExistentialAudio/BlackHole#installat
 por separado. Seleccionar micrófono físico en la app y BlackHole como entrada en la aplicación de llamadas.
 Esta versión requiere dispositivos float32 de 48 kHz con uno o dos canales. No cambia el dispositivo
 predeterminado del sistema. Registrar voz requiere detener una sesión previa; al comenzar el registro,
-esperar la indicación de hablar durante diez segundos. El registro completado reemplaza el perfil anterior.
+esperar la indicación de hablar durante diez segundos. El inicio permite gestionar voces con nombre y una predeterminada; editar reemplaza el registro solo tras completar la operación. Ver [gestión de voces](doc/voice-profiles.md).
 
 ## Arquitectura pequeña y modular
 

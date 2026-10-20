@@ -1,19 +1,21 @@
 # Tickets y tareas — beta Local
 
 Corte: 20 de octubre de 2026. Registro local versionado; **no se crearon issues remotos**.
-T000 es base técnica verificada, T001 está implementado localmente y T005 entrega especificación.
-Los demás tickets siguen pendientes aunque reutilicen código existente. Ninguno sustituye la aceptación F01–F15.
+T000 es base técnica verificada, T001 está incluido en `a39537e` y T005 entrega especificación.
+Los demás tickets tienen los estados indicados abajo; los avances parciales no equivalen a aceptación. Ninguno sustituye la aceptación F01–F15.
 Responsables aún sin asignar. P0 bloquea calidad/viabilidad/salida; P1 completa experiencia requerida, no es opcional.
 Las dependencias se satisfacen con aceptación del ticket, no con su mera implementación.
+Excepción de ejecución T002 → T003: la supervisión verificada sin captura permite iniciar T003; ambos
+completan su aceptación física juntos al verificar la liberación durante audio activo.
 
 ## Tablero
 
 | Ticket        | Entrega                                                      | Función            | Sprint | Prioridad | Estado                                  | Depende de                   |
 | ------------- | ------------------------------------------------------------ | ------------------ | ------ | --------- | --------------------------------------- | ---------------------------- |
 | [T000](#t000) | Base técnica existente                                       | Transversal        | Base   | P0        | Verificado técnicamente                 | —                            |
-| [T001](#t001) | Inyección de registro y filtro de voz                        | F07                | Base   | P0        | Implementado local; sin commit          | T000                         |
-| [T002](#t002) | Ciclo de vida del servicio y sus workers                     | F02, F12           | S01    | P0        | Pendiente                               | T000                         |
-| [T003](#t003) | Primer recorrido real micrófono → BlackHole                  | F04, F05           | S01    | P0        | Pendiente                               | T002                         |
+| [T001](#t001) | Inyección de registro y filtro de voz                        | F07                | Base   | P0        | Implementado; commit a39537e            | T000                         |
+| [T002](#t002) | Ciclo de vida del servicio y sus workers                     | F02, F12           | S01    | P0        | Parcial; salida con captura verificada  | T000                         |
+| [T003](#t003) | Primer recorrido real micrófono → BlackHole                  | F04, F05           | S01    | P0        | Parcial; señal y parada verificadas     | T002                         |
 | [T004](#t004) | Spike de detección de consumidores y distribución del driver | F12, F14           | S01    | P0        | Pendiente                               | T003                         |
 | [T005](#t005) | Estándares visuales y estados de producto                    | F01, F10           | S02    | P1        | Especificado; revisión visual pendiente | T000                         |
 | [T006](#t006) | Barra de menús y panel compacto                              | F01                | S02    | P1        | Pendiente                               | T005, T002                   |
@@ -22,7 +24,7 @@ Las dependencias se satisfacen con aceptación del ticket, no con su mera implem
 | [T009](#t009) | Capacidades y cambio de dispositivo                          | F04                | S03    | P1        | Pendiente                               | T003, T008                   |
 | [T010](#t010) | Matriz de llamadas reales                                    | F05, F11           | S03    | P0        | Pendiente                               | T003, T008                   |
 | [T011](#t011) | Control de ruido y comparación A/B                           | F06                | S03    | P1        | Pendiente                               | T003                         |
-| [T012](#t012) | Consentimiento y gestión del perfil personal                 | F07                | S05    | P1        | Pendiente                               | T001, T007                   |
+| [T012](#t012) | Consentimiento y gestión del perfil personal                 | F07                | S05    | P1        | Implementado parcialmente; QA pendiente | T001, T007                   |
 | [T013](#t013) | Benchmark de voz personal                                    | F07, F13           | S05    | P0        | Pendiente                               | T003, T001                   |
 | [T014](#t014) | Gestor de modelos dentro de la app                           | F08                | S04    | P0        | Pendiente                               | T020, T000                   |
 | [T015](#t015) | Keychain y recuperación de datos en Mac                      | F09                | S02    | P0        | Pendiente                               | T007                         |
@@ -77,13 +79,14 @@ Función: F07. Sprint: Base. Prioridad: P0. Dependencias: T000.
 
 Función: F02, F12. Sprint: S01. Prioridad: P0. Dependencias: T000.
 
-- [ ] **T002.01** — Probar cerrar, ocultar, salida explícita, crash del host y arranque duplicado.
-- [ ] **T002.02** — Registrar procesos antes/después, stdin/EOF y duración de cierre.
-- [ ] **T002.03** — Corregir huérfanos y probar reinicio sin reanudar captura.
+- [x] **T002.01** — Probar cerrar, ocultar, salida explícita, crash del host y arranque duplicado.
+- [x] **T002.02** — Registrar procesos antes/después, stdin/EOF y duración de cierre.
+- [x] **T002.03** — Corregir huérfanos y probar reinicio sin reanudar captura.
+- [ ] **T002.04** — Validar con T003 la liberación del micrófono y workers al salir durante captura real.
 
 **Aceptación:** No queda servicio ni Python capturando tras salir o perder el host; evidencia en Mac.
 
-**Evidencia:** pendiente; adjuntar resultados al cerrar.
+**Evidencia:** [pruebas y límites](lifecycle-validation.md). Implementado el cierre cooperativo, plazo de seguridad y cancelación sin carreras. T002.01–03 comprobados inicialmente sin captura. La salida con captura/inferencia ya está verificada; T002.04 sigue abierto por registro y caída del servicio con captura activa.
 
 <a id="t003"></a>
 
@@ -91,13 +94,13 @@ Función: F02, F12. Sprint: S01. Prioridad: P0. Dependencias: T000.
 
 Función: F04, F05. Sprint: S01. Prioridad: P0. Dependencias: T002.
 
-- [ ] **T003.01** — Preparar BlackHole externo de desarrollo y permisos con consentimiento.
-- [ ] **T003.02** — Capturar señal controlada y verificar salida en un grabador sin bucle.
+- [x] **T003.01** — Preparar BlackHole externo de desarrollo y permisos con consentimiento.
+- [x] **T003.02** — Capturar señal controlada y verificar salida en un grabador sin bucle.
 - [ ] **T003.03** — Probar parada, formato no soportado, pérdida de entrada y error de salida.
 
 **Aceptación:** Archivo de medición autorizado y registro de dispositivos/formatos prueban audio recibido; sin grabaciones privadas en Git.
 
-**Evidencia:** pendiente; adjuntar resultados al cerrar.
+**Evidencia:** [medición real](audio-validation.md). T003.03 sigue abierto: parada comprobada, fallos de dispositivo/formato pendientes.
 
 <a id="t004"></a>
 
@@ -217,13 +220,13 @@ Función: F06. Sprint: S03. Prioridad: P1. Dependencias: T003.
 
 Función: F07. Sprint: S05. Prioridad: P1. Dependencias: T001, T007.
 
-- [ ] **T012.01** — Diseñar paso previo al registro explicando duración, uso en RAM y embedding cifrado.
-- [ ] **T012.02** — Permitir cancelar, reemplazar y eliminar perfil con efectos claros.
+- [x] **T012.01** — Diseñar paso previo al registro explicando duración, uso en RAM y embedding cifrado.
+- [x] **T012.02** — Permitir cancelar, reemplazar y eliminar perfil con efectos claros.
 - [ ] **T012.03** — Verificar muestra temporal no persistida y estado tras cancelación tardía.
 
 **Aceptación:** Usuario decide registrar; no se confunde ajustes con perfil de voz; borrado elimina referencia y embedding correcto.
 
-**Evidencia:** pendiente; adjuntar resultados al cerrar.
+**Evidencia:** [voces con nombre](voice-profiles.md), persistencia/HTTP/ACL probados. Implementados varios perfiles, predeterminada, reemplazo y confirmación de borrado. Pendientes recorrido visual final, cancelación tardía y vínculo con perfiles de ajustes T007.
 
 <a id="t013"></a>
 

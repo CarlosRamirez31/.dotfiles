@@ -30,8 +30,9 @@ Grabación es un conjunto de ajustes; no implica grabación permanente ni un edi
 - Diferenciar perfil seleccionado de ajustes aplicados a una sesión. No indicar aplicación antes de confirmación.
 - Elegir un perfil no concede permisos, descarga modelos, cambia la entrada predeterminada del sistema ni inicia captura.
 - Si falta dispositivo, modelo o voz referenciada, indicar qué falta; no sustituir silenciosamente.
-- Mantener múltiples perfiles de ajustes no significa almacenar múltiples identidades de voz. El alcance actual
-  de voz registrada no se amplía sin definir su contrato y migración.
+- Se admiten varias voces con nombre y una predeterminada, conforme a la ampliación confirmada del usuario.
+  Los perfiles de ajustes podrán referenciarlas por identificador; ese CRUD de ajustes sigue pendiente.
+  Ver [voces con nombre](voice-profiles.md).
 
 ## Persistencia y límites
 

@@ -1,3 +1,4 @@
+use crate::commons::AudioErrorCode;
 use crate::commons::ConnectionInfo;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -19,20 +20,38 @@ struct Launch {
 
 pub struct Supervisor {
     child: Mutex<Child>,
-    _pipe: ChildStdin,
+    pipe: Mutex<Option<ChildStdin>>,
+    shutdown_seconds: u64,
     pub connection: ConnectionInfo,
     pub reconnect_ms: u64,
 }
 impl Drop for Supervisor {
     fn drop(&mut self) {
-        tracing::info!(event = "supervisor.stopping");
-        if let Ok(child) = self.child.get_mut() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
+        self.stop();
     }
 }
 impl Supervisor {
+    pub fn stop(&self) {
+        // Serialize repeated Exit/Drop calls, then let EOF request cooperative shutdown.
+        let mut child = self.child.lock().unwrap_or_else(|error| error.into_inner());
+        self.pipe
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
+        let deadline = std::time::Instant::now() + Duration::from_secs(self.shutdown_seconds);
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => return,
+                Ok(None) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(25));
+                }
+                _ => break,
+            }
+        }
+        tracing::warn!(event = "supervisor.forced_stop");
+        let _ = child.kill();
+        let _ = child.wait();
+    }
     pub fn start(
         directory: PathBuf,
         voice_runtime: PathBuf,
@@ -40,10 +59,11 @@ impl Supervisor {
         options: crate::commons::options::Options,
     ) -> Result<Self, String> {
         let startup_seconds = options.startup_seconds;
+        let shutdown_seconds = options.shutdown_seconds;
         let reconnect_ms = options.reconnect_ms;
         let mut child =
             Command::new(std::env::current_exe().map_err(|_| "executable_unavailable")?)
-                .arg("--local-service")
+                .arg(crate::commons::protocol::LOCAL_SERVICE_MODE)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
@@ -80,7 +100,7 @@ impl Supervisor {
             let connection: ConnectionInfo =
                 serde_json::from_str(&ready).map_err(|_| "service_start_failed")?;
             if connection.token != token
-                || connection.protocol_version != 1
+                || connection.protocol_version != crate::commons::protocol::PROTOCOL_VERSION
                 || !connection.endpoint.starts_with("http://127.0.0.1:")
             {
                 return Err("service_protocol_mismatch");
@@ -90,7 +110,8 @@ impl Supervisor {
         match result {
             Ok((pipe, connection)) => Ok(Self {
                 child: Mutex::new(child),
-                _pipe: pipe,
+                pipe: Mutex::new(Some(pipe)),
+                shutdown_seconds,
                 connection,
                 reconnect_ms,
             }),
@@ -198,9 +219,15 @@ pub fn service() -> Result<(), Box<dyn std::error::Error>> {
             launch.options.voice.clone(),
         ),
     );
+    let voices: Arc<dyn crate::modules::personal_voice::application::VoiceProfiles> =
+        Arc::new(crate::modules::personal_voice::infrastructure::VoiceStore {
+            path,
+            key,
+            max_profiles: launch.options.voice.max_profiles,
+        });
     let handler = Arc::new(LocalHandler {
         checker,
-        voice: crate::modules::personal_voice::infrastructure::VoiceStore { path, key },
+        voice: voices.clone(),
         enrollment: voice_factory.clone(),
         personal_voice: voice_factory,
         voice_threshold: launch.options.voice.threshold,
@@ -213,28 +240,70 @@ pub fn service() -> Result<(), Box<dyn std::error::Error>> {
         let _ = std::io::copy(&mut input, &mut sink);
         let _ = shutdown_tx.send(());
     });
-    tokio::runtime::Builder::new_multi_thread().enable_all().build()?.block_on(async move {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+    let grace = Duration::from_secs(launch.options.shutdown_seconds);
+    let result = runtime.block_on(async move {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        let info = ConnectionInfo { endpoint: format!("http://{}", listener.local_addr()?), token: launch.token.clone(), protocol_version: 1 };
-        let app = router(Bff { operations: operations.clone(), token: launch.token });
+        let info = ConnectionInfo {
+            endpoint: format!("http://{}", listener.local_addr()?),
+            token: launch.token.clone(),
+            protocol_version: crate::commons::protocol::PROTOCOL_VERSION,
+            api_version: launch.options.api_version.clone(),
+        };
+        let app = router(Bff {
+            operations: operations.clone(),
+            token: launch.token,
+            voices,
+            api_version: launch.options.api_version.clone(),
+        });
         tracing::info!(event = "service.ready", protocol_version = 1);
         serde_json::to_writer(std::io::stdout(), &info)?;
         println!();
         std::io::stdout().flush()?;
-        tokio::select! {
-            _ = shutdown_rx => { tracing::info!(event = "service.parent_disconnected"); operations.shutdown(); },
-            result = operations.clone().run(handler) => { result.map_err(|_| "operation_worker_failed")?; },
-            result = axum::serve(listener, app) => { result?; },
-        }
+        let worker = operations.clone().run(handler);
+        tokio::pin!(worker);
+        let result = tokio::select! {
+            _ = shutdown_rx => {
+                tracing::info!(event = "service.parent_disconnected");
+                operations.shutdown();
+                drain_worker(worker, grace).await
+            },
+            result = &mut worker => result.map_err(|_| "operation_worker_failed".into()),
+            result = axum::serve(listener, app) => {
+                operations.shutdown();
+                let drained = drain_worker(worker, grace).await;
+                result.map_err(Box::<dyn std::error::Error>::from).and(drained)
+            },
+        };
+        operations.shutdown();
+        result?;
         tracing::info!(event = "service.stopped");
-        drop(lock);
         Ok::<(), Box<dyn std::error::Error>>(())
-    })
+    });
+    // A blocked provider must not keep the service alive after its owner disappears.
+    // On timeout the service exits; persisted unfinished work is recovered on next launch.
+    runtime.shutdown_timeout(Duration::ZERO);
+    result
+}
+
+pub(crate) async fn drain_worker(
+    worker: impl std::future::Future<Output = crate::commons::Result<()>>,
+    grace: Duration,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match tokio::time::timeout(grace, worker).await {
+        Ok(result) => result.map_err(|_| "operation_worker_failed".into()),
+        Err(_) => {
+            tracing::error!(event = "service.shutdown_timeout");
+            Err("service_shutdown_timeout".into())
+        }
+    }
 }
 
 struct LocalHandler {
     checker: crate::modules::diagnostics::infrastructure::SqlCipherCheck,
-    voice: crate::modules::personal_voice::infrastructure::VoiceStore,
+    voice: std::sync::Arc<dyn crate::modules::personal_voice::application::VoiceProfiles>,
     enrollment: std::sync::Arc<dyn crate::modules::personal_voice::application::EnrollmentFactory>,
     personal_voice:
         std::sync::Arc<dyn crate::modules::personal_voice::application::PersonalVoiceFactory>,
@@ -250,6 +319,38 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
         use crate::modules::{audio::infrastructure, operations::application::StorageCheck};
         match command {
             crate::commons::Command::CheckStorage => self.checker.check().map(Into::into),
+            crate::commons::Command::EnrollVoiceProfile {
+                input_id,
+                profile_id,
+                name,
+                replace,
+            } => {
+                let existing = self.voice.list()?;
+                let exists = existing.iter().any(|p| p.id == profile_id);
+                if replace && !exists {
+                    return Err(crate::commons::Error::NotFound);
+                }
+                if !replace && exists {
+                    return Err(crate::commons::Error::Conflict);
+                }
+                progress("preparing_voice_model")?;
+                let mut enrollment = self.enrollment.prepare_enrollment(cancelled.clone())?;
+                progress("recording_enrollment_10_seconds")?;
+                let pcm = infrastructure::enroll(&input_id, cancelled.clone())?;
+                progress("creating_voice_profile")?;
+                let embedding = enrollment.enroll(&pcm)?;
+                if cancelled.load(std::sync::atomic::Ordering::Acquire) {
+                    return Err(crate::commons::Error::Audio(
+                        AudioErrorCode::EnrollmentCancelled,
+                    ));
+                }
+                self.voice
+                    .save_profile(&profile_id, &name, &embedding, replace)?;
+                Ok(crate::modules::operations::application::Completion {
+                    detail: "voice_enrolled".into(),
+                    effect_committed: true,
+                })
+            }
             crate::commons::Command::EnrollVoice { input_id } => {
                 progress("preparing_voice_model")?;
                 let mut enrollment = self.enrollment.prepare_enrollment(cancelled.clone())?;
@@ -258,7 +359,9 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
                 progress("creating_voice_profile")?;
                 let embedding = enrollment.enroll(&pcm)?;
                 if cancelled.load(std::sync::atomic::Ordering::Acquire) {
-                    return Err(crate::commons::Error::Audio("enrollment_cancelled"));
+                    return Err(crate::commons::Error::Audio(
+                        AudioErrorCode::EnrollmentCancelled,
+                    ));
                 }
                 self.voice.save(&embedding)?;
                 Ok(crate::modules::operations::application::Completion {
@@ -266,13 +369,25 @@ impl crate::modules::operations::application::CommandHandler for LocalHandler {
                     effect_committed: true,
                 })
             }
-            crate::commons::Command::StartAudio {
-                input_id,
-                personal_voice,
-            } => {
+            command @ (crate::commons::Command::StartAudio { .. }
+            | crate::commons::Command::StartVoiceProfileAudio { .. }) => {
+                let (input_id, personal_voice, voice_id) = match command {
+                    crate::commons::Command::StartAudio {
+                        input_id,
+                        personal_voice,
+                    } => (input_id, personal_voice, None),
+                    crate::commons::Command::StartVoiceProfileAudio {
+                        input_id,
+                        voice_profile_id,
+                    } => (input_id, true, Some(voice_profile_id)),
+                    _ => unreachable!(),
+                };
                 let voice = if personal_voice {
                     progress("preparing_voice_model")?;
-                    let embedding = self.voice.load()?;
+                    let embedding = match voice_id {
+                        Some(id) => self.voice.embedding(&id)?,
+                        None => self.voice.load()?,
+                    };
                     Some(
                         self.personal_voice
                             .prepare_filter(cancelled.clone(), &embedding)?,
@@ -300,5 +415,35 @@ pub fn public_options(
 ) -> crate::commons::options::ClientOptions {
     crate::commons::options::ClientOptions {
         reconnect_ms: state.reconnect_ms,
+    }
+}
+
+#[cfg(test)]
+impl Supervisor {
+    pub(crate) fn for_test(child: Child, pipe: Option<ChildStdin>, shutdown_seconds: u64) -> Self {
+        Self {
+            child: Mutex::new(child),
+            pipe: Mutex::new(pipe),
+            shutdown_seconds,
+            connection: ConnectionInfo {
+                endpoint: String::new(),
+                token: String::new(),
+                protocol_version: crate::commons::protocol::PROTOCOL_VERSION,
+                api_version: crate::commons::protocol::default_api_version(),
+            },
+            reconnect_ms: 1500,
+        }
+    }
+    pub(crate) fn exit_code_for_test(&self) -> Option<i32> {
+        self.child
+            .lock()
+            .unwrap()
+            .try_wait()
+            .unwrap()
+            .unwrap()
+            .code()
+    }
+    pub(crate) fn exited_for_test(&self) -> bool {
+        self.child.lock().unwrap().try_wait().unwrap().is_some()
     }
 }

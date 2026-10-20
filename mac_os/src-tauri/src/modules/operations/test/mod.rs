@@ -103,6 +103,12 @@ async fn http_acceptance_precedes_worker_and_authentication_is_required() {
     let app = router(Bff {
         operations: operations.clone(),
         token: "test-token".into(),
+        api_version: crate::commons::protocol::default_api_version(),
+        voices: Arc::new(crate::modules::personal_voice::infrastructure::VoiceStore {
+            path: database.path.clone(),
+            key: "test-key-not-production".into(),
+            max_profiles: 32,
+        }),
     });
     let unauthorized = app
         .clone()
@@ -237,6 +243,12 @@ async fn sse_replays_serialized_events_after_the_requested_cursor() {
     let app = router(Bff {
         operations: Operations::new(journal),
         token: "test-token".into(),
+        api_version: crate::commons::protocol::default_api_version(),
+        voices: Arc::new(crate::modules::personal_voice::infrastructure::VoiceStore {
+            path: database.path.clone(),
+            key: "test-key-not-production".into(),
+            max_profiles: 32,
+        }),
     });
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
@@ -362,4 +374,174 @@ fn business_copy_contains_only_committed_allowlisted_metadata() {
         assert!(!text.contains("idempotent-key"));
         assert!(!text.contains("command"));
     });
+}
+
+#[tokio::test]
+async fn shutdown_wakes_idle_worker_and_prevents_starting_queued_work() {
+    let database = Database::new();
+    let journal = database.open();
+    let operations = Operations::new(journal.clone());
+    operations.shutdown();
+    let operation = journal
+        .accept("pending-stop", Command::CheckStorage)
+        .unwrap();
+    let handler = Arc::new(TestHandler(Arc::new(SqlCipherCheck {
+        path: database.path.clone(),
+        key: "test-key-not-production".into(),
+    })));
+    tokio::time::timeout(Duration::from_secs(2), operations.run(handler))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        journal.get(&operation.operation_id).unwrap().status,
+        Status::Accepted
+    );
+
+    let empty = Database::new();
+    let operations = Operations::new(empty.open());
+    let worker = tokio::spawn(operations.clone().run(Arc::new(TestHandler(Arc::new(
+        SqlCipherCheck {
+            path: empty.path.clone(),
+            key: "test-key-not-production".into(),
+        },
+    )))));
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    operations.shutdown();
+    tokio::time::timeout(Duration::from_secs(2), worker)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test]
+async fn shutdown_waits_for_active_handler_and_persists_cancellation() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    struct BlockingHandler(Arc<AtomicBool>, Arc<AtomicBool>);
+    impl crate::modules::operations::application::CommandHandler for BlockingHandler {
+        fn execute(
+            &self,
+            _: Command,
+            stop: Arc<AtomicBool>,
+            _: &dyn Fn(&str) -> crate::commons::Result<()>,
+        ) -> crate::commons::Result<crate::modules::operations::application::Completion> {
+            self.0.store(true, Ordering::Release);
+            let deadline = std::time::Instant::now() + Duration::from_secs(3);
+            while !stop.load(Ordering::Acquire) && std::time::Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            assert!(stop.load(Ordering::Acquire));
+            self.1.store(true, Ordering::Release);
+            Ok("stopped".to_string().into())
+        }
+    }
+    let database = Database::new();
+    let journal = database.open();
+    let operation = journal
+        .accept("active-stop", Command::CheckStorage)
+        .unwrap();
+    let operations = Operations::new(journal.clone());
+    let started = Arc::new(AtomicBool::new(false));
+    let released = Arc::new(AtomicBool::new(false));
+    let worker = tokio::spawn(
+        operations
+            .clone()
+            .run(Arc::new(BlockingHandler(started.clone(), released.clone()))),
+    );
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while !started.load(Ordering::Acquire) {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    operations.shutdown();
+    tokio::time::timeout(Duration::from_secs(3), worker)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert!(released.load(Ordering::Acquire));
+    assert_eq!(
+        journal.get(&operation.operation_id).unwrap().status,
+        Status::Cancelled
+    );
+}
+
+#[tokio::test]
+async fn configured_api_prefix_and_atomic_snapshot_cursor_are_consistent() {
+    let database = Database::new();
+    let journal = database.open();
+    let original = journal
+        .accept("snapshot-old", Command::CheckStorage)
+        .unwrap();
+    journal.claim().unwrap();
+    journal
+        .finish(&original.operation_id, Ok("ok".to_string().into()))
+        .unwrap();
+    let app = router(Bff {
+        operations: Operations::new(journal.clone()),
+        token: "test-token".into(),
+        api_version: "v7".into(),
+        voices: Arc::new(crate::modules::personal_voice::infrastructure::VoiceStore {
+            path: database.path.clone(),
+            key: "test-key-not-production".into(),
+            max_profiles: 32,
+        }),
+    });
+    let absent = app
+        .clone()
+        .oneshot(
+            request("GET", "/v1/operations")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(absent.status(), StatusCode::NOT_FOUND);
+    let snapshot = app
+        .clone()
+        .oneshot(
+            request("GET", "/v7/operations")
+                .header("X-Event-Cursor", "1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(snapshot.status(), StatusCode::OK);
+    let cursor: i64 = snapshot
+        .headers()
+        .get("X-Event-Cursor")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    let rows: Vec<Operation> =
+        serde_json::from_slice(&to_bytes(snapshot.into_body(), 8192).await.unwrap()).unwrap();
+    assert_eq!(rows[0].status, Status::Succeeded);
+    let accepted = app
+        .oneshot(
+            request("POST", "/v7/operations/storage-check")
+                .header("Idempotency-Key", "snapshot-new")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(accepted.status(), StatusCode::ACCEPTED);
+    assert!(
+        accepted
+            .headers()
+            .get("Location")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .starts_with("/v7/operations/")
+    );
+    let events = journal.events(cursor).unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].operation.status, Status::Accepted);
 }

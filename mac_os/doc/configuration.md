@@ -44,3 +44,16 @@ Los logs están en `local-service/logs/` dentro de los datos de la app: `host.FE
 `service.FECHA.jsonl` y `business.FECHA.jsonl`. Se conservan archivos activos y se eliminan únicamente
 particiones propias vencidas, sin seguir enlaces simbólicos. La copia de eventos contiene ID, tipo, módulo,
 fecha, versión y estado; excluye comandos, detalles libres y datos de voz. No elimina eventos de SQLCipher.
+
+## Cierre del servicio
+
+`MIC_SHUTDOWN_SECONDS` (5 por defecto; rango 1–30) establece el plazo de cierre cooperativo.
+El host cierra stdin y espera; si el hijo no termina, lo finaliza y recoge su estado. El servicio aplica también
+un plazo al drenaje para no depender del host cuando este muere. En un cierre forzado, los trabajos pendientes
+se recuperan desde SQLCipher en el siguiente arranque; nunca se reanuda captura automáticamente.
+El timeout no es una confirmación de persistencia ni de liberación cooperativa: queda registrado como fallo.
+
+`MIC_MAX_VOICE_PROFILES` configura el máximo de voces guardadas (32 por defecto; rango 1–128). Las voces existentes no se eliminan al reducir el límite; se rechazan nuevas altas hasta quedar por debajo del límite.
+
+La versión del prefijo HTTP se configura con `MIC_API_VERSION` (por defecto `v1`).
+Options valida el formato y el handshake informa `apiVersion` al cliente, que usa el mismo prefijo.

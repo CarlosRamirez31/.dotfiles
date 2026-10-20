@@ -3,7 +3,7 @@ mod commons;
 mod modules;
 
 pub fn run() {
-    if std::env::args().any(|argument| argument == "--local-service") {
+    if std::env::args().any(|argument| argument == commons::protocol::LOCAL_SERVICE_MODE) {
         if bootstrap::service().is_err() {
             std::process::exit(1);
         }
@@ -42,8 +42,15 @@ pub fn run() {
             bootstrap::public_options,
             commons::logging::client_log
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit)
+                && let Some(supervisor) = app.try_state::<bootstrap::Supervisor>()
+            {
+                supervisor.stop();
+            }
+        });
 }
 
 #[cfg(test)]

@@ -51,6 +51,7 @@ impl NomoWorker {
             } else {
                 "enroll"
             })
+            .arg(std::process::id().to_string())
             .env("HF_HUB_OFFLINE", "1")
             .env("MODELSCOPE_OFFLINE", "1")
             .stdin(Stdio::piped())
@@ -105,12 +106,16 @@ impl NomoWorker {
                     let result: serde_json::Value =
                         serde_json::from_str(&line).map_err(|_| Error::InvalidResponse)?;
                     if result.get("error").is_some() {
-                        return Err(match result.get("error").and_then(|value| value.as_str()) {
-                            Some("invalid_input") => Error::InvalidInput,
-                            Some("invalid_response") => Error::InvalidResponse,
-                            Some("unavailable") => Error::Unavailable,
-                            Some("timeout") => Error::Timeout,
-                            Some("cancelled") => Error::Cancelled,
+                        let code = result
+                            .get("error")
+                            .cloned()
+                            .and_then(|value| serde_json::from_value::<WorkerError>(value).ok());
+                        return Err(match code {
+                            Some(WorkerError::InvalidInput) => Error::InvalidInput,
+                            Some(WorkerError::InvalidResponse) => Error::InvalidResponse,
+                            Some(WorkerError::Unavailable) => Error::Unavailable,
+                            Some(WorkerError::Timeout) => Error::Timeout,
+                            Some(WorkerError::Cancelled) => Error::Cancelled,
                             _ => Error::InferenceFailed,
                         });
                     }
@@ -178,4 +183,14 @@ impl PersonalVoice for NomoWorker {
         }
         Ok(probability)
     }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum WorkerError {
+    InvalidInput,
+    InvalidResponse,
+    Unavailable,
+    Timeout,
+    Cancelled,
 }

@@ -20,13 +20,16 @@ export class SseParser {
       if (!line) {
         if (this.data.length) events.push({ id: this.id, data: this.data.join('\n') });
         this.data = [];
-      } else if (line.startsWith('id:')) {
-        this.id = line.slice(3).replace(/^ /, '');
-      } else if (line.startsWith('data:')) {
-        this.data.push(line.slice(5).replace(/^ /, ''));
+      } else if (line.startsWith(SSE_ID_PREFIX)) {
+        this.id = line.slice(SSE_ID_PREFIX.length).replace(/^ /, '');
+      } else if (line.startsWith(SSE_DATA_PREFIX)) {
+        this.data.push(line.slice(SSE_DATA_PREFIX.length).replace(/^ /, ''));
         if (this.data.join('\n').length > 65536) throw new Error('event_too_large');
       }
     }
     return events;
   }
 }
+
+const SSE_ID_PREFIX = 'id:';
+const SSE_DATA_PREFIX = 'data:';

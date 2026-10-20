@@ -1,6 +1,8 @@
+import { SNAPSHOT_CURSOR_HEADER } from '../../../commons/protocol.ts';
+import { InvalidResponseError } from '../../../commons/errors.ts';
 import type { ClientOptions } from '../../../commons/options';
 import { resultOf, type Result } from '../../../commons/result';
-import { operation } from './acl';
+import { operation } from './acl.ts';
 import type { ClientLogger } from '../../../commons/logging';
 import type { OperationsPort } from '../application/operations-port';
 import type { Operation, OperationEvent } from '../domain/operation';
@@ -9,6 +11,7 @@ import { SseParser } from '../../../commons/sse';
 import type { HttpRequest } from '../../../commons/http';
 
 export class HttpOperations implements OperationsPort {
+  private snapshotCursor = '0';
   constructor(
     private readonly request: HttpRequest,
     private readonly log: ClientLogger,
@@ -17,9 +20,16 @@ export class HttpOperations implements OperationsPort {
 
   async recent(signal: AbortSignal): Promise<Result<Operation[]>> {
     return resultOf(async () => {
-      const value: unknown = await (await this.request('/operations', { signal })).json();
-      if (!Array.isArray(value)) throw new Error('invalid_response');
-      return value.map(operation);
+      const response = await this.request('/operations', {
+        signal,
+        headers: { [SNAPSHOT_CURSOR_HEADER]: '1' },
+      });
+      const value: unknown = await response.json();
+      if (!Array.isArray(value)) throw new InvalidResponseError();
+      const items = value.map(operation);
+      const cursor = response.headers.get(SNAPSHOT_CURSOR_HEADER);
+      if (cursor && /^\d+$/.test(cursor)) this.snapshotCursor = cursor;
+      return items;
     });
   }
 
@@ -51,7 +61,7 @@ export class HttpOperations implements OperationsPort {
     onConnection: (connected: boolean) => void,
     signal: AbortSignal,
   ): Promise<void> {
-    let cursor = '0';
+    let cursor = this.snapshotCursor;
     let wasConnected = false;
     while (!signal.aborted) {
       try {

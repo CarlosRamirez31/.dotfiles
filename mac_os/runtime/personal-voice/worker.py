@@ -11,9 +11,9 @@ from pathlib import Path
 
 # Trusted, bundled Python source root. -I excludes user site packages and PYTHONPATH.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from adapters.personal_voice.nomo_adapter import NomoAdapter  # noqa: E402
 from ports.personal_voice import PersonalVoiceAdapter  # noqa: E402
 from ports.result import Failure  # noqa: E402
+from ports.worker_mode import WorkerMode  # noqa: E402
 
 
 def parent_watchdog(parent):
@@ -38,33 +38,37 @@ def read_exact(size):
     return bytes(data)
 
 
-def serve(adapter: PersonalVoiceAdapter, mode: str):
+def serve(adapter: PersonalVoiceAdapter, mode: WorkerMode):
     send({"ready": True, "protocol": 1})
-    if mode == "stream":
+    if mode is WorkerMode.STREAM:
         result = adapter.set_embedding(read_exact(192 * 4))
         if isinstance(result, Failure):
             send({"error": result.error})
             return
     while True:
         size = struct.unpack("<I", read_exact(4))[0]
-        expected = 160000 if mode == "enroll" else 2560
+        expected = 160000 if mode is WorkerMode.ENROLL else 2560
         if size != expected:
             raise ValueError("invalid_frame_size")
         pcm = read_exact(size * 4)
         with contextlib.redirect_stdout(sys.stderr):
-            result = adapter.enroll(pcm) if mode == "enroll" else adapter.probability(pcm)
+            result = adapter.enroll(pcm) if mode is WorkerMode.ENROLL else adapter.probability(pcm)
         if isinstance(result, Failure):
             send({"error": result.error})
         else:
-            send({"embedding" if mode == "enroll" else "probability": result.value})
+            send({"embedding" if mode is WorkerMode.ENROLL else "probability": result.value})
 
 
 def main():
+    parent = int(sys.argv[3])
+    if parent <= 1 or os.getppid() != parent:
+        return
+    threading.Thread(target=parent_watchdog, args=(parent,), daemon=True).start()
+    # Supervise before importing/loading the provider, which can take significant time.
+    from adapters.personal_voice.nomo_adapter import NomoAdapter
+
     root = Path(sys.argv[1]).resolve()
-    mode = sys.argv[2]
-    if mode not in {"enroll", "stream"}:
-        raise ValueError("invalid_mode")
-    threading.Thread(target=parent_watchdog, args=(os.getppid(),), daemon=True).start()
+    mode = WorkerMode(sys.argv[2])
     with contextlib.redirect_stdout(sys.stderr):
         result = NomoAdapter.create(root, Path(__file__).with_name("artifacts.json"))
     if isinstance(result, Failure):

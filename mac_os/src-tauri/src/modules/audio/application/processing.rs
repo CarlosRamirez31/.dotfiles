@@ -1,3 +1,4 @@
+use crate::commons::AudioErrorCode;
 use crate::commons::Error;
 use crate::modules::audio::domain::capability::CapabilityResult;
 pub use crate::modules::audio::domain::{FRAME, PcmFrame};
@@ -18,5 +19,5 @@ pub fn cancelled(flag: &Arc<AtomicBool>) -> bool {
     flag.load(Ordering::Acquire)
 }
 pub fn audio_error() -> Error {
-    Error::Audio("audio_device_or_format_unavailable")
+    Error::Audio(AudioErrorCode::AudioDeviceOrFormatUnavailable)
 }

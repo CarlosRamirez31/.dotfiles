@@ -10,13 +10,20 @@ import urllib.request
 import venv
 from pathlib import Path
 
+SUPPORTED_ARCHITECTURE = "arm64"
+SUPPORTED_PLATFORM = "darwin"
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", type=Path)
     args = parser.parse_args()
     source = Path(__file__).resolve().parent
-    if sys.version_info[:2] != (3, 14) or platform.machine() != "arm64" or sys.platform != "darwin":
+    if (
+        sys.version_info[:2] != (3, 14)
+        or platform.machine() != SUPPORTED_ARCHITECTURE
+        or sys.platform != SUPPORTED_PLATFORM
+    ):
         raise SystemExit("This development lock supports CPython 3.14 on macOS arm64 only.")
     root = (args.target or source.parents[1] / ".runtime/personal-voice").resolve()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)

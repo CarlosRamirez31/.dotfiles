@@ -1,3 +1,4 @@
+import { InvalidResponseError } from '../../../commons/errors.ts';
 import { resultOf } from '../../../commons/result';
 import type { AudioPort, AudioDevices } from '../application/audio-port';
 import type { HttpRequest } from '../../../commons/http';
@@ -16,7 +17,7 @@ export class HttpAudio implements AudioPort {
         typeof value.blackholeAvailable !== 'boolean' ||
         value.inputs.some((x) => !x || typeof x.id !== 'string' || typeof x.name !== 'string')
       )
-        throw new Error('invalid_response');
+        throw new InvalidResponseError();
       return {
         inputs: value.inputs.map((x) => ({ id: x.id, name: x.name })),
         blackholeAvailable: value.blackholeAvailable,
@@ -32,7 +33,12 @@ export class HttpAudio implements AudioPort {
       });
     });
   }
-  start(inputId: string, personalVoice: boolean, key: string) {
+  start(inputId: string, personalVoice: boolean, key: string, voiceProfileId?: string) {
+    if (personalVoice && voiceProfileId)
+      return this.command(
+        { type: 'start_voice_profile_audio', input_id: inputId, voice_profile_id: voiceProfileId },
+        key,
+      );
     return this.command({ type: 'start_audio', input_id: inputId, personal_voice: personalVoice }, key);
   }
   enroll(inputId: string, key: string) {

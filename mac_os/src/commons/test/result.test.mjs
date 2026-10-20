@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { InvalidResponseError } from '../errors.ts';
 import { resultOf } from '../result.ts';
 test('Result sanitizes exceptions and distinguishes invalid provider responses', async () => {
   assert.deepEqual(await resultOf(async () => 42), { ok: true, value: 42 });
@@ -9,7 +10,7 @@ test('Result sanitizes exceptions and distinguishes invalid provider responses',
   assert.equal(failure.ok, false);
   assert.equal(JSON.stringify(failure).includes('secret'), false);
   const invalid = await resultOf(async () => {
-    throw new Error('invalid_response');
+    throw new InvalidResponseError();
   });
   assert.equal(invalid.error.code, 'invalid_response');
 });

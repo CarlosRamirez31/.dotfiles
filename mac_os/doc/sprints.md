@@ -12,7 +12,7 @@ No se añaden bus genérico ni sagas vacías: solo coordinación que un flujo re
 
 | Paquete                                | Situación                             | Trabajo restante / tickets         | Puerta de salida                                                                                   |
 | -------------------------------------- | ------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Base                                   | Verificada técnicamente               | T000; T001 implementado localmente | No equivale a beta; mantener pruebas y registrar commit de T001 cuando se solicite.                |
+| Base                                   | Verificada técnicamente               | T000; T001 implementado localmente | No equivale a beta; mantener pruebas y T001 incluido en `a39537e`.                                 |
 | S01 — Viabilidad física y distribución | Parcial                               | T002, T003, T004, T020             | Audio virtual real, ciclo de vida correcto y decisiones viables de consumidores/runtime/licencias. |
 | S02 — Experiencia mínima y datos       | Parcial; T005 especificado            | T005, T006, T007, T015             | Panel accesible, perfiles persistidos, recuperación y Keychain probados.                           |
 | S03 — Audio controlable y llamadas     | Parcial                               | T008, T009, T010, T011             | Mute real, cambios de dispositivo, comparación y matriz de llamadas aprobados.                     |
@@ -62,3 +62,5 @@ antes de denominar beta a una entrega manual. Tampoco se omite el desinstalador 
 
 Cloud y Windows no tienen fecha ni tickets de implementación en este backlog. La UI/UX se especifica en
 [ui-ux.md](ui-ux.md); su diseño no acredita implementación ni aprobación visual del usuario.
+
+Avance T002: [supervisión, procesos y UI verificados](lifecycle-validation.md). Salida durante captura/inferencia verificada en [T003](audio-validation.md). Faltan registro, caída del servicio con captura, fallos de dispositivos, T004 y T020; S01 continúa abierto.

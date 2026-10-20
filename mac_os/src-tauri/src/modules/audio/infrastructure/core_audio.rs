@@ -1,4 +1,5 @@
 use super::Downsample;
+use crate::commons::AudioErrorCode;
 use crate::commons::{Error, Result};
 use crate::modules::audio::application::{FRAME, PcmFrame, PersonalVoice, audio_error, cancelled};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -30,7 +31,7 @@ pub fn devices() -> Result<Devices> {
     for device in host.devices().map_err(|_| audio_error())? {
         let description = device.description().map_err(|_| audio_error())?;
         let name = description.name().to_owned();
-        if name == "BlackHole 2ch" {
+        if name == VIRTUAL_DEVICE_NAME {
             blackhole_available = device.supports_output();
         } else if device.supports_input() {
             inputs.push(Input {
@@ -65,7 +66,9 @@ fn config(device: &cpal::Device, input: bool) -> Result<cpal::StreamConfig> {
                 && c.channels() <= 2
         })
         .min_by_key(|c| c.channels())
-        .ok_or(Error::Audio("requires_float32_48khz_mono_or_stereo"))?;
+        .ok_or(Error::Audio(
+            AudioErrorCode::RequiresFloat3248khzMonoOrStereo,
+        ))?;
     Ok(range.with_sample_rate(48000).config())
 }
 struct Capture {
@@ -82,7 +85,7 @@ impl Capture {
             .description()
             .map_err(|_| audio_error())?
             .name()
-            .contains("BlackHole")
+            .contains(VIRTUAL_DEVICE_PREFIX)
         {
             return Err(Error::Invalid);
         }
@@ -133,13 +136,15 @@ impl Capture {
                 return Ok(None);
             }
             if self.fault.load(Ordering::Acquire) {
-                return Err(Error::Audio("audio_overrun_or_device_lost"));
+                return Err(Error::Audio(AudioErrorCode::AudioOverrunOrDeviceLost));
             }
             if let Ok(frame) = self.frames.pop() {
                 return Ok(Some(frame));
             }
             if Instant::now() > deadline {
-                return Err(Error::Audio("microphone_timeout_or_permission_denied"));
+                return Err(Error::Audio(
+                    AudioErrorCode::MicrophoneTimeoutOrPermissionDenied,
+                ));
             }
             std::thread::sleep(Duration::from_millis(2));
         }
@@ -153,12 +158,12 @@ pub fn enroll(input_id: &str, stop: Arc<AtomicBool>) -> Result<Vec<f32>> {
     while samples.len() < 160_000 {
         let frame = capture
             .next(&stop)?
-            .ok_or(Error::Audio("enrollment_cancelled"))?;
+            .ok_or(Error::Audio(AudioErrorCode::EnrollmentCancelled))?;
         downsample.process(&frame, &mut samples);
     }
     let energy = samples.iter().map(|x| x * x).sum::<f32>() / samples.len() as f32;
     if energy < 0.00001 {
-        return Err(Error::Audio("enrollment_too_quiet"));
+        return Err(Error::Audio(AudioErrorCode::EnrollmentTooQuiet));
     }
     Ok(samples)
 }
@@ -178,8 +183,12 @@ pub fn run(
     let output = host
         .devices()
         .map_err(|_| audio_error())?
-        .find(|d| d.description().is_ok_and(|x| x.name() == "BlackHole 2ch") && d.supports_output())
-        .ok_or(Error::Audio("blackhole_2ch_not_installed"))?;
+        .find(|d| {
+            d.description()
+                .is_ok_and(|x| x.name() == VIRTUAL_DEVICE_NAME)
+                && d.supports_output()
+        })
+        .ok_or(Error::Audio(AudioErrorCode::Blackhole2chNotInstalled))?;
     let output_config = config(&output, false)?;
     let channels = usize::from(output_config.channels);
     let (mut output_frames, mut consumer) = rtrb::RingBuffer::<PcmFrame>::new(32);
@@ -221,12 +230,12 @@ pub fn run(
     let result = (|| {
         while let Some(input) = capture.next(&stop)? {
             if fault.load(Ordering::Acquire) {
-                return Err(Error::Audio("blackhole_output_failed"));
+                return Err(Error::Audio(AudioErrorCode::BlackholeOutputFailed));
             }
             let mut filtered = [0.0; FRAME];
             noise
                 .process(&input, &mut filtered)
-                .map_err(|_| Error::Audio("noise_processing_failed"))?;
+                .map_err(|_| Error::Audio(AudioErrorCode::NoiseProcessingFailed))?;
             if let Some(voice) = personal.as_mut() {
                 downsample.process(&input, &mut input16);
                 pending.push(filtered);
@@ -243,13 +252,13 @@ pub fn run(
                     }
                     output_frames
                         .push(frame)
-                        .map_err(|_| Error::Audio("audio_output_backpressure"))?;
+                        .map_err(|_| Error::Audio(AudioErrorCode::AudioOutputBackpressure))?;
                 }
                 input16.clear();
             } else {
                 output_frames
                     .push(filtered)
-                    .map_err(|_| Error::Audio("audio_output_backpressure"))?;
+                    .map_err(|_| Error::Audio(AudioErrorCode::AudioOutputBackpressure))?;
             }
         }
         Ok("audio_stopped".into())
@@ -260,3 +269,6 @@ pub fn run(
     drop(stream);
     result
 }
+
+const VIRTUAL_DEVICE_NAME: &str = "BlackHole 2ch";
+const VIRTUAL_DEVICE_PREFIX: &str = "BlackHole";

@@ -3,6 +3,7 @@
 import argparse
 import array
 import json
+import os
 import select
 import statistics
 import struct
@@ -33,7 +34,7 @@ def read_wav(path):
 def start(root, mode):
     script = Path(__file__).with_name("worker.py")
     child = subprocess.Popen(
-        [str(root / "venv/bin/python"), "-I", str(script), str(root), mode],
+        [str(root / "venv/bin/python"), "-I", str(script), str(root), mode, str(os.getpid())],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,

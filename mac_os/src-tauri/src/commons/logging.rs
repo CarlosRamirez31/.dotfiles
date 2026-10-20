@@ -171,7 +171,7 @@ pub fn initialize(
     };
     let (technical, technical_guard) = writer(component, technical_day.clone())?;
     let mut writers = vec![technical_guard];
-    let business_layer = if component == "service" {
+    let business_layer = if component == SERVICE_COMPONENT {
         let (business, guard) = writer("business", business_day.clone())?;
         writers.push(guard);
         Some(
@@ -203,12 +203,12 @@ pub fn initialize(
         loop {
             let technical = technical_day.lock().expect("log_day_lock");
             let business = business_day.lock().expect("log_day_lock");
-            let owners = if component == "service" {
+            let owners = if component == SERVICE_COMPONENT {
                 vec!["service", "business"]
             } else {
                 vec!["host"]
             };
-            let active = if component == "service" {
+            let active = if component == SERVICE_COMPONENT {
                 vec![*technical, *business]
             } else {
                 vec![*technical]
@@ -272,3 +272,5 @@ pub fn client_log(event: ClientEvent, operation_id: Option<String>) -> Result<()
     }
     Ok(())
 }
+
+const SERVICE_COMPONENT: &str = "service";

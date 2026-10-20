@@ -175,3 +175,15 @@ Las sesiones retornan `CapabilityResult`, conservan la ACL existente y reciben l
 Al liberarlas se termina el worker. El registro conserva el orden preparar → capturar → calcular embedding
 → comprobar cancelación → guardar cifrado, así como los eventos de progreso y el resultado de commit.
 La prueba explícita del modelo real utiliza estos puertos; no valida micrófono ni llamadas.
+
+### Controladores HTTP y servicios de aplicación
+
+El BFF compone rutas versionadas con controladores separados para operaciones, eventos SSE,
+dispositivos y perfiles de voz. Seguridad y traducción de errores son componentes independientes.
+Los controladores interpretan solicitudes, llaman servicios y construyen respuestas; no acceden
+al diario directamente. `Operations` coordina consultas, snapshots y validación del cursor.
+`VoiceProfileService` valida identificadores y coordina el puerto de perfiles. Las garantías
+transaccionales existentes se conservan. El encuadre SSE pertenece a presentación.
+
+`commons/utils/` contiene el puente compartido para ejecutar trabajo bloqueante. Las utilidades
+específicas permanecen en su módulo. No se crean servicios vacíos para envolver cada función.

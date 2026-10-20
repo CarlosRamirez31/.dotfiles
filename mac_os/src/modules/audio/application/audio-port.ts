@@ -5,6 +5,11 @@ export interface AudioDevices {
 }
 export interface AudioPort {
   devices(signal: AbortSignal): Promise<Result<AudioDevices>>;
-  start(inputId: string, personalVoice: boolean, idempotencyKey: string): Promise<Result<void>>;
+  start(
+    inputId: string,
+    personalVoice: boolean,
+    idempotencyKey: string,
+    voiceProfileId?: string,
+  ): Promise<Result<void>>;
   enroll(inputId: string, idempotencyKey: string): Promise<Result<void>>;
 }

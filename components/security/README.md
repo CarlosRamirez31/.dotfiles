@@ -23,6 +23,8 @@ La tabla `inet dotfiles_filter` aplica:
 - aceptación de tráfico establecido/relacionado y loopback;
 - ICMP/ICMPv6 para diagnóstico y operación de red;
 - respuestas DHCP IPv4/IPv6;
+- solicitudes DHCP y consultas DNS de las VM en `virbr0` (NAT predeterminada de libvirt, `192.168.122.0/24`);
+- ajuste de TTL de 1 a 2 únicamente en respuestas IPv4 a conexiones NAT iniciadas por esas VM, después de traducir su destino, para permitir el último salto cuando la red de salida entrega TTL 1;
 - output y forward permitidos;
 - puertos de laboratorio solo en interfaces cuyo nombre empieza por `tun`.
 

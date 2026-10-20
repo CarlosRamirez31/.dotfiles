@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""A stable microphone endpoint with independent, optional voice filters."""
+"""Direct RNNoise controls and a separate experimental personal voice input."""
 import argparse
 import array
+from contextlib import suppress
 import fcntl
 import json
 import math
@@ -18,8 +19,8 @@ HOME = Path.home()
 CONFIG = Path(os.getenv('XDG_CONFIG_HOME', HOME / '.config')) / 'voice-isolation'
 DATA = Path(os.getenv('XDG_DATA_HOME', HOME / '.local/share')) / 'voice-isolation/personal-voice'
 STATE = Path(os.getenv('XDG_RUNTIME_DIR', '/tmp')) / 'dotfiles-microphone.json'
-SOURCE = 'dotfiles_microphone'
-BUS = 'dotfiles_microphone_bus'
+SOURCE = 'dotfiles_personal_voice'
+BUS = 'dotfiles_personal_voice_bus'
 FILTER = 'dotfiles_voice_isolation'
 
 
@@ -79,7 +80,7 @@ def recording_apps(items=None, streams=None):
             continue
         if props.get('application.name') == 'dotfiles-microphone' or props.get('node.name') == 'dotfiles_voice_capture':
             continue
-        if props.get('node.name', '').startswith('input.dotfiles_microphone'):
+        if props.get('node.name', '').startswith(('input.dotfiles_microphone', 'input.dotfiles_personal_voice')):
             continue
         name = props.get('application.name') or props.get('media.name') or 'Aplicación de audio'
         key = (name, props.get('application.process.id', ''))
@@ -91,7 +92,7 @@ def recording_apps(items=None, streams=None):
 
 def muted():
     items = sources()
-    output = next((s for s in items if s['name'] == SOURCE), {})
+    output = next((s for s in items if s['name'] == FILTER), {})
     return all(s.get('mute', False) for s in physical(items)) or output.get('mute', False)
 
 
@@ -159,12 +160,11 @@ def ensure_endpoint():
         sinks = json.loads(pactl('-f', 'json', 'list', 'sinks'))
         if BUS not in [s['name'] for s in sinks]:
             pactl('load-module', 'module-null-sink', 'sink_name=' + BUS, 'channels=1', 'rate=48000',
-                  'sink_properties="device.description=Procesamiento-microfono priority.session=0 node.virtual=true"')
+                  'sink_properties="device.description=Prueba-Solo-mi-voz priority.session=0 node.virtual=true"')
         pactl('load-module', 'module-remap-source', 'master=' + BUS + '.monitor',
               'source_name=' + SOURCE, 'channels=1',
-              'source_properties="device.description=Microfono-controlado node.virtual=true"')
+              'source_properties="device.description=Solo-mi-voz-experimental node.virtual=true priority.session=0"')
     pactl('set-source-volume', SOURCE, '100%')
-    pactl('set-default-source', SOURCE)
 
 
 def read_exact(stream, size):
@@ -267,105 +267,159 @@ def enroll():
 
 
 def serve():
+    # This service is an optional consumer of RNNoise. It must never restart it,
+    # select a different physical port, change its gain, or become the default.
     config = settings()
-    source = choose(sources(), config.get('source', ''), pactl('get-default-source'))
-    port = config.get('port')
-    check_port(source, port)
-    if port:
-        pactl('set-source-port', source['name'], port)
-        source = next(s for s in sources() if s['name'] == source['name'])
-    personal = bool(config.get('personal'))
-    if personal and (not model_ready() or not (DATA / 'my-voice.npy').exists()):
+    if not config.get('personal'):
+        return
+    if not model_ready() or not (DATA / 'my-voice.npy').exists():
         raise ValueError('Registra tu voz antes de activar Solo mi voz.')
-    if personal and Path(sys.prefix) != DATA / 'venv':
+    if FILTER not in [s['name'] for s in sources()]:
+        raise ValueError('Activa primero el aislamiento de ruido. La entrada normal no se modificó.')
+    if Path(sys.prefix) != DATA / 'venv':
         os.execv(str(DATA / 'venv/bin/python'), [str(DATA / 'venv/bin/python'), __file__, 'serve'])
-    session = None
-    if personal:
-        import numpy as np
-        _, session = load_model()
-        session.set_enrollment_emb(np.load(DATA / 'my-voice.npy', allow_pickle=False))
-    input_name = source['name']
-    if config.get('noise', True):
-        set_filter_source(input_name)
-        run('systemctl', '--user', 'restart', 'dotfiles-voice-isolation.service')
-        input_name = FILTER
-    else:
-        run('systemctl', '--user', 'stop', 'dotfiles-voice-isolation.service')
-    ensure_endpoint()
-    if config.get('muted'):
-        for name in (source['name'], SOURCE):
-            pactl('set-source-mute', name, '1')
-    rate = '16000' if personal else '48000'
-    capture = subprocess.Popen(['parec', '--client-name=dotfiles-microphone', '--stream-name=Microfono-controlado', '--device=' + input_name, '--format=s16le', '--rate=' + rate, '--channels=1'], stdout=subprocess.PIPE)
-    playback = subprocess.Popen(['pacat', '--playback', '--device=' + BUS, '--format=s16le', '--rate=' + rate, '--channels=1', '--latency-msec=30'], stdin=subprocess.PIPE)
+    import numpy as np
+    _, session = load_model()
+    session.set_enrollment_emb(np.load(DATA / 'my-voice.npy', allow_pickle=False))
+    capture = playback = None
     def terminate(*_):
-        capture.terminate(); playback.terminate()
         raise SystemExit(0)
     signal.signal(signal.SIGTERM, terminate)
-    # A new capture stream may restore its old volume. Keep the chosen device's
-    # actual channel gains, rather than imposing the laptop's 25% on every mic.
-    time.sleep(0.2)
-    volumes = [str(v) for v in config.get('levels', {}).get(level_key(source, port), channel_levels(source))]
-    if volumes:
-        pactl('set-source-volume', source['name'], *volumes)
-    gate = VoiceGate()
-    set_status(source=source['name'], port=port or source.get('active_port'), description=source_label(source, port),
-               noise=bool(config.get('noise', True)), personal=personal, state='active')
-    next_check = time.monotonic() + 2
-    slow = 0
     try:
+        ensure_endpoint()
+        pactl('set-source-mute', SOURCE, '1' if config.get('muted') else '0')
+        capture = subprocess.Popen(['parec', '--client-name=dotfiles-microphone',
+            '--stream-name=Solo-mi-voz-experimental', '--device=' + FILTER,
+            '--format=s16le', '--rate=16000', '--channels=1'], stdout=subprocess.PIPE)
+        playback = subprocess.Popen(['pacat', '--playback', '--device=' + BUS,
+            '--format=s16le', '--rate=16000', '--channels=1', '--latency-msec=30'], stdin=subprocess.PIPE)
+        gate = VoiceGate()
+        set_status(source=FILTER, description='Solo mi voz · experimental',
+                   noise=True, personal=True, state='active')
+        slow = 0
         while True:
-            if time.monotonic() >= next_check:
-                current = choose(sources(), source['name'], '')
-                check_port(current, port)
-                if port and current.get('active_port') != port:
-                    raise RuntimeError('Cambió el conector activo del micrófono. Elige la entrada en el panel.')
-                desired = settings().get('levels', {}).get(level_key(current, port))
-                if desired and channel_levels(current) != desired:
-                    pactl('set-source-volume', current['name'], *map(str, desired))
-                next_check = time.monotonic() + 2
-            raw = read_exact(capture.stdout, 5120 if personal else 1920)
-            if not raw:
-                raise RuntimeError('El micrófono dejó de enviar audio. Elige otro en el panel.')
-            if session:
-                begin = time.monotonic()
-                samples = np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768
-                raw = gate.process(array.array('h', raw), float(session.process_chunk(samples)))
-                slow = slow + 1 if time.monotonic() - begin > 0.16 else 0
-                if slow >= 8:
-                    raise RuntimeError('El reconocimiento no alcanza tiempo real. Desactiva Solo mi voz.')
+            raw = read_exact(capture.stdout, 5120)
+            if len(raw) != 5120:
+                raise RuntimeError('La prueba dejó de recibir audio. Aislamiento de voz sigue siendo la entrada normal.')
+            begin = time.monotonic()
+            samples = np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768
+            raw = gate.process(array.array('h', raw), float(session.process_chunk(samples)))
+            slow = slow + 1 if time.monotonic() - begin > 0.16 else 0
+            if slow >= 8:
+                raise RuntimeError('La prueba no alcanza tiempo real. Usa Aislamiento de voz.')
             playback.stdin.write(raw)
             playback.stdin.flush()
     finally:
-        capture.terminate(); playback.terminate()
-        capture.wait(timeout=3); playback.wait(timeout=3)
+        for process in (capture, playback):
+            if process is not None:
+                with suppress(ProcessLookupError):
+                    process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=1)
+        try:
+            cleanup_endpoint()
+        finally:
+            set_status(state='stopped', description='Prueba detenida; entrada normal: Aislamiento de voz')
+
+
+def cleanup_endpoint():
+    # Remove only this experiment's modules; never unload the RNNoise filter.
+    modules = json.loads(pactl('-f', 'json', 'list', 'modules'))
+    for module_type, marker in (('module-remap-source', 'source_name=' + SOURCE),
+                                ('module-null-sink', 'sink_name=' + BUS)):
+        for module in modules:
+            if module.get('name') == module_type and marker in module.get('argument', '').split():
+                pactl('unload-module', str(module['index']))
+
+
+def cleanup_legacy_endpoint():
+    """Migrate users of the obsolete bridge before removing its own modules."""
+    items = sources()
+    if FILTER not in [s['name'] for s in items]:
+        raise ValueError('Aislamiento de voz debe estar disponible antes de retirar la entrada anterior.')
+    legacy = next((s for s in items if s['name'] == 'dotfiles_microphone'), None)
+    if legacy:
+        for stream in json.loads(pactl('-f', 'json', 'list', 'source-outputs')):
+            if stream.get('source') == legacy['index']:
+                pactl('move-source-output', str(stream['index']), FILTER)
+        if pactl('get-default-source') == legacy['name']:
+            pactl('set-default-source', FILTER)
+    modules = json.loads(pactl('-f', 'json', 'list', 'modules'))
+    for module_type, marker in (('module-remap-source', 'source_name=dotfiles_microphone'),
+                                ('module-null-sink', 'sink_name=dotfiles_microphone_bus')):
+        for module in modules:
+            if module.get('name') == module_type and marker in module.get('argument', '').split():
+                pactl('unload-module', str(module['index']))
+
+
+def personal_running():
+    return subprocess.run(['systemctl', '--user', 'is-active', '--quiet',
+        'dotfiles-microphone.service'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
 
 def change(key, value, port=None):
     config = settings()
+    if key == 'personal':
+        previous = config.get('personal', False)
+        if value:
+            if not model_ready() or not (DATA / 'my-voice.npy').exists():
+                raise ValueError('Registra primero tu voz en el panel.')
+            if FILTER not in [s['name'] for s in sources()]:
+                raise ValueError('Activa primero el aislamiento de ruido.')
+        config[key] = value
+        save(config)
+        try:
+            if value:
+                run('systemctl', '--user', 'disable', '--now', 'dotfiles-microphone.service')
+                run('systemctl', '--user', 'daemon-reload')
+                cleanup_legacy_endpoint()
+            run('systemctl', '--user', 'restart' if value else 'stop', 'dotfiles-microphone.service')
+        except Exception:
+            config['personal'] = previous
+            save(config)
+            raise
+        if value:
+            print('Prueba iniciada. Elige Solo-mi-voz-experimental solo en la aplicación de prueba. Aislamiento de voz sigue siendo tu entrada habitual.')
+        else:
+            print('Prueba detenida. Aislamiento de voz no se modificó.')
+        return
     if key == 'source':
         source = choose(sources(), value, '')
         check_port(source, port)
-        config['port'] = port or source.get('active_port')
         if port:
             pactl('set-source-port', source['name'], port)
-            time.sleep(0.15)
-            source = next(s for s in sources() if s['name'] == value)
+        config['port'] = port or source.get('active_port')
         config.setdefault('levels', {}).setdefault(level_key(source, port), channel_levels(source))
-    if key == 'personal' and value and not (DATA / 'my-voice.npy').exists():
-        raise ValueError('Registra primero tu voz en el panel.')
+        set_filter_source(value)
     config[key] = value
     save(config)
-    run('systemctl', '--user', 'restart', 'dotfiles-microphone.service')
+    if key == 'noise':
+        if value:
+            run('systemctl', '--user', 'restart', 'dotfiles-voice-isolation.service')
+        else:
+            run('systemctl', '--user', 'stop', 'dotfiles-microphone.service')
+            run('systemctl', '--user', 'stop', 'dotfiles-voice-isolation.service')
+            source = choose(sources(), config.get('source', ''), '')
+            pactl('set-default-source', source['name'])
+            config['personal'] = False
+            save(config)
+    elif key == 'source' and config.get('noise', True):
+        run('systemctl', '--user', 'restart', 'dotfiles-voice-isolation.service')
+        if config.get('personal'):
+            run('systemctl', '--user', 'restart', 'dotfiles-microphone.service')
 
 
 def change_volume(value):
     value = float(value)
-    if not 0 <= value <= 100:
+    if not math.isfinite(value) or not 0 <= value <= 100:
         raise ValueError('El volumen debe estar entre 0 y 100.')
     config = settings()
     source = choose(sources(), config.get('source', ''), pactl('get-default-source'))
     pactl('set-source-volume', source['name'], str(value) + '%')
+    set_filter_source(source['name'])
     count = len(channel_levels(source)) or 1
     config.setdefault('levels', {})[level_key(source, config.get('port'))] = [round(65536 * value / 100)] * count
     save(config)
@@ -451,12 +505,12 @@ def gui(compact=False):
             self.volume.connect('key-release-event', lambda w, _: self.job([__file__, 'volume', str(w.get_value())]))
             box.pack_start(self.volume, False, False, 0)
             self.noise = Gtk.CheckButton(label='Aislamiento de ruido (RNNoise)')
-            self.personal = Gtk.CheckButton(label='Solo mi voz · experimental')
+            self.personal = Gtk.CheckButton(label='Probar Solo mi voz · entrada separada')
             self.noise.connect('toggled', lambda w: self.toggle('noise', w))
             self.personal.connect('toggled', lambda w: self.toggle('personal', w))
             command_row(self.noise, lambda active: 'Alt + Ctrl + N')
             command_row(self.personal, lambda active: 'Alt + Ctrl + V')
-            help_label = Gtk.Label(label='En OBS y llamadas, elige «Microfono-controlado» o «Predeterminado».\nSolo mi voz silencia otras voces; no separa dos personas hablando a la vez.', xalign=0, wrap=True)
+            help_label = Gtk.Label(label='Entrada habitual: «Aislamiento de voz».\nPara probar: elige «Solo-mi-voz-experimental» solo en la aplicación de prueba.\nLa prueba puede cortar tu voz; no separa dos personas hablando a la vez.', xalign=0, wrap=True)
             if not compact:
                 box.pack_start(help_label, False, False, 0)
             row = Gtk.Box(spacing=8)
@@ -513,14 +567,15 @@ def gui(compact=False):
                         button.connect('toggled', lambda w, ids=ids: self.job([__file__, 'app', ids, 'on' if w.get_active() else 'off']))
                         self.apps_box.pack_start(button, False, False, 0)
                     self.apps_box.show_all()
-                actual = json.loads(STATE.read_text())
-                if actual.get('state') == 'error':
-                    self.info.set_text('Error: ' + actual.get('error', 'No se pudo iniciar el procesamiento'))
-                    return True
-                active = run('systemctl', '--user', 'is-active', 'dotfiles-microphone.service') == 'active'
-                self.info.set_text(('Usando: ' if active else 'Servicio detenido · última entrada: ') + actual['description'])
+                normal = next((s for s in sources() if s['name'] == FILTER), None)
+                experiment = personal_running()
+                self.refreshing = True
+                self.personal.set_active(experiment)
+                self.refreshing = refreshing
+                self.info.set_text(('Entrada normal: Aislamiento de voz' if normal else 'Entrada normal: micrófono físico')
+                    + (' · prueba encendida en entrada separada' if experiment else ' · prueba apagada'))
             except (OSError, ValueError, KeyError, subprocess.SubprocessError):
-                self.info.set_text('Micrófono sin procesar · elige una entrada para iniciar.')
+                self.info.set_text('No se pudo consultar el audio. La entrada normal no se modificó.')
             return True
 
         def refresh(self):
@@ -590,7 +645,7 @@ def gui(compact=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'on', 'off', 'toggle', 'app', 'serve', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'model-check'])
+    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'on', 'off', 'toggle', 'app', 'serve', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'model-check', 'cleanup-legacy'])
     parser.add_argument('value', nargs='?')
     parser.add_argument('port', nargs='?')
     args = parser.parse_args()
@@ -603,6 +658,7 @@ def main():
         for index in args.value.split(','):
             pactl('set-source-output-mute', str(int(index)), '0' if args.port == 'on' else '1')
     elif args.command == 'serve': serve()
+    elif args.command == 'cleanup-legacy': cleanup_legacy_endpoint()
     elif args.command == 'status':
         print(STATE.read_text() if STATE.exists() else 'No hay procesamiento activo.')
     elif args.command == 'list':
@@ -611,7 +667,8 @@ def main():
     elif args.command == 'volume': change_volume(args.value)
     elif args.command in ('noise', 'personal'):
         if args.value not in ('on', 'off', 'toggle'): raise ValueError('Usa on, off o toggle.')
-        change(args.command, not settings().get(args.command, args.command == 'noise') if args.value == 'toggle' else args.value == 'on')
+        current = personal_running() if args.command == 'personal' and args.value == 'toggle' else settings().get(args.command, True)
+        change(args.command, not current if args.value == 'toggle' else args.value == 'on')
     elif args.command == 'enroll': enroll()
     elif args.command == 'model-check': model_check()
 

@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Bluetooth status and actions for Polybar and Awesome's Bluetooth popup."""
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+
+from gi.repository import Gio, GLib
+
+
+def clean(value):
+    return " ".join(str(value).split())
+
+
+def device_name(device, fallback="Dispositivo sin identificar"):
+    """BlueZ uses the MAC as Alias until it learns the advertised name."""
+    address = re.sub(r"[^0-9a-f]", "", device.get("Address", "").lower())
+    for field in ("Alias", "Name"):
+        value = clean(device.get(field) or "")
+        if not value:
+            continue
+        if re.fullmatch(r"(?:[0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}", value):
+            continue
+        if address and re.sub(r"[:-]", "", value.lower()) == address:
+            continue
+        return value
+    return fallback
+
+
+class Bluetooth:
+    def __init__(self):
+        self.bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+        self.objects = self.call("/", "org.freedesktop.DBus.ObjectManager", "GetManagedObjects").unpack()[0]
+        adapters = [(path, interfaces["org.bluez.Adapter1"])
+                    for path, interfaces in self.objects.items() if "org.bluez.Adapter1" in interfaces]
+        adapters.sort(key=lambda item: (not item[1].get("Powered", False), item[0]))
+        self.adapter, self.properties = adapters[0] if adapters else (None, {})
+
+    def call(self, path, interface, method, parameters=None, timeout=5000):
+        return self.bus.call_sync("org.bluez", path, interface, method, parameters,
+                                  None, Gio.DBusCallFlags.NONE, timeout, None)
+
+    def devices(self):
+        result = []
+        for path, interfaces in self.objects.items():
+            device = interfaces.get("org.bluez.Device1", {})
+            if device.get("Adapter") != self.adapter:
+                continue
+            if not (device.get("Paired") or device.get("Bonded") or device.get("Connected")):
+                continue
+            result.append((path, device))
+        return sorted(result, key=lambda item: (not item[1].get("Connected", False),
+                      device_name(item[1]).casefold()))
+
+    def toggle(self):
+        if self.adapter is None:
+            raise ValueError("No hay un adaptador Bluetooth disponible.")
+        self.call(self.adapter, "org.freedesktop.DBus.Properties", "Set",
+                  GLib.Variant("(ssv)", ("org.bluez.Adapter1", "Powered",
+                               GLib.Variant("b", not self.properties.get("Powered", False)))))
+
+    def connection(self, address, connect):
+        if not re.fullmatch(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", address):
+            raise ValueError("La dirección Bluetooth no es válida.")
+        for path, device in self.devices():
+            if device["Address"].upper() == address.upper():
+                self.call(path, "org.bluez.Device1", "Connect" if connect else "Disconnect", timeout=25000)
+                return
+        raise ValueError("El dispositivo ya no está disponible. Actualiza la lista.")
+
+
+def menu():
+    try:
+        lua = ('local m = require("bluetoothmenu"); if m.version ~= 3 then '
+               'if m.close then m.close() end; package.loaded.bluetoothmenu = nil; '
+               'm = require("bluetoothmenu") end; m.toggle(); return true')
+        reply = subprocess.run(["awesome-client", lua],
+                               capture_output=True, text=True, timeout=5)
+        if reply.returncode == 0 and "boolean true" in reply.stdout:
+            return
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    raise ValueError("No se pudo abrir el panel Bluetooth de AwesomeWM.")
+
+
+def main():
+    # Session commands keep discovery and the pairing agent on one D-Bus connection.
+    if any(argument in sys.argv for argument in ("--open", "--serve", "--session")):
+        session_program = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                       "dotfiles-bluetooth-session")
+        os.execv(sys.executable, [sys.executable, session_program, *sys.argv[1:]])
+    parser = argparse.ArgumentParser(description=__doc__)
+    actions = parser.add_mutually_exclusive_group()
+    actions.add_argument("--status", action="store_true")
+    actions.add_argument("--snapshot", action="store_true")
+    actions.add_argument("--toggle", action="store_true")
+    actions.add_argument("--connect", metavar="ADDRESS")
+    actions.add_argument("--disconnect", metavar="ADDRESS")
+    args = parser.parse_args()
+    try:
+        if not any(vars(args).values()):
+            menu()
+            return 0
+        bluetooth = Bluetooth()
+        if args.status:
+            connected = any(device.get("Connected") for _, device in bluetooth.devices())
+            powered = bluetooth.properties.get("Powered", False)
+            color, icon = ("#a3be8c", "󰂱") if connected else (
+                ("#89b4fa", "") if powered else ("#888e96", "󰂲"))
+            print(f"%{{F{color}}}{icon}%{{F-}}")
+        elif args.snapshot:
+            state = "unavailable" if bluetooth.adapter is None else (
+                "on" if bluetooth.properties.get("Powered", False) else "off")
+            print(f"state\t{state}")
+            for _, device in bluetooth.devices():
+                print("device", device["Address"], int(device.get("Connected", False)),
+                      device_name(device), sep="\t")
+        elif args.toggle:
+            bluetooth.toggle()
+        else:
+            bluetooth.connection(args.connect or args.disconnect, bool(args.connect))
+        return 0
+    except (GLib.Error, OSError, ValueError) as error:
+        if args.status:
+            print("%{F#888e96}󰂲%{F-}")
+            return 0
+        if args.snapshot:
+            print("state\terror")
+            return 0
+        message = "No se pudo cambiar Bluetooth. Revisa el modo avión, el servicio y el dispositivo."
+        print(f"{message}\n{clean(error)}", file=sys.stderr)
+        if args.toggle:
+            try:
+                subprocess.run(["notify-send", "Bluetooth", message], check=False, timeout=3)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,383 @@
+#!/usr/bin/env python3
+"""A popup-scoped BlueZ discovery session and interactive pairing agent."""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+
+from gi.repository import Gio, GLib
+
+BACKEND = Path(__file__).resolve().with_name("dotfiles-polybar-bluetooth")
+backend_module = runpy.run_path(str(BACKEND))
+Bluetooth = backend_module["Bluetooth"]
+clean = backend_module["clean"]
+device_name = backend_module["device_name"]
+ROOT = Path(os.environ.get("XDG_RUNTIME_DIR", str(Path.home() / ".cache"))) / "dotfiles-bluetooth"
+AGENT_XML = """<node><interface name="org.bluez.Agent1">
+<method name="Release"/>
+<method name="RequestPinCode"><arg type="o" direction="in"/><arg type="s" direction="out"/></method>
+<method name="RequestPasskey"><arg type="o" direction="in"/><arg type="u" direction="out"/></method>
+<method name="DisplayPinCode"><arg type="o" direction="in"/><arg type="s" direction="in"/></method>
+<method name="DisplayPasskey"><arg type="o" direction="in"/><arg type="u" direction="in"/><arg type="q" direction="in"/></method>
+<method name="RequestConfirmation"><arg type="o" direction="in"/><arg type="u" direction="in"/></method>
+<method name="RequestAuthorization"><arg type="o" direction="in"/></method>
+<method name="AuthorizeService"><arg type="o" direction="in"/><arg type="s" direction="in"/></method>
+<method name="Cancel"/>
+</interface></node>"""
+
+
+def atomic_json(path, data):
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(data), encoding="utf-8")
+    temporary.replace(path)
+
+
+def session_path(token):
+    if not re.fullmatch(r"[0-9a-f]{32}", token):
+        raise ValueError("Sesión Bluetooth inválida.")
+    return ROOT / token
+
+
+class Session:
+    def __init__(self, folder):
+        self.folder = folder
+        self.bt = Bluetooth()
+        self.loop = GLib.MainLoop()
+        self.scanning = False
+        self.scan_until = 0
+        self.seen = {}
+        self.names = {}
+        self.pairing = None
+        self.operation_path = self.operation_method = None
+        self.pending = None
+        self.request = None
+        self.message = ""
+        self.level = "info"
+        self.busy = False
+        self.cancelled = False
+        self.stopping = False
+        self.agent_path = "/org/dotfiles/BluetoothAgent"
+        self.agent_registered = False
+        self.agent_id = self.bt.bus.register_object(self.agent_path,
+            Gio.DBusNodeInfo.new_for_xml(AGENT_XML).interfaces[0], self.agent_call, None, None)
+        self.subscriptions = [
+            self.bt.bus.signal_subscribe("org.bluez", "org.freedesktop.DBus.Properties",
+                "PropertiesChanged", None, None, Gio.DBusSignalFlags.NONE, self.changed),
+            self.bt.bus.signal_subscribe("org.bluez", "org.freedesktop.DBus.ObjectManager",
+                "InterfacesAdded", None, None, Gio.DBusSignalFlags.NONE, self.added),
+        ]
+
+    def changed(self, _bus, _sender, path, _interface, _signal, parameters, *_user_data):
+        interface, properties, _ = parameters.unpack()
+        if self.scanning and interface == "org.bluez.Device1" and any(
+                key in properties for key in ("RSSI", "Name", "Alias")):
+            self.seen[path] = time.monotonic()
+
+    def added(self, _bus, _sender, _path, _interface, _signal, parameters, *_user_data):
+        path, interfaces = parameters.unpack()
+        if self.scanning and "org.bluez.Device1" in interfaces:
+            self.seen[path] = time.monotonic()
+
+    def publish(self):
+        self.bt.objects = self.bt.call("/", "org.freedesktop.DBus.ObjectManager", "GetManagedObjects").unpack()[0]
+        adapter = self.bt.objects.get(self.bt.adapter, {}).get("org.bluez.Adapter1", {})
+        self.bt.properties = adapter
+        state = "unavailable" if not adapter else ("on" if adapter.get("Powered") else "off")
+        lines = [f"state\t{state}", f"scan\t{int(self.scanning)}", f"busy\t{int(self.busy)}"]
+        devices = []
+        for path, interfaces in self.bt.objects.items():
+            device = interfaces.get("org.bluez.Device1", {})
+            if device.get("Adapter") != self.bt.adapter or "Address" not in device:
+                continue
+            saved = bool(device.get("Paired") or device.get("Bonded") or device.get("Connected"))
+            if not saved and time.monotonic() - self.seen.get(path, -1000) > 45:
+                continue
+            name = device_name(device, self.names.get(device["Address"], "Dispositivo sin identificar"))
+            if name != "Dispositivo sin identificar":
+                self.names[device["Address"]] = name
+            devices.append((not saved, not device.get("Connected", False),
+                name == "Dispositivo sin identificar", name.casefold(),
+                "\t".join(["device", device["Address"], str(int(device.get("Connected", False))),
+                           "saved" if saved else "nearby", name])))
+        lines.extend(device[-1] for device in sorted(devices))
+        if self.message:
+            lines.append(f"message\t{self.level}\t{clean(self.message)}")
+        if self.request:
+            lines.append("\t".join(["request", self.request["kind"], self.request["code"],
+                                    self.request["name"], self.request["id"]]))
+        atomic_json(self.folder / "state.json", {"snapshot": "\n".join(lines) + "\n"})
+
+    def agent_call(self, _bus, sender, _path, _interface, method, parameters, invocation):
+        # Accept calls only from BlueZ and only for the device selected in this popup.
+        owner = self.bt.bus.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus",
+            "org.freedesktop.DBus", "GetNameOwner", GLib.Variant("(s)", ("org.bluez",)),
+            None, Gio.DBusCallFlags.NONE, 3000, None).unpack()[0]
+        args = parameters.unpack()
+        if sender != owner:
+            invocation.return_dbus_error("org.bluez.Error.Rejected", "Unknown caller")
+            return
+        if method in ("Cancel", "Release"):
+            self.reject_request()
+            invocation.return_value(None)
+            return
+        if not self.pairing or not args or args[0] != self.pairing:
+            invocation.return_dbus_error("org.bluez.Error.Rejected", "No pairing requested for this device")
+            return
+        device = self.bt.objects.get(args[0], {}).get("org.bluez.Device1", {})
+        kinds = {"RequestPinCode": "pin", "RequestPasskey": "passkey", "RequestConfirmation": "confirm",
+                 "RequestAuthorization": "authorize", "AuthorizeService": "authorize",
+                 "DisplayPinCode": "display", "DisplayPasskey": "display"}
+        kind = kinds.get(method)
+        if not kind or (self.pending and kind != "display"):
+            invocation.return_dbus_error("org.bluez.Error.Rejected", "Another confirmation is pending")
+            return
+        code = str(args[1]) if method == "DisplayPinCode" else (
+            f"{args[1]:06d}" if method in ("DisplayPasskey", "RequestConfirmation") else "")
+        self.request = {"kind": kind, "code": code,
+                        "name": device_name(device, self.names.get(device.get("Address"), "Dispositivo sin identificar")),
+                        "id": uuid.uuid4().hex}
+        if kind == "display":
+            invocation.return_value(None)
+        else:
+            self.pending = invocation
+        self.publish()
+
+    def reject_request(self):
+        if self.pending:
+            self.pending.return_dbus_error("org.bluez.Error.Canceled", "Canceled by user")
+        self.pending = self.request = None
+
+    def answer(self, answer):
+        if not self.pending or not self.request:
+            return
+        request_id, separator, answer = answer.partition(":")
+        if not separator or request_id != self.request["id"]:
+            return
+        kind = self.request["kind"]
+        if kind == "pin":
+            if not 1 <= len(answer) <= 16 or not answer.isprintable():
+                raise ValueError("Escribe un PIN de 1 a 16 caracteres.")
+            result = GLib.Variant("(s)", (answer,))
+        elif kind == "passkey":
+            if not re.fullmatch(r"[0-9]{1,6}", answer):
+                raise ValueError("Escribe un código de hasta 6 dígitos.")
+            result = GLib.Variant("(u)", (int(answer),))
+        elif answer == "yes":
+            result = None
+        else:
+            self.reject_request()
+            return
+        self.pending.return_value(result)
+        self.pending = self.request = None
+
+    def stop_scan(self):
+        if self.scanning:
+            self.scanning = False
+            try:
+                self.bt.call(self.bt.adapter, "org.bluez.Adapter1", "StopDiscovery")
+            except GLib.Error:
+                pass
+
+    def async_call(self, path, method, callback):
+        self.operation_path, self.operation_method = path, method
+        def done(bus, result, *_user_data):
+            if self.stopping:
+                return
+            try:
+                bus.call_finish(result)
+            except GLib.Error as error:
+                already_done = Gio.DBusError.get_remote_error(error) in (
+                    "org.bluez.Error.AlreadyConnected" if method == "Connect" else "",
+                    "org.bluez.Error.AlreadyExists" if method == "Pair" else "",
+                )
+                callback(None if already_done else error)
+            else:
+                callback(None)
+        self.bt.bus.call("org.bluez", path, "org.bluez.Device1", method, None, None,
+                         Gio.DBusCallFlags.NONE, 120000 if method == "Pair" else 25000, None, done)
+
+    def finish(self, message, error=None):
+        self.busy = False
+        self.pairing = None
+        self.operation_path = self.operation_method = None
+        self.reject_request()
+        self.message, self.level = (("Operación cancelada.", "info") if self.cancelled else
+                                   (message, "error" if error else "success"))
+
+    def pair(self, address):
+        if self.busy:
+            return
+        path = self.device_path(address)
+        self.stop_scan()
+        if not self.agent_registered:
+            self.bt.call("/org/bluez", "org.bluez.AgentManager1", "RegisterAgent",
+                         GLib.Variant("(os)", (self.agent_path, "KeyboardDisplay")))
+            self.agent_registered = True
+        self.busy, self.pairing = True, path
+        self.message, self.level = "Vinculando… Confirma el enlace en ambos dispositivos.", "info"
+        def paired(error):
+            if self.cancelled:
+                self.finish("Operación cancelada.")
+                return
+            if error:
+                self.finish("No se pudo vincular. Activa el modo de enlace e inténtalo de nuevo.", error)
+                return
+            try:
+                self.bt.call(path, "org.freedesktop.DBus.Properties", "Set",
+                    GLib.Variant("(ssv)", ("org.bluez.Device1", "Trusted", GLib.Variant("b", True))))
+            except GLib.Error:
+                pass
+            self.request = None
+            self.message = "Vinculado. Conectando…"
+            self.async_call(path, "Connect", lambda error: self.finish(
+                "Dispositivo vinculado. Pulsa su nombre para conectar." if error else "Vinculado y conectado.", error))
+        self.async_call(path, "Pair", paired)
+
+    def device_path(self, address):
+        if not re.fullmatch(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", address):
+            raise ValueError("Dirección Bluetooth inválida.")
+        for path, interfaces in self.bt.objects.items():
+            device = interfaces.get("org.bluez.Device1", {})
+            if device.get("Adapter") == self.bt.adapter and device.get("Address", "").upper() == address.upper():
+                return path
+        raise ValueError("Dispositivo no disponible. Busca de nuevo.")
+
+    def cancel_pairing(self):
+        self.cancelled = True
+        path = self.pairing or self.operation_path
+        self.reject_request()
+        if path:
+            try:
+                self.bt.call(path, "org.bluez.Device1",
+                             "CancelPairing" if self.operation_method == "Pair" else "Disconnect")
+            except GLib.Error:
+                pass
+
+    def command(self, data):
+        action = data["action"]
+        value = data.get("value", "")
+        if action == "stop":
+            self.loop.quit()
+        elif action == "answer":
+            self.answer(value)
+        elif action == "cancel":
+            self.cancel_pairing()
+        elif not self.busy:
+            self.cancelled = False
+            self.message = ""
+            if action == "scan":
+                if not self.bt.properties.get("Powered"):
+                    self.bt.toggle()
+                if not self.scanning:
+                    self.scanning = True
+                    try:
+                        self.bt.call(self.bt.adapter, "org.bluez.Adapter1", "StartDiscovery")
+                    except GLib.Error:
+                        self.scanning = False
+                        raise
+                self.scan_until = time.monotonic() + 30
+            elif action == "toggle":
+                self.stop_scan()
+                self.bt.toggle()
+            elif action == "pair":
+                self.pair(value)
+            elif action in ("connect", "disconnect"):
+                path = self.device_path(value)
+                self.busy = True
+                self.message = "Conectando…" if action == "connect" else "Desconectando…"
+                self.level = "info"
+                self.async_call(path, "Connect" if action == "connect" else "Disconnect",
+                    lambda error: self.finish("No se pudo completar la conexión." if error else "Listo.", error))
+
+    def tick(self):
+        if not self.folder.is_dir():
+            self.loop.quit()
+            return False
+        try:
+            if time.time() - (self.folder / "heartbeat").stat().st_mtime > 30:
+                self.loop.quit()
+                return False
+            for path in sorted(self.folder.glob("command-*.json")):
+                data = json.loads(path.read_text())
+                path.unlink()
+                self.command(data)
+            if self.scanning and time.monotonic() >= self.scan_until:
+                self.stop_scan()
+            self.publish()
+        except (GLib.Error, ValueError, OSError) as error:
+            print(clean(error), file=sys.stderr)
+            self.message, self.level = "No se pudo completar. Revisa el dispositivo y el modo avión.", "error"
+        return True
+
+    def run(self):
+        self.publish()
+        GLib.timeout_add(1000, self.tick)
+        try:
+            self.loop.run()
+        finally:
+            self.stopping = True
+            self.stop_scan()
+            self.cancel_pairing()
+            if self.agent_registered:
+                try:
+                    self.bt.call("/org/bluez", "org.bluez.AgentManager1", "UnregisterAgent",
+                                 GLib.Variant("(o)", (self.agent_path,)))
+                except GLib.Error:
+                    pass
+            self.bt.bus.unregister_object(self.agent_id)
+            for subscription in self.subscriptions:
+                self.bt.bus.signal_unsubscribe(subscription)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--session")
+    actions = parser.add_mutually_exclusive_group(required=True)
+    for flag in ("open", "snapshot", "scan", "toggle", "cancel", "stop"):
+        actions.add_argument("--" + flag, action="store_true")
+    for flag in ("serve", "pair", "connect", "disconnect", "answer"):
+        actions.add_argument("--" + flag)
+    args = parser.parse_args()
+    if args.open:
+        ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+        token = uuid.uuid4().hex
+        folder = session_path(token)
+        folder.mkdir(mode=0o700)
+        (folder / "heartbeat").touch()
+        atomic_json(folder / "state.json", {"snapshot": "state\tstarting\n"})
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--serve", token],
+            start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(token)
+        return
+    folder = session_path(args.serve or args.session or "")
+    if args.serve:
+        try:
+            Session(folder).run()
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+    elif args.snapshot:
+        if folder.is_dir():
+            (folder / "heartbeat").touch()
+            print(json.loads((folder / "state.json").read_text())["snapshot"], end="")
+        else:
+            print("state\terror")
+    elif folder.is_dir():
+        command = next(key for key, value in vars(args).items() if value is not None and value is not False and key != "session")
+        atomic_json(folder / f"command-{time.monotonic_ns()}-{uuid.uuid4().hex}.json",
+                    {"action": command, "value": getattr(args, command)})
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (GLib.Error, OSError, ValueError) as error:
+        print(clean(error), file=sys.stderr)
+        sys.exit(1)

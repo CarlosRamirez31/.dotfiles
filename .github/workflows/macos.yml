@@ -1,0 +1,90 @@
+name: macOS Local validation and build
+
+on:
+  push:
+    branches: [mac_os]
+    paths:
+      - "mac_os/**"
+      - ".github/workflows/macos.yml"
+  pull_request:
+    paths:
+      - "mac_os/**"
+      - ".github/workflows/macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    defaults:
+      run:
+        working-directory: mac_os
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: mac_os/.nvmrc
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.1.1 --activate
+          pnpm --version
+      - name: Set up pinned Rust toolchain
+        run: |
+          rustup show active-toolchain
+          rustc --version
+          cargo --version
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check formatting
+        run: |
+          pnpm run format:check
+          pnpm exec prettier --check ../.github/workflows/macos.yml
+          cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      - name: Lint and check types
+        run: |
+          pnpm run lint
+          pnpm run typecheck
+      - name: Audit JavaScript dependencies
+        run: pnpm run security:audit
+      - name: Check Rust
+        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Run frontend tests
+        run: pnpm test
+      - name: Run Rust tests
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build application bundle
+        run: pnpm run tauri build --bundles app -- --locked
+      - name: Archive application
+        env:
+          ARTIFACT_ARCH: ${{ matrix.arch }}
+        run: |
+          tar -czf "mac_os-${ARTIFACT_ARCH}.app.tar.gz" -C src-tauri/target/release/bundle/macos mac_os.app
+      - name: Upload build artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mac_os-${{ matrix.arch }}
+          path: mac_os/mac_os-${{ matrix.arch }}.app.tar.gz
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,65 @@
+{
+  "sourceCommit": "cb828468d183424fd574984f00b3ffbcce0be9bc",
+  "artifacts": [
+    {
+      "path": "nomo/LICENSE",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/LICENSE",
+      "bytes": 11357,
+      "sha256": "3359ea11b3bdde09d47f03740e257cdcefbb1a0161878cb792aa5863e5d83269"
+    },
+    {
+      "path": "nomo/THIRD_PARTY_NOTICES.md",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/THIRD_PARTY_NOTICES.md",
+      "bytes": 1181,
+      "sha256": "a7f4a0a76e235e47b5d16e02de3d5058c6facac8fd63919d10d0f8c3ccbef4fa"
+    },
+    {
+      "path": "nomo/core/__init__.py",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/core/__init__.py",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "nomo/core/eres2netv2_backbone.py",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/core/eres2netv2_backbone.py",
+      "bytes": 4442,
+      "sha256": "1e339eda5cf7988c81554a9bbdca3c6341337122c453c66fe3a15bd3179cf6ca"
+    },
+    {
+      "path": "nomo/core/film.py",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/core/film.py",
+      "bytes": 1922,
+      "sha256": "242d24d9156adbf2c5ec6789f2fc1ad9c804bc8d3402e5dfa6a22ad181d37a86"
+    },
+    {
+      "path": "nomo/core/frame_adapter.py",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/core/frame_adapter.py",
+      "bytes": 3865,
+      "sha256": "e78c598386d4283e2f6418bf5994e032e4a559901eb7b2b0ceebb275791f37ca"
+    },
+    {
+      "path": "nomo/core/model.py",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/core/model.py",
+      "bytes": 7256,
+      "sha256": "13ed185ba2c237ff1bc07ba83bf22ce3ce08a995a9c3304b0bb9048492d26e09"
+    },
+    {
+      "path": "nomo/nomo_pvad.py",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/nomo_pvad.py",
+      "bytes": 8390,
+      "sha256": "8350f41b8df6dba2f0ac48d1d24c1d211a470a83daf7d6ca4934dd8f711b9ec2"
+    },
+    {
+      "path": "nomo/weights/nomo_pvad.pt",
+      "url": "https://raw.githubusercontent.com/tuya/nomo-pvad/cb828468d183424fd574984f00b3ffbcce0be9bc/weights/nomo_pvad.pt",
+      "bytes": 36576677,
+      "sha256": "0acf2f3e75409b172771663fd1bee31af2760dba4e25b1353d2c26726b6412d1"
+    },
+    {
+      "path": "eres/pretrained_eres2netv2.ckpt",
+      "url": "https://modelscope.cn/models/iic/speech_eres2netv2_sv_zh-cn_16k-common/resolve/master/pretrained_eres2netv2.ckpt",
+      "bytes": 71768231,
+      "sha256": "0eb4057106b2573dd7b132cf0c36273ab29afd192c1610f80baa9c556dbb963c"
+    }
+  ]
+}

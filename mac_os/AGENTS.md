@@ -6,3 +6,7 @@
 - Guardar versiones directas exactas; revisar origen, licencia, scripts y cambios transitivos. Ejecutar `pnpm run security:audit` tras cambios de dependencias; no ejecutar correcciones forzadas sin evaluar su impacto.
 - Verificar formato, lint, tipos y build pertinentes. No reformatear lockfiles ni artefactos generados.
 - Seguir la arquitectura documentada en README: monolito modular, DDD, hexagonal, DI, Commons, eventos y sagas internos. No implementar funcionalidades fuera de lo solicitado.
+- Aplicar `doc/architecture-conventions.md`: Options tipadas e inyectadas, Result y ACL en adaptadores de IA, eventos de negocio sin bloques de audio ni logs técnicos en el bus.
+- Parametrizar valores SQL y evitar N+1 mediante consultas por lotes; preservar transacciones y contratos.
+- Cada módulo será dueño de su carpeta `test/`; `test/` del proyecto coordina su ejecución. No presentar estructura documentada como runner implementado.
+- Logs y copias diagnósticas locales: retención por antigüedad de 30 días; SQLCipher conserva la recuperación. No guardar audio, embeddings ni secretos en logs.

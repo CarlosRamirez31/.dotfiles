@@ -12,7 +12,8 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
-    "security:audit": "pnpm audit --audit-level=moderate"
+    "security:audit": "pnpm audit --audit-level=moderate",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$HOME/.local/libexec/dotfiles-container-env"
+dotfiles_container_env "$@"
+export PATH="$HOME/.local/libexec/lazydocker:$PATH"
+if [[ -x /usr/bin/lazydocker ]]; then exec /usr/bin/lazydocker "$@"; fi
+exec "$HOME/.local/libexec/lazydocker/lazydocker" "$@"

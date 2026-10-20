@@ -38,6 +38,7 @@ nvim archivo
 | `Space+c/d` | Cambiar/eliminar sin ensuciar registros. |
 | `Space+z` | Zen Mode. |
 | `Space+cp` | Panel Copilot. |
+| `Space+gk` | Abrir/cerrar LazyDocker en una ventana flotante centrada, como Lazygit. |
 | `Space+fu` / `:NvimTrash` | Ver papelera y restaurar un archivo o carpeta en su ruta original. |
 
 ### Papelera del explorador (5 horas)

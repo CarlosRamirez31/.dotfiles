@@ -9,6 +9,7 @@
 | `Alt+Enter` | Abrir terminal. |
 | `Ctrl+Alt+T` | Abrir terminal. |
 | `Alt+Space`, `Alt+D`, `Alt+F2` | Abrir lanzador de aplicaciones. |
+| `Alt+Shift+D` | Abrir LazyDocker en una ventana flotante y centrada. |
 | `Alt+Tab` | Abrir selector de ventanas. También permite volver a una ventana minimizada. |
 | `Alt+B` | Abrir Firefox. |
 | `Alt+E` | Abrir Yazi, el gestor de archivos en terminal. |

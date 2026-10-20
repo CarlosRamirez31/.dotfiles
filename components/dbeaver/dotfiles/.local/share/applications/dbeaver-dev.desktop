@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DBeaver (dev)
+Comment=Database manager in Distrobox dev
+Exec=dbeaver
+Icon=database
+Terminal=false
+Categories=Development;Database;

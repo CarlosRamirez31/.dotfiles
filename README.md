@@ -55,6 +55,23 @@ Flutter con Android SDK, emulador y dispositivo virtual en `dev` también es opc
 Solo se activa al escribir `flutter`; la instalación normal y `all` lo excluyen.
 Consulta el [componente Flutter](components/flutter/README.md).
 
+Rider para C# también es opcional y se instala únicamente dentro de `dev`:
+
+```bash
+./install.sh rider
+rider .                    # abrir la carpeta actual en Rider dentro de dev
+```
+
+La instalación normal y `all` lo excluyen. Consulta el [componente Rider](components/rider/README.md).
+
+Docker CLI/Compose y DBeaver también son opcionales dentro de `dev`:
+
+```bash
+./install.sh docker dbeaver
+```
+
+El cliente Docker usa por defecto la API compatible del Podman rootless existente. LazyDocker es general del entorno: `lazydocker` funciona dentro y fuera de Distrobox, `Alt+Shift+D` abre una ventana centrada y `Space+gk` hace lo mismo dentro de Neovim.
+
 El orden escrito no importa: el orquestador siempre respeta las dependencias.
 
 ## Módulos
@@ -73,6 +90,9 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | [`backup`](components/backup/README.md) | copias cifradas y verificables con Restic |
 | [`hermes`](components/hermes/README.md) **opcional** | Hermes en dev, skills académicas y escritorio virtual con capturas del host |
 | [`flutter`](components/flutter/README.md) **opcional** | Flutter estable, Android SDK, emulador sin marco y AVD en dev |
+| [`rider`](components/rider/README.md) **opcional** | JetBrains Rider y SDK .NET en dev; `rider .` abre la carpeta actual |
+| [`docker`](components/docker/README.md) **opcional** | Docker CLI, Compose y Buildx en dev, usando la API compatible de Podman |
+| [`dbeaver`](components/dbeaver/README.md) **opcional** | DBeaver Community en dev, con lanzador gráfico independiente |
 | [`workbench`](components/workbench/README.md) | entornos rootless de desarrollo y pentesting |
 | [`desktop-extras`](components/desktop-extras/README.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
 | [`session`](components/session/README.md) | bloqueo, inactividad, suspensión y energía |

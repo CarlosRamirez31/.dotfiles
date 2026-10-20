@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ ${CONTAINER_ID:-} != dev ]]; then
+    # Keep relative paths intact and detach inside dev, so no host-side
+    # distrobox process has to stay attached to the calling terminal.
+    # shellcheck disable=SC2016 # Arguments expand in the container.
+    exec distrobox enter --name dev -- sh -c \
+        'cd -- "$1" && shift && exec "$@"' \
+        rider "$PWD" "${BASH_SOURCE[0]}" "$@"
+fi
+
+if [[ ! -x /opt/rider/current/bin/rider ]]; then
+    printf 'Rider no está instalado en dev. Ejecuta ./install.sh rider.\n' >&2
+    exit 1
+fi
+case ${1:-} in
+    --version | --help) exec /opt/rider/current/bin/rider "$@" ;;
+esac
+
+rider_log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/rider-dev"
+mkdir -p -- "$rider_log_dir"
+# setsid forks once and exits; PID 1 adopts/reaps the GUI process. No waiting
+# shell, background supervisor, terminal streams or persistent PID files.
+nohup setsid --fork -- /opt/rider/current/bin/rider "$@" \
+    </dev/null >>"$rider_log_dir/launcher.log" 2>&1

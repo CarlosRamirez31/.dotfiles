@@ -22,7 +22,7 @@ else
     distrobox assemble create --file "$component_root/../workbench/dotfiles/.config/distrobox/distrobox.ini" --name dev
 fi
 
-distrobox enter dev -- bash "$component_root/setup-container.sh"
+distrobox enter dev -- env FLUTTER_AVD_KEYBOARD="${FLUTTER_AVD_KEYBOARD:-yes}" bash "$component_root/setup-container.sh"
 # Enable PATH and the launcher only after the optional setup succeeds.
 stow_component "$component_root"
 printf 'Flutter activado en dev. Vuelve a entrar en dev y abre Neovim allí.\n'

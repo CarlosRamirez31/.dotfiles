@@ -7,6 +7,10 @@ set -euo pipefail
     exit 1
 }
 export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/.android/avd}"
+case ${FLUTTER_AVD_KEYBOARD:-yes} in
+    yes | no | keep) ;;
+    *) printf 'FLUTTER_AVD_KEYBOARD debe ser yes, no o keep.\n' >&2; exit 1 ;;
+esac
 
 [[ $EUID -ne 0 ]] || {
     printf 'Ejecuta esto como tu usuario normal, sin sudo.\n' >&2
@@ -200,6 +204,8 @@ if [[ ! -e $ANDROID_AVD_HOME/$avd_name.ini ]]; then
         --package "system-images;android-${android_versions[0]};google_apis;x86_64" \
         --device pixel <<<no
 fi
+python3 "$(dirname -- "${BASH_SOURCE[0]}")/configure-avd.py" \
+    "$ANDROID_AVD_HOME/$avd_name.avd/config.ini" "${FLUTTER_AVD_KEYBOARD:-yes}"
 "$ANDROID_HOME/emulator/emulator" -list-avds
 
 flutter config --android-sdk "$ANDROID_HOME"

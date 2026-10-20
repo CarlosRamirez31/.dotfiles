@@ -9,7 +9,7 @@ require_arch_user
 # install to choose between crun, krun, and runc for Podman's virtual
 # oci-runtime dependency. crun is lightweight and works well with rootless
 # Podman; krun's KVM isolation is unnecessary for these Distrobox profiles.
-install_packages crun podman distrobox
+install_packages crun podman distrobox lazydocker podman-compose
 stow_component "$component_root"
 
 systemctl --user enable --now podman.socket

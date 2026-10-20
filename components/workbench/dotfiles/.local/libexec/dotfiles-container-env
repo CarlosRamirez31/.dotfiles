@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Sourced by Docker and lazydocker launchers. Explicit endpoints/contexts win.
+dotfiles_container_env() {
+    if [[ -n ${DOCKER_HOST:-} || -n ${DOCKER_CONTEXT:-} ]]; then return; fi
+    local argument context='' socket
+    for argument in "$@"; do
+        case $argument in
+        --host | -H | --host=* | -H* | --context | -c | --context=* | -c?*) return ;;
+        -*) ;;
+        *) break ;;
+        esac
+    done
+    local config="${DOCKER_CONFIG:-$HOME/.docker}/config.json"
+    if [[ -r $config ]]; then
+        context=$(
+            python3 - "$config" <<'PY'
+import json, sys
+try:
+    print(json.load(open(sys.argv[1])).get('currentContext', ''))
+except (OSError, ValueError):
+    pass
+PY
+        )
+    fi
+    if [[ -n $context && $context != default ]]; then return; fi
+    if [[ -S /var/run/docker.sock ]]; then return; fi
+    socket="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
+    if [[ -S $socket ]]; then export DOCKER_HOST="unix://$socket"; fi
+    return 0
+}

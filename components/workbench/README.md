@@ -4,7 +4,11 @@ Este componente instala Podman rootless y Distrobox para mantener compiladores, 
 
 ## Qué instala en el host
 
-Instala `podman`, `distrobox` y selecciona `crun` explícitamente como runtime OCI. Habilita `podman.socket` como servicio del usuario. No usa Docker ni su daemon: Distrobox administra contenedores OCI mediante Podman rootless, sin ejecutar el motor como root.
+Instala `podman`, `distrobox`, `lazydocker` y `podman-compose`, y selecciona `crun` explícitamente como runtime OCI. Habilita `podman.socket` como servicio del usuario. Distrobox administra contenedores OCI mediante Podman rootless, sin ejecutar el motor como root.
+
+LazyDocker es general del entorno: `lazydocker` o `ld` abre la TUI en la terminal, tanto desde el host como desde Distrobox. `Alt+Shift+D`, el menú **LazyDocker** y `dotfiles-lazydocker` abren una ventana flotante centrada; en Neovim se usa `Space+gk`. Se respeta el motor/contexto Docker elegido; si no hay otro configurado, utiliza el socket compatible de Podman rootless. Los comandos auxiliares usan Docker CLI cuando está instalado y Podman como alternativa. El componente opcional Docker también proporciona un binario de usuario para el host cuando todavía no se ha instalado su paquete general.
+
+Docker CLI/Compose y DBeaver se activan por separado con `./install.sh docker dbeaver`; son opcionales y sus paquetes se instalan únicamente dentro de `dev`.
 
 Rootless necesita rangos asignados al usuario en `/etc/subuid` y `/etc/subgid`. El instalador los comprueba y avisa si faltan; después de corregirlos puede ser necesario cerrar la sesión del escritorio y volver a entrar.
 

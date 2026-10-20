@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -x /usr/bin/docker ]]; then exec /usr/bin/docker "$@"; fi
+if [[ -x $HOME/.local/bin/docker ]]; then exec "$HOME/.local/bin/docker" "$@"; fi
+exec podman "$@"

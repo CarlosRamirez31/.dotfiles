@@ -11,6 +11,27 @@ REPO = COMPONENT.parents[1]
 
 
 class OptionalFlutter(unittest.TestCase):
+    def test_keyboard_setting_preserves_other_avd_settings_and_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / 'config.ini'
+            userdata = root / 'userdata.img'
+            userdata.write_bytes(b'existing Android data')
+            original = b'hw.keyboard=no\r\nhw.keyboard.lid=yes\r\nhw.ramSize=2048\r\n'
+            config.write_bytes(original)
+            def configure(value):
+                subprocess.check_call(['python3', str(COMPONENT / 'configure-avd.py'), str(config), value])
+            configure('yes')
+            self.assertEqual(config.read_bytes(), original.replace(b'hw.keyboard=no', b'hw.keyboard=yes'))
+            configure('keep')
+            self.assertIn(b'hw.keyboard=yes', config.read_bytes())
+            configure('no')
+            self.assertEqual(config.read_bytes(), original)
+            config.write_bytes(b'hw.ramSize=2048')
+            configure('yes')
+            self.assertEqual(config.read_bytes(), b'hw.ramSize=2048\nhw.keyboard=yes\n')
+            self.assertEqual(userdata.read_bytes(), b'existing Android data')
+
     def selected(self, *args):
         output = subprocess.check_output(
             [str(REPO / 'install.sh'), '--dry-run', *args], text=True

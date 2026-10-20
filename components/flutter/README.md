@@ -16,6 +16,14 @@ Los SDKs van en `~/.local/share/flutter-dev/{flutter,android-sdk}` y las descarg
 
 Se conservan los dispositivos virtuales existentes: nunca se usa `--force` ni se versionan sus imágenes, datos o claves de ADB. Se puede personalizar `FLUTTER_DEV_HOME`, `ANDROID_AVD_HOME` y `FLUTTER_AVD_NAME` antes de instalar; conserva esos valores en tu entorno si los cambias.
 
+Al instalar este componente opcional se habilita el teclado físico del AVD (`hw.keyboard=yes`), tanto si se crea como si ya existe. Solo se ajusta esa propiedad; un emulador que ya esté abierto requiere reiniciarse para aplicarla. Puedes elegir el comportamiento al instalar:
+
+```bash
+FLUTTER_AVD_KEYBOARD=yes ./install.sh flutter   # habilitar (predeterminado)
+FLUTTER_AVD_KEYBOARD=no ./install.sh flutter    # deshabilitar
+FLUTTER_AVD_KEYBOARD=keep ./install.sh flutter  # conservar su configuración
+```
+
 ```bash
 distrobox enter dev
 flutter doctor -v

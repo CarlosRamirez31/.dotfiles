@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LazyDocker
+Comment=Container manager in a centered floating terminal
+Exec=dotfiles-lazydocker
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;System;

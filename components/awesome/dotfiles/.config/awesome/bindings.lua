@@ -31,6 +31,7 @@ local function toggle_floating()
 end
 
 local keys = gears.table.join(
+    awful.key({ modkey, "Shift" }, "d", spawn("dotfiles-lazydocker")),
     awful.key({ "Mod4" }, "p", spawn("dotfiles-display")),
     awful.key({ modkey }, "Tab", spawn("rofi -modi window,drun -show window")),
     awful.key({ modkey }, "Return", spawn("dotfiles-terminal")), awful.key({ "Control", modkey }, "t", spawn("dotfiles-terminal")), awful.key({ modkey }, "space", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "d", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "F2", spawn("dotfiles-app-launcher")),

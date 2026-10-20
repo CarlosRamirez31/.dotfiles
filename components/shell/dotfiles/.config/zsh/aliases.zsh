@@ -19,6 +19,7 @@ alias rg='rg --smart-case'
 # Development shortcuts.
 alias nv='nvim'
 alias lg='lazygit'
+alias ld='lazydocker'
 alias py='python'
 alias reload='exec zsh'
 alias sysinfo='fastfetch'

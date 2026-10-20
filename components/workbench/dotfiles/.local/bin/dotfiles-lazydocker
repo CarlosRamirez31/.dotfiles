@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -n ${CONTAINER_ID:-} ]]; then
+    # The shared user manager launches the terminal on the host.
+    exec systemd-run --user --quiet --collect \
+        --property="WorkingDirectory=$PWD" \
+        --setenv="DISPLAY=${DISPLAY:-:0}" \
+        --setenv="XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}" \
+        --setenv=CONTAINER_ID= \
+        alacritty --class DotfilesLazyDocker --title LazyDocker \
+        -e "$HOME/.local/bin/lazydocker" "$@"
+fi
+log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/lazydocker"
+mkdir -p -- "$log_dir"
+nohup setsid --fork -- alacritty --class DotfilesLazyDocker --title LazyDocker \
+    -e "$HOME/.local/bin/lazydocker" "$@" </dev/null >>"$log_dir/popup.log" 2>&1

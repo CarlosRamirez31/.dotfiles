@@ -121,7 +121,7 @@ class Microphone(unittest.TestCase):
             playback = Mock()
             with patch.object(m, 'settings', return_value={'personal': True, 'noise': True}), patch.object(m, 'DATA', data), patch.object(m, 'model_ready', return_value=True), patch.object(m.sys, 'prefix', str(data / 'venv')), patch.object(m, 'sources', return_value=[{'name': m.FILTER}]), patch.dict(m.sys.modules, {'numpy': SimpleNamespace(load=lambda *a, **k: [])}), patch.object(m, 'load_model', return_value=(Mock(), Mock())), patch.object(m, 'ensure_endpoint'), patch.object(m, 'cleanup_endpoint') as cleanup, patch.object(m, 'set_status'), patch.object(m.signal, 'signal'), patch.object(m.subprocess, 'Popen', side_effect=[capture, playback]) as popen, patch.object(m, 'pactl') as ctl, patch.object(m, 'run') as run:
                 with self.assertRaises(RuntimeError):
-                    m.serve()
+                    m.process_voice()
                 self.assertIn('--device=' + m.FILTER, popen.call_args_list[0].args[0])
                 self.assertIn('--latency-msec=20', popen.call_args_list[0].args[0])
                 self.assertEqual(popen.call_args_list[0].kwargs['bufsize'], 0)
@@ -131,7 +131,71 @@ class Microphone(unittest.TestCase):
                 run.assert_not_called()
                 capture.terminate.assert_called_once()
                 playback.terminate.assert_called_once()
-                cleanup.assert_called_once()
+                cleanup.assert_not_called()
+
+    def test_recognition_only_wakes_for_unmuted_consumers_of_its_own_source(self):
+        items = [{'name': m.FILTER, 'index': 1}, {'name': m.SOURCE, 'index': 2}, {'name': 'hardware', 'index': 3}]
+        config = {'personal': True, 'muted': False}
+        self.assertFalse(m.personal_in_use(items, [], config))
+        for stream in ({'source': 1}, {'source': 3}, {'source': 2, 'corked': True}, {'source': 2, 'mute': True}):
+            self.assertFalse(m.personal_in_use(items, [stream], config))
+        self.assertTrue(m.personal_in_use(items, [{'source': 2}], config))
+        self.assertFalse(m.personal_in_use(items, [{'source': 2}], dict(config, muted=True)))
+        self.assertFalse(m.personal_in_use(items, [{'source': 2}], dict(config, personal=False)))
+        items[1]['mute'] = True
+        self.assertFalse(m.personal_in_use(items, [{'source': 2}], config))
+
+    def test_idle_monitor_keeps_endpoint_without_loading_model_or_worker(self):
+        with patch.object(m, 'set_status') as status, patch.object(m, 'load_model') as model, patch.object(m.subprocess, 'Popen') as popen, patch.object(m, 'cleanup_endpoint') as cleanup:
+            monitor = m.PersonalVoiceMonitor()
+            monitor.update(False)
+            monitor.update(False)
+            popen.assert_not_called()
+            model.assert_not_called()
+            cleanup.assert_not_called()
+            self.assertEqual(status.call_count, 1)
+            self.assertEqual(status.call_args.kwargs['state'], 'waiting')
+
+    def test_monitor_stops_worker_when_last_consumer_leaves_and_reopens_on_use(self):
+        process = Mock()
+        process.poll.return_value = None
+        with patch.object(m, 'set_status'), patch.object(m.subprocess, 'Popen', return_value=process) as popen, patch.object(m, 'cleanup_endpoint') as cleanup:
+            monitor = m.PersonalVoiceMonitor()
+            monitor.update(True)
+            self.assertEqual(popen.call_args.args[0][-1], 'worker')
+            monitor.update(True)
+            self.assertEqual(popen.call_count, 1)
+            monitor.update(False)
+            process.terminate.assert_called_once()
+            process.wait.assert_called_once()
+            self.assertIsNone(monitor.process)
+            cleanup.assert_not_called()
+            monitor.update(True)
+            self.assertEqual(popen.call_count, 2)
+            monitor.close()
+
+    def test_worker_failures_back_off_and_stop_retrying_until_capture_ends(self):
+        process = Mock()
+        process.poll.return_value = 1
+        with patch.object(m, 'set_status'), patch.object(m.subprocess, 'Popen', return_value=process) as popen, patch.object(m.time, 'monotonic', return_value=100) as now:
+            monitor = m.PersonalVoiceMonitor()
+            monitor.update(True)
+            monitor.update(True)
+            monitor.update(True)
+            self.assertEqual(popen.call_count, 1)
+            now.return_value = 106
+            monitor.update(True)
+            monitor.update(True)
+            now.return_value = 112
+            monitor.update(True)
+            monitor.update(True)
+            now.return_value = 118
+            monitor.update(True)
+            self.assertEqual(popen.call_count, 3)
+            self.assertIsNone(monitor.process)
+            monitor.update(False)
+            monitor.update(True)
+            self.assertEqual(popen.call_count, 4)
 
     def test_cleanup_removes_only_experiment_modules(self):
         modules = [

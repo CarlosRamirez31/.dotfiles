@@ -9,6 +9,7 @@ import math
 import os
 from pathlib import Path
 import signal
+import selectors
 import subprocess
 import sys
 import tempfile
@@ -387,7 +388,118 @@ def enroll(name=None):
     print('Perfil «' + profiles[key]['name'] + '» guardado y seleccionado.', flush=True)
 
 
+def personal_in_use(items=None, streams=None, config=None):
+    config = settings() if config is None else config
+    if not config.get('personal') or config.get('muted'):
+        return False
+    items = sources() if items is None else items
+    endpoint = next((s for s in items if s['name'] == SOURCE), None)
+    if not endpoint or endpoint.get('mute'):
+        return False
+    streams = json.loads(pactl('-f', 'json', 'list', 'source-outputs')) if streams is None else streams
+    return any(stream.get('source') == endpoint['index']
+               and not stream.get('corked', False) and not stream.get('mute', False)
+               for stream in streams)
+
+
+def stop_process(process):
+    if process is None:
+        return
+    with suppress(ProcessLookupError):
+        process.terminate()
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=1)
+
+
+class PersonalVoiceMonitor:
+    """Lightweight owner of the endpoint; the ML process exists only on demand."""
+    def __init__(self):
+        self.process = None
+        self.state = None
+        self.failures = 0
+        self.retry_at = 0
+
+    def waiting(self):
+        if self.state != 'waiting':
+            set_status(state='waiting', profile=selected_profile(), passing=False,
+                       description='Listo; el modelo está apagado hasta que una aplicación use Solo mi voz.',
+                       updated=time.time())
+        self.state = 'waiting'
+
+    def update(self, needed):
+        if not needed:
+            self.close()
+            self.failures = 0
+            self.retry_at = 0
+            self.waiting()
+            return
+        if self.process is not None and self.process.poll() is not None:
+            self.process = None
+            self.failures += 1
+            self.retry_at = time.monotonic() + 5
+            self.state = 'error'
+            set_status(state='error', error='El reconocimiento se detuvo. Apaga y enciende Solo mi voz si el error persiste.',
+                       updated=time.time())
+        if self.process is None and self.failures < 3 and time.monotonic() >= self.retry_at:
+            set_status(state='starting', profile=selected_profile(), passing=False,
+                       description='Una aplicación está usando Solo mi voz. Cargando el modelo…', updated=time.time())
+            self.process = subprocess.Popen([str(DATA / 'venv/bin/python'), __file__, 'worker'])
+            self.state = 'running'
+
+    def close(self):
+        stop_process(self.process)
+        self.process = None
+
+
 def serve():
+    config = settings()
+    if not config.get('personal'):
+        return
+    if not model_ready() or not profile_path().exists():
+        raise ValueError('Registra tu voz antes de activar Solo mi voz.')
+    if FILTER not in [s['name'] for s in sources()]:
+        raise ValueError('Activa primero el aislamiento de ruido.')
+    monitor = PersonalVoiceMonitor()
+    subscription = None
+    def terminate(*_):
+        raise SystemExit(0)
+    signal.signal(signal.SIGTERM, terminate)
+    try:
+        ensure_endpoint()
+        pactl('set-source-mute', SOURCE, '1' if config.get('muted') else '0')
+        subscription = subprocess.Popen(['pactl', 'subscribe'], stdout=subprocess.PIPE, bufsize=0,
+                                        env=dict(os.environ, LC_ALL='C'))
+        with selectors.DefaultSelector() as selector:
+            selector.register(subscription.stdout, selectors.EVENT_READ)
+            monitor.update(personal_in_use())
+            checked = time.monotonic()
+            while True:
+                events = selector.select(timeout=0.5)
+                changed = False
+                if events:
+                    raw = os.read(subscription.stdout.fileno(), 65536)
+                    if not raw:
+                        raise RuntimeError('Se perdió la conexión con los eventos de audio del host.')
+                    changed = any(marker in raw for marker in (b'source-output', b'source #', b'server'))
+                # Audio events wake us immediately; the watchdog also handles
+                # saved mute changes and retries without a busy polling loop.
+                now = time.monotonic()
+                if changed or now - checked >= 2:
+                    monitor.update(personal_in_use())
+                    checked = now
+    finally:
+        monitor.close()
+        stop_process(subscription)
+        try:
+            cleanup_endpoint()
+        finally:
+            set_status(state='stopped', description='Solo mi voz apagado')
+
+
+def process_voice():
     # This service is an optional consumer of RNNoise. It must never restart it,
     # select a different physical port, change its gain, or become the default.
     config = settings()
@@ -398,7 +510,7 @@ def serve():
     if FILTER not in [s['name'] for s in sources()]:
         raise ValueError('Activa primero el aislamiento de ruido. La entrada normal no se modificó.')
     if Path(sys.prefix) != DATA / 'venv':
-        os.execv(str(DATA / 'venv/bin/python'), [str(DATA / 'venv/bin/python'), __file__, 'serve'])
+        os.execv(str(DATA / 'venv/bin/python'), [str(DATA / 'venv/bin/python'), __file__, 'worker'])
     import numpy as np
     _, session = load_model()
     session.set_enrollment_emb(np.load(profile_path(), allow_pickle=False))
@@ -408,7 +520,6 @@ def serve():
         raise SystemExit(0)
     signal.signal(signal.SIGTERM, terminate)
     try:
-        ensure_endpoint()
         pactl('set-source-mute', SOURCE, '1' if config.get('muted') else '0')
         capture = subprocess.Popen(['parec', '--client-name=dotfiles-microphone',
             '--stream-name=Solo-mi-voz', '--device=' + FILTER,
@@ -417,8 +528,8 @@ def serve():
         playback = subprocess.Popen(['pacat', '--playback', '--device=' + BUS,
             '--format=s16le', '--rate=16000', '--channels=1', '--latency-msec=20', '--process-time-msec=10'], stdin=subprocess.PIPE, bufsize=0)
         gate = VoiceGate()
-        set_status(source=FILTER, description='Solo mi voz · experimental',
-                   noise=True, personal=True, state='active')
+        set_status(source=FILTER, description='Reconocimiento cargado; esperando el primer bloque de audio.',
+                   noise=True, personal=True, state='starting', profile=active_profile, updated=time.time())
         slow = 0
         last_status = 0
         while True:
@@ -453,10 +564,7 @@ def serve():
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=1)
-        try:
-            cleanup_endpoint()
-        finally:
-            set_status(state='stopped', description='Prueba detenida; entrada normal: Aislamiento de voz')
+
 
 
 def cleanup_endpoint():
@@ -537,7 +645,7 @@ def change(key, value, port=None):
                         status = json.loads(STATE.read_text())
                     except (OSError, ValueError):
                         status = {}
-                    if status.get('state') == 'active' and status.get('updated', 0) >= started:
+                    if status.get('state') in ('waiting', 'starting', 'active') and status.get('updated', 0) >= started:
                         break
                     time.sleep(0.1)
                 else:
@@ -549,7 +657,7 @@ def change(key, value, port=None):
             save(config)
             raise
         if value:
-            print('Guardado y activo. En tu aplicación selecciona «Microfono-controlado-Solo-mi-voz».')
+            print('Guardado. El modelo se activa solo cuando una aplicación usa «Microfono-controlado-Solo-mi-voz».')
         else:
             print('Prueba detenida. Aislamiento de voz no se modificó.')
         return
@@ -814,12 +922,19 @@ def gui(compact=False):
                 except (OSError, ValueError):
                     state = {}
                 profile = voice_profiles().get(selected_profile(), {})
-                feedback = (' · voz reconocida' if state.get('passing') else ' · esperando la voz del perfil') if experiment else ' · filtro apagado'
+                feedback = ' · filtro apagado'
+                if experiment:
+                    if state.get('state') == 'waiting':
+                        feedback = ' · listo; modelo apagado hasta que una aplicación lo use'
+                    elif state.get('state') == 'starting':
+                        feedback = ' · aplicación conectada; cargando reconocimiento…'
+                    else:
+                        feedback = ' · voz reconocida' if state.get('passing') else ' · esperando la voz del perfil'
                 if state.get('state') == 'error':
                     feedback = ' · ' + state.get('error', 'Error al procesar audio')
                 self.profile_status.set_text(('Guardado: ' + profile['name'] if profile else 'Crea un perfil para reconocer tu voz') + feedback)
                 self.info.set_text(('Entrada normal: Aislamiento de voz' if normal else 'Entrada normal: micrófono físico')
-                    + (' · Solo mi voz activo' if experiment else ' · Solo mi voz apagado'))
+                    + (' · Solo mi voz listo para usar' if experiment else ' · Solo mi voz apagado'))
             except (OSError, ValueError, KeyError, subprocess.SubprocessError):
                 self.info.set_text('No se pudo consultar el audio. La entrada normal no se modificó.')
             return True
@@ -900,7 +1015,7 @@ def gui(compact=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'on', 'off', 'toggle', 'app', 'serve', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'configure-profile', 'profile', 'delete-profile', 'model-check', 'cleanup-legacy'])
+    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'on', 'off', 'toggle', 'app', 'serve', 'worker', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'configure-profile', 'profile', 'delete-profile', 'model-check', 'cleanup-legacy'])
     parser.add_argument('value', nargs='?')
     parser.add_argument('port', nargs='?')
     args = parser.parse_args()
@@ -913,6 +1028,7 @@ def main():
         for index in args.value.split(','):
             pactl('set-source-output-mute', str(int(index)), '0' if args.port == 'on' else '1')
     elif args.command == 'serve': serve()
+    elif args.command == 'worker': process_voice()
     elif args.command == 'cleanup-legacy': cleanup_legacy_endpoint()
     elif args.command == 'status':
         print(STATE.read_text() if STATE.exists() else 'No hay procesamiento activo.')
@@ -935,6 +1051,6 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as error:
-        if 'serve' in sys.argv[1:]:
+        if any(command in sys.argv[1:] for command in ('serve', 'worker')):
             set_status(state='error', error=str(error))
         sys.exit(str(error))

@@ -10,7 +10,7 @@ export function OperationsPanel(props: OperationsPanelProps) {
         {view.checkLabel}
       </button>
       {view.error && <p role="alert">{view.error}</p>}
-      {view.rows.length === 0 && <p>No hay operaciones registradas.</p>}
+      {view.empty && <p>No hay operaciones registradas.</p>}
       <ul>
         {view.rows.map((item) => (
           <li key={item.id}>

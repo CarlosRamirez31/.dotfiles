@@ -6,13 +6,11 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 function find(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
-    entry.isDirectory()
-      ? find(resolve(directory, entry.name))
-      : entry.name.endsWith('.test.mjs')
-        ? [resolve(directory, entry.name)]
-        : [],
-  );
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) return find(resolve(directory, entry.name));
+    if (entry.name.endsWith('.test.mjs')) return [resolve(directory, entry.name)];
+    return [];
+  });
 }
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' });

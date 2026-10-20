@@ -187,3 +187,44 @@ transaccionales existentes se conservan. El encuadre SSE pertenece a presentaci�
 
 `commons/utils/` contiene el puente compartido para ejecutar trabajo bloqueante. Las utilidades
 específicas permanecen en su módulo. No se crean servicios vacíos para envolver cada función.
+
+### SOLID pragmático
+
+Separamos por responsabilidad y motivo de cambio, sin imponer una interfaz por clase o una capa por función.
+`SqlCipherJournal` conserva la propiedad de la conexión y las transacciones; delega apertura/esquema,
+consultas, mutaciones, serialización, escritura de eventos, recuperación y copia diagnóstica en archivos
+internos del adaptador. Las políticas de validación y finalización/cancelación viven en aplicación.
+Las comprobaciones dependientes del estado almacenado permanecen dentro de la transacción; la recuperación
+conserva SQL por lotes para evitar N+1. La copia diagnóstica sucede después del commit.
+
+La consulta de dispositivos usa `DeviceCatalog` y `DeviceService`, inyectados desde bootstrap. El adaptador
+CoreAudio posee la enumeración física y el controlador HTTP devuelve tipos del módulo de audio sin importar
+infraestructura. Este puerto permite sustituir hardware por un catálogo controlado en pruebas del contrato.
+
+### ACL e inversión de dependencias en cada integración
+
+El módulo consumidor define el puerto y los tipos internos; bootstrap selecciona e inyecta el adaptador.
+La implementación externa valida y traduce datos/errores mediante ACL antes de devolver Result.
+Esto aplica a React, Rust y Python, incluyendo IA local/remota, HTTP, hardware y persistencia.
+Las decisiones de negocio no interpretan formatos o errores de un proveedor.
+
+Ejemplos actuales: `VoiceProfilesPort`/`HttpVoiceProfiles` con ACL de metadata; `AudioPort`/`HttpAudio`
+con ACL de dispositivos; `DeviceCatalog`/`CoreAudioDeviceCatalog` convierte descripciones y errores
+CPAL a tipos internos; los puertos de IA usan resultados tipados y adaptadores del proveedor.
+El mapeo puede ser una función pequeña; no se exige una clase ACL ni una interfaz adicional.
+Estos ejemplos no constituyen una auditoría completa de todos los límites del repositorio.
+
+### Composición y arranque local
+
+`bootstrap.rs` expone el arranque; sus archivos internos separan supervisor de procesos, handshake/ACL,
+comandos Tauri, Keychain, composición, ejecución del servicio y drenaje al cerrar. La composición crea
+los adaptadores concretos e inyecta los puertos; los comandos Tauri solo delegan.
+
+`application/LocalHandler` despacha comandos a `VoiceRegistration` y `AudioSessions`, propietarios de sus
+flujos en los módulos correspondientes. El registro recibe `AudioCapture`, `EnrollmentFactory` y
+`VoiceProfiles`; la sesión recibe `AudioPlayback`, `NoiseReducerFactory` y los puertos de voz personal.
+`StorageCheck` también se inyecta por abstracción. CoreAudio y RNNoise se construyen en composición.
+
+El orden sigue siendo preparar modelo → capturar → extraer → comprobar cancelación → persistir.
+La cancelación antes de persistir conserva la voz anterior. Las pruebas de estos casos usan captura/modelo
+controlados y SQLCipher real; no equivalen a una prueba de micrófono ni de calidad de la IA.

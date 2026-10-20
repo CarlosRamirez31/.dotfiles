@@ -42,3 +42,14 @@ test('HTTP uses the handshake API prefix and validates it before any request', a
     /API inválida/,
   );
 });
+
+test('native connection ACL rejects untrusted endpoints before making a request', () => {
+  for (const endpoint of [
+    'https://external.example',
+    'http://127.0.0.1:80@external.example',
+    'http://127.0.0.1:1234/path',
+    'not-a-url',
+  ]) {
+    assert.throws(() => createHttp({ endpoint, token: 'test-only', protocolVersion: 1 }, () => {}));
+  }
+});

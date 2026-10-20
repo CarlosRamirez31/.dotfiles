@@ -18,6 +18,7 @@ use voice_profiles_controller::*;
 
 #[derive(Clone)]
 pub struct Bff {
+    pub devices: crate::modules::audio::application::DeviceService,
     pub operations: Operations,
     pub token: String,
     pub api_version: String,

@@ -9,6 +9,13 @@ sys.path.insert(0, str(root / "runtime"))
 suite = unittest.defaultTestLoader.discover(
     str(root / "runtime/adapters/personal_voice/test"), pattern="test_*.py"
 )
+suite.addTests(
+    unittest.defaultTestLoader.discover(
+        str(root / "runtime/transport/test"),
+        pattern="test_*.py",
+        top_level_dir=str(root / "runtime/transport/test"),
+    )
+)
 if suite.countTestCases() == 0:
     raise SystemExit("no_python_tests")
 raise SystemExit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)

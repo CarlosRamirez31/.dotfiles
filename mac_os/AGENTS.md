@@ -42,3 +42,25 @@ Reglas generales aprobadas por el usuario para todos los proyectos de Codex, tan
 - Los controladores reciben y validan el formato HTTP, llaman servicios de aplicación y traducen respuestas. Las reglas de negocio y la coordinación de persistencia pertenecen a aplicación/dominio.
 - Mantener rutas, seguridad, conversión de errores y transporte SSE en archivos propios. Los servicios de aplicación no dependen de Axum.
 - Usar `commons/utils/` solo para utilidades técnicas compartidas. Las utilidades específicas permanecen en su módulo; no trasladar reglas de negocio a utilidades genéricas.
+
+## SOLID y código limpio con criterio
+
+- Aplicar SOLID y código limpio en frontend, Rust y Python: responsabilidades coherentes, dependencias explícitas y contratos pequeños orientados a sus consumidores.
+- Separar archivos cuando mezclen motivos de cambio: transporte, casos de uso, políticas, persistencia, configuración o diagnóstico. La longitud por sí sola no obliga a crear otra capa.
+- Depender de puertos en los límites con hardware, IA y persistencia; componer adaptadores desde bootstrap. Mantener las utilidades de cada adaptador dentro de su módulo.
+- Preferir funciones y módulos pequeños. Crear interfaces, Strategy, fábricas o servicios solo cuando aporten un límite real, sustitución o prueba útil; evitar envoltorios vacíos y abstracciones especulativas.
+- Preservar atomicidad, contratos, SQL parametrizado y recuperación por lotes. No mover validaciones transaccionales fuera de la transacción por cumplir una separación estética.
+
+## ACL e inversión de dependencias
+
+- Toda integración con proveedores, SDK, procesos, hardware, transporte o persistencia debe respetar un puerto definido por el módulo consumidor; inyectar su implementación desde la composición, sin construir adaptadores concretos en casos de uso o vistas.
+- El adaptador aplica ACL (Anti-Corruption Layer): valida entradas externas, traduce formatos, estados y errores a tipos internos y expone Result. No filtrar tipos del proveedor, excepciones crudas ni campos privados hacia negocio.
+- Separar traducciones ACL del transporte cuando tengan lógica propia. Una ACL pequeña puede ser una función dentro del adaptador; no requiere otro servicio, interfaz o jerarquía por obligación.
+- Para colaboración interna entre módulos, usar contratos públicos tipados; añadir traducción cuando difieran los modelos. No duplicar modelos idénticos ni envolver funciones internas sin un límite que proteger.
+- Verificar respuestas inválidas, traducción de errores y descarte de datos externos no admitidos en los adaptadores afectados.
+
+## Verificación de vistas
+
+- Los `.tsx` de vistas solo invocan su hook, componen componentes y devuelven JSX. Se permite renderizar listas y mostrar bloques según flags preparados; cálculos, selección de perfiles, peticiones y handlers viven en hooks o funciones `.ts`.
+- ESLint verifica estas restricciones, prohíbe acceso a adaptadores desde vistas y dependencias de infraestructura/presentación desde aplicación o dominio. `main.tsx` es composición de React, no una vista.
+- Una revisión estática no acredita interacción visual ni hardware; documentar ambos por separado.

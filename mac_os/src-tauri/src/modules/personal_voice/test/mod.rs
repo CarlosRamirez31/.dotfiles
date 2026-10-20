@@ -262,6 +262,9 @@ async fn voice_http_uses_authentication_returns_only_metadata_and_guards_default
         .save_profile(&second, "Alternativa", &[0.2; 192], false)
         .unwrap();
     let app = router(Bff {
+        devices: crate::modules::audio::application::DeviceService::new(std::sync::Arc::new(
+            crate::modules::audio::infrastructure::CoreAudioDeviceCatalog,
+        )),
         operations: Operations::new(journal.clone()),
         token: "test-token".into(),
         api_version: crate::commons::protocol::default_api_version(),
@@ -365,3 +368,5 @@ async fn voice_http_uses_authentication_returns_only_metadata_and_guards_default
     assert_eq!(deleted.status(), StatusCode::NO_CONTENT);
     assert!(matches!(store.embedding(&first), Err(Error::NotFound)));
 }
+
+mod registration;

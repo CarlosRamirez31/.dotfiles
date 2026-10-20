@@ -1,18 +1,12 @@
-import { apiVersion, LOCAL_PROTOCOL_VERSION, HttpStatus } from './protocol.ts';
+import { localConnection, type LocalConnection } from './connection.ts';
+import { apiVersion, HttpStatus } from './protocol.ts';
 import { RequestRejected } from './errors.ts';
 import { rejectionReason } from './http-errors.ts';
 import type { ClientLogger } from './logging';
-export interface LocalConnection {
-  endpoint: string;
-  token: string;
-  protocolVersion: number;
-  apiVersion?: string;
-}
 export type HttpRequest = (path: string, init?: RequestInit) => Promise<Response>;
 
-export function createHttp(connection: LocalConnection, log: ClientLogger): HttpRequest {
-  if (connection.protocolVersion !== LOCAL_PROTOCOL_VERSION)
-    throw new Error('Versión de servicio incompatible.');
+export function createHttp(input: LocalConnection, log: ClientLogger): HttpRequest {
+  const connection = localConnection(input);
   const version = apiVersion(connection.apiVersion);
   return async (path, init = {}) => {
     const response = await fetch(`${connection.endpoint}/${version}${path}`, {

@@ -84,6 +84,7 @@ export function useOperationsPanel({ operations, onChange }: OperationsPanelProp
   const rows = items.map((item) => ({ ...operationView(item), cancel: () => void cancel(item.operationId) }));
   return {
     rows,
+    empty: rows.length === 0,
     connectionMessage,
     error,
     checkLabel,

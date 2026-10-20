@@ -8,3 +8,6 @@ pub use profiles::VoiceProfiles;
 
 mod profile_service;
 pub use profile_service::VoiceProfileService;
+
+mod registration;
+pub use registration::{RegistrationTarget, VoiceRegistration};

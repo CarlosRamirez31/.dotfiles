@@ -1,3 +1,4 @@
+mod application;
 mod bootstrap;
 mod commons;
 mod modules;
@@ -38,9 +39,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            bootstrap::local_connection,
-            bootstrap::public_options,
-            commons::logging::client_log
+            bootstrap::commands::local_connection,
+            bootstrap::commands::public_options,
+            commons::logging::client::client_log
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -1,7 +1,7 @@
 use crate::tests::support::*;
 #[test]
 fn client_logging_rejects_free_text_and_non_uuid_metadata() {
-    use crate::commons::logging::{ClientEvent, client_log};
+    use crate::commons::logging::client::{ClientEvent, client_log};
     assert!(serde_json::from_str::<ClientEvent>("\"Bearer secret\"").is_err());
     assert!(
         client_log(

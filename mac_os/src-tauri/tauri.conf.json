@@ -37,7 +37,8 @@
       "../runtime/adapters/personal_voice/nomo_adapter.py": "adapters/personal_voice/nomo_adapter.py",
       "../runtime/ports/personal_voice.py": "ports/personal_voice.py",
       "../runtime/ports/result.py": "ports/result.py",
-      "../runtime/ports/worker_mode.py": "ports/worker_mode.py"
+      "../runtime/ports/worker_mode.py": "ports/worker_mode.py",
+      "../runtime/transport/personal_voice.py": "transport/personal_voice.py"
     }
   }
 }

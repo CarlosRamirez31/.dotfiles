@@ -34,3 +34,5 @@ Contrato implementado: [HTTP/SSE y operaciones](control.md).
 [Validación T002](lifecycle-validation.md): cierre, pérdida de supervisor, instancia duplicada y límites de evidencia.
 
 [Voces con nombre](voice-profiles.md): predeterminada, reemplazo, eliminación y migración cifrada.
+
+[Revisión SOLID y ACL](solid-acl-review.md): hallazgos, separación aplicada, controles automáticos y límites.

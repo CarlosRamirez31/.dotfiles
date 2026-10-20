@@ -1,3 +1,4 @@
+use super::worker_acl as acl;
 use crate::{
     modules::audio::application::{PersonalVoice, cancelled},
     modules::audio::domain::capability::{CapabilityError as Error, CapabilityResult as Result},
@@ -47,9 +48,9 @@ impl NomoWorker {
             .arg(script)
             .arg(root)
             .arg(if embedding.is_some() {
-                "stream"
+                acl::STREAM_MODE
             } else {
-                "enroll"
+                acl::ENROLL_MODE
             })
             .arg(std::process::id().to_string())
             .env("HF_HUB_OFFLINE", "1")
@@ -85,11 +86,7 @@ impl NomoWorker {
             options,
         };
         let ready = worker.receive(Duration::from_secs(worker.options.load_seconds))?;
-        if ready.get("ready").and_then(|v| v.as_bool()) != Some(true)
-            || ready.get("protocol").and_then(|v| v.as_i64()) != Some(1)
-        {
-            return Err(Error::Unavailable);
-        }
+        acl::ready(&ready)?;
         if let Some(embedding) = embedding {
             worker.write_pcm(embedding)?;
         }
@@ -103,23 +100,7 @@ impl NomoWorker {
             }
             match self.replies.recv_timeout(Duration::from_millis(25)) {
                 Ok(line) => {
-                    let result: serde_json::Value =
-                        serde_json::from_str(&line).map_err(|_| Error::InvalidResponse)?;
-                    if result.get("error").is_some() {
-                        let code = result
-                            .get("error")
-                            .cloned()
-                            .and_then(|value| serde_json::from_value::<WorkerError>(value).ok());
-                        return Err(match code {
-                            Some(WorkerError::InvalidInput) => Error::InvalidInput,
-                            Some(WorkerError::InvalidResponse) => Error::InvalidResponse,
-                            Some(WorkerError::Unavailable) => Error::Unavailable,
-                            Some(WorkerError::Timeout) => Error::Timeout,
-                            Some(WorkerError::Cancelled) => Error::Cancelled,
-                            _ => Error::InferenceFailed,
-                        });
-                    }
-                    return Ok(result);
+                    return acl::response(&line);
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                     return Err(Error::Unavailable);
@@ -155,17 +136,7 @@ impl crate::modules::personal_voice::application::EnrollmentSession for NomoWork
             return Err(Error::InvalidInput);
         }
         let reply = self.request(pcm, Duration::from_secs(self.options.enroll_seconds))?;
-        let embedding: Vec<f32> = serde_json::from_value(
-            reply
-                .get("embedding")
-                .cloned()
-                .ok_or(Error::InvalidResponse)?,
-        )
-        .map_err(|_| Error::InvalidResponse)?;
-        if embedding.len() != 192 || embedding.iter().any(|v| !v.is_finite()) {
-            return Err(Error::InvalidResponse);
-        }
-        Ok(embedding)
+        acl::embedding(reply)
     }
 }
 impl PersonalVoice for NomoWorker {
@@ -174,23 +145,6 @@ impl PersonalVoice for NomoWorker {
             return Err(Error::InvalidInput);
         }
         let reply = self.request(pcm, Duration::from_secs(self.options.inference_seconds))?;
-        let probability = reply
-            .get("probability")
-            .and_then(|v| v.as_f64())
-            .ok_or(Error::InvalidResponse)? as f32;
-        if !probability.is_finite() || !(0.0..=1.0).contains(&probability) {
-            return Err(Error::InvalidResponse);
-        }
-        Ok(probability)
+        acl::probability(reply)
     }
-}
-
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum WorkerError {
-    InvalidInput,
-    InvalidResponse,
-    Unavailable,
-    Timeout,
-    Cancelled,
 }

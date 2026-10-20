@@ -21,3 +21,16 @@ test('voice presenter distinguishes cancelled creation from preserving a replace
   );
   assert.equal(confirmationLabel(false, VoiceDialogAction.Delete), 'Eliminar permanentemente');
 });
+
+test('profile selection preserves explicit choice and requires replacing another default before deletion', async () => {
+  const { selectedVoice, requiresAnotherDefault } = await import('../application/profile-selection.ts');
+  const profiles = [
+    { id: 'default', isDefault: true },
+    { id: 'other', isDefault: false },
+  ];
+  assert.equal(selectedVoice(profiles, 'other'), 'other');
+  assert.equal(selectedVoice(profiles, 'missing'), 'default');
+  assert.equal(selectedVoice([], 'missing'), '');
+  assert.equal(requiresAnotherDefault(profiles[0], profiles), true);
+  assert.equal(requiresAnotherDefault(profiles[0], [profiles[0]]), false);
+});

@@ -1,6 +1,6 @@
 use crate::{
     commons::{Error, Result},
-    modules::operations::application::StorageCheck,
+    modules::diagnostics::application::StorageCheck,
 };
 use std::path::PathBuf;
 

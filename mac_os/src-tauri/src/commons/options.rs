@@ -1,8 +1,8 @@
+mod environment;
+mod environment_keys;
+pub(crate) use environment::read_env;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, path::PathBuf};
 #[derive(Clone, Serialize, Deserialize)]
 pub struct LoggingOptions {
     pub retention_days: u64,
@@ -43,7 +43,7 @@ impl Default for Options {
 }
 impl Options {
     pub fn load() -> Result<Self, String> {
-        let path = std::env::var_os("MIC_ENV_FILE").map(PathBuf::from);
+        let path = std::env::var_os(environment_keys::ENV_FILE).map(PathBuf::from);
         let file = path
             .as_deref()
             .map(read_env)
@@ -135,35 +135,6 @@ impl Options {
         Ok(())
     }
 }
-pub(crate) fn read_env(path: &Path) -> Result<BTreeMap<String, String>, String> {
-    // Explicit path only; no expansion, executable syntax or modification of global environment.
-    let bytes = std::fs::read(path).map_err(|_| "env_file_unreadable")?;
-    if bytes.len() > 65536 {
-        return Err("env_file_too_large".into());
-    }
-    let text = String::from_utf8(bytes).map_err(|_| "invalid_env_encoding")?;
-    let mut values = BTreeMap::new();
-    for line in text
-        .lines()
-        .map(str::trim)
-        .filter(|s| !s.is_empty() && !s.starts_with('#'))
-    {
-        let (key, value) = line.split_once('=').ok_or("invalid_env_assignment")?;
-        let key = key.trim();
-        let mut value = value.trim();
-        if value.starts_with('\"') || value.starts_with('\'') {
-            if value.len() < 2 || value.as_bytes().last() != value.as_bytes().first() {
-                return Err("invalid_env_quotes".into());
-            }
-            value = &value[1..value.len() - 1];
-        }
-        if values.insert(key.to_owned(), value.to_owned()).is_some() {
-            return Err("duplicate_env_option".into());
-        }
-    }
-    Ok(values)
-}
-
 /// Public configuration allowlist; never includes runtime paths or credentials.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -173,23 +144,4 @@ pub struct ClientOptions {
 
 fn default_shutdown_seconds() -> u64 {
     5
-}
-
-mod environment_keys {
-    pub const ENV_FILE: &str = "MIC_ENV_FILE";
-    pub const LOG_RETENTION_DAYS: &str = "MIC_LOG_RETENTION_DAYS";
-    pub const LOG_CLEANUP_SECONDS: &str = "MIC_LOG_CLEANUP_SECONDS";
-    pub const MAX_PENDING: &str = "MIC_MAX_PENDING";
-    pub const MAX_OPERATIONS: &str = "MIC_MAX_OPERATIONS";
-    pub const EVENT_BATCH: &str = "MIC_EVENT_BATCH";
-    pub const MAX_VOICE_PROFILES: &str = "MIC_MAX_VOICE_PROFILES";
-    pub const MODEL_LOAD_SECONDS: &str = "MIC_MODEL_LOAD_SECONDS";
-    pub const INFERENCE_SECONDS: &str = "MIC_INFERENCE_SECONDS";
-    pub const ENROLL_SECONDS: &str = "MIC_ENROLL_SECONDS";
-    pub const VOICE_THRESHOLD: &str = "MIC_VOICE_THRESHOLD";
-    pub const VOICE_RUNTIME: &str = "MIC_VOICE_RUNTIME";
-    pub const STARTUP_SECONDS: &str = "MIC_STARTUP_SECONDS";
-    pub const SHUTDOWN_SECONDS: &str = "MIC_SHUTDOWN_SECONDS";
-    pub const SSE_RECONNECT_MS: &str = "MIC_SSE_RECONNECT_MS";
-    pub const API_VERSION: &str = "MIC_API_VERSION";
 }

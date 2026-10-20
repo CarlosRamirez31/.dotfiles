@@ -2,7 +2,7 @@ import { SNAPSHOT_CURSOR_HEADER } from '../../../commons/protocol.ts';
 import { InvalidResponseError } from '../../../commons/errors.ts';
 import type { ClientOptions } from '../../../commons/options';
 import { resultOf, type Result } from '../../../commons/result';
-import { operation } from './acl.ts';
+import { operation, operationEvent } from './acl.ts';
 import type { ClientLogger } from '../../../commons/logging';
 import type { OperationsPort } from '../application/operations-port';
 import type { Operation, OperationEvent } from '../domain/operation';
@@ -78,15 +78,7 @@ export class HttpOperations implements OperationsPort {
             const { value, done } = await reader.read();
             if (done) break;
             for (const frame of parser.push(decoder.decode(value, { stream: true }))) {
-              const event = JSON.parse(frame.data) as OperationEvent;
-              if (
-                event.schemaVersion !== 1 ||
-                String(event.eventId) !== frame.id ||
-                event.operationId !== event.operation.operationId
-              ) {
-                throw new Error('invalid_event');
-              }
-              event.operation = operation(event.operation);
+              const event = operationEvent(JSON.parse(frame.data), frame.id);
               onEvent(event);
               cursor = frame.id;
             }

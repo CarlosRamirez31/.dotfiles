@@ -101,6 +101,9 @@ async fn http_acceptance_precedes_worker_and_authentication_is_required() {
     let journal = database.open();
     let operations = Operations::new(journal.clone());
     let app = router(Bff {
+        devices: crate::modules::audio::application::DeviceService::new(std::sync::Arc::new(
+            crate::modules::audio::infrastructure::CoreAudioDeviceCatalog,
+        )),
         operations: operations.clone(),
         token: "test-token".into(),
         api_version: crate::commons::protocol::default_api_version(),
@@ -241,6 +244,9 @@ async fn sse_replays_serialized_events_after_the_requested_cursor() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let app = router(Bff {
+        devices: crate::modules::audio::application::DeviceService::new(std::sync::Arc::new(
+            crate::modules::audio::infrastructure::CoreAudioDeviceCatalog,
+        )),
         operations: Operations::new(journal),
         token: "test-token".into(),
         api_version: crate::commons::protocol::default_api_version(),
@@ -481,6 +487,9 @@ async fn configured_api_prefix_and_atomic_snapshot_cursor_are_consistent() {
         .finish(&original.operation_id, Ok("ok".to_string().into()))
         .unwrap();
     let app = router(Bff {
+        devices: crate::modules::audio::application::DeviceService::new(std::sync::Arc::new(
+            crate::modules::audio::infrastructure::CoreAudioDeviceCatalog,
+        )),
         operations: Operations::new(journal.clone()),
         token: "test-token".into(),
         api_version: "v7".into(),
@@ -544,4 +553,37 @@ async fn configured_api_prefix_and_atomic_snapshot_cursor_are_consistent() {
     let events = journal.events(cursor).unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].operation.status, Status::Accepted);
+}
+
+#[test]
+fn late_cancellation_preserves_committed_effect_and_terminal_event() {
+    use crate::modules::operations::application::Completion;
+    let database = Database::new();
+    let journal = database.open();
+    let operation = journal
+        .accept("committed-result", Command::CheckStorage)
+        .unwrap();
+    journal.claim().unwrap();
+    journal.cancel(&operation.operation_id).unwrap();
+    journal
+        .finish(
+            &operation.operation_id,
+            Ok(Completion {
+                detail: "effect_saved".into(),
+                effect_committed: true,
+            }),
+        )
+        .unwrap();
+    let completed = journal.get(&operation.operation_id).unwrap();
+    assert_eq!(completed.status, Status::Succeeded);
+    let cursor = journal.last_event_id().unwrap();
+    journal.cancel(&operation.operation_id).unwrap();
+    journal
+        .finish(&operation.operation_id, Err(crate::commons::Error::Storage))
+        .unwrap();
+    assert_eq!(
+        journal.get(&operation.operation_id).unwrap().status,
+        Status::Succeeded
+    );
+    assert_eq!(journal.last_event_id().unwrap(), cursor);
 }

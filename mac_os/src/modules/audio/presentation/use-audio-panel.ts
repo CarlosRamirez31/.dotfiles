@@ -1,6 +1,7 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useAudioInputs } from './use-audio-inputs';
+import { useState, type ChangeEvent } from 'react';
 import { AppErrorCode } from '../../../commons/errors.ts';
-import type { AudioPort, AudioDevices } from '../application/audio-port';
+import type { AudioPort } from '../application/audio-port';
 export interface AudioPanelProps {
   audio: AudioPort;
   voiceProfileId: string;
@@ -12,30 +13,11 @@ interface AudioRequest {
   voiceId: string;
 }
 export function useAudioPanel({ audio, voiceProfileId }: AudioPanelProps) {
-  const [devices, setDevices] = useState<AudioDevices | null>(null);
-  const [input, setInput] = useState('');
   const [personal, setPersonal] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<AudioRequest | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    void audio
-      .devices(controller.signal)
-      .then((result) => {
-        if (controller.signal.aborted) return;
-        if (!result.ok) {
-          setMessage(result.error.message);
-          return;
-        }
-        setDevices(result.value);
-        setInput(result.value.inputs[0]?.id ?? '');
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setMessage('No se pudieron consultar los dispositivos.');
-      });
-    return () => controller.abort();
-  }, [audio]);
+  const { devices, input, setInput } = useAudioInputs(audio, setMessage);
   async function submit() {
     if (personal && !voiceProfileId) {
       setMessage('Selecciona una voz registrada.');

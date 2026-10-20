@@ -1,4 +1,7 @@
 mod core_audio;
-pub use core_audio::*;
-mod downsample;
-pub use downsample::Downsample;
+
+mod device_catalog;
+pub use device_catalog::CoreAudioDeviceCatalog;
+
+mod runtime;
+pub use runtime::CoreAudioRuntime;

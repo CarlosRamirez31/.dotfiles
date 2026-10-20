@@ -1,9 +1,7 @@
-use crate::commons::{Error, utils::blocking};
-use axum::Json;
+use super::Bff;
+use crate::{commons::Error, modules::audio::domain::Devices};
+use axum::{Json, extract::State};
 
-pub(super) async fn audio_devices()
--> Result<Json<crate::modules::audio::infrastructure::Devices>, Error> {
-    Ok(Json(
-        blocking(crate::modules::audio::infrastructure::devices).await?,
-    ))
+pub(super) async fn audio_devices(State(bff): State<Bff>) -> Result<Json<Devices>, Error> {
+    Ok(Json(bff.devices.list().await?))
 }

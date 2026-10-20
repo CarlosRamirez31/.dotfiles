@@ -69,3 +69,13 @@ Con la sesión iniciada: `pnpm test audio-hardware --seconds 12 --speak --expect
 sintética por la salida actual y mide la señal recibida. Requiere ffmpeg instalado por separado y permiso de
 micrófono; no forma parte de CI ni se ejecuta en la suite normal. No cambiar la salida predeterminada a
 BlackHole para esta prueba. El conteo prueba recepción, no calidad, latencia ni ausencia de frames perdidos.
+
+## Arquitectura y vistas
+
+`pnpm run lint` comprueba que las vistas TSX delegan estado, efectos, decisiones y handlers en hooks/funciones,
+y que aplicación/dominio frontend no importan infraestructura ni presentación. Las listas y condiciones de
+visibilidad sobre estados preparados siguen siendo JSX declarativo. `main.tsx` es la entrada de composición.
+
+La suite central incluye pruebas puras del pipeline, registro con captura inyectada, ACL de conexión/eventos,
+selección de perfiles y transporte Python con streams controlados. Esas pruebas no abren micrófonos y no
+sustituyen T003 ni el benchmark de voz. Ver [revisión SOLID/ACL](solid-acl-review.md).

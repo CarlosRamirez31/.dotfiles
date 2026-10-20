@@ -1,125 +1,96 @@
 return {
    {
       "akinsho/flutter-tools.nvim",
-      dependencies = {
-         "nvim-lua/plenary.nvim",
-         "stevearc/dressing.nvim",
-         "mfussenegger/nvim-dap",
-      },
+      dependencies = { "nvim-lua/plenary.nvim", "stevearc/dressing.nvim", "mfussenegger/nvim-dap" },
       ft = { "dart" },
+      cmd = {
+         "FlutterRun",
+         "FlutterDebug",
+         "FlutterDevices",
+         "FlutterEmulators",
+         "FlutterReload",
+         "FlutterRestart",
+         "FlutterQuit",
+         "FlutterLogToggle",
+         "FlutterPubGet",
+         "FlutterOpenDevTools",
+      },
       config = function()
-         local function android_emulator()
-            local executable_name = vim.fn.has("win32") == 1 and "emulator.exe" or "emulator"
-            local executable = vim.fn.exepath(executable_name)
-            if executable ~= "" then
-               return executable
-            end
-
-            local separator = package.config:sub(1, 1)
-            local sdk_roots = {}
-            local function add_sdk_root(path)
-               if path and path ~= "" then
-                  table.insert(sdk_roots, path)
-               end
-            end
-
-            add_sdk_root(vim.env.ANDROID_SDK_ROOT)
-            add_sdk_root(vim.env.ANDROID_HOME)
-            add_sdk_root(vim.env.LOCALAPPDATA and (vim.env.LOCALAPPDATA .. separator .. "Android" .. separator .. "Sdk"))
-            add_sdk_root(vim.env.HOME and (vim.env.HOME .. separator .. "Android" .. separator .. "Sdk"))
-            add_sdk_root(
-               vim.env.HOME and (vim.env.HOME .. separator .. "Library" .. separator .. "Android" .. separator .. "sdk")
-            )
-
-            for _, sdk_root in ipairs(sdk_roots) do
-               local candidate = sdk_root .. separator .. "emulator" .. separator .. executable_name
-               if vim.fn.executable(candidate) == 1 then
-                  return candidate
-               end
-            end
+         local sdk = require("util.flutter").sdk()
+         if not sdk then
+            vim.notify("Falta Flutter en PATH. Instala el SDK y reinicia Neovim.", vim.log.levels.WARN)
+            return
          end
-
          require("flutter-tools").setup({
-            ui = {
-               border = "rounded",
-            },
-            decorations = {
-               statusline = {
-                  app_version = true,
-                  device = true,
-               },
-            },
-            dev_log = {
-               enabled = true,
-               open_cmd = "tabedit",
-            },
-            widget_guides = {
-               enabled = true,
+            -- Resolve the SDK from PATH, or the project's .fvm/flutter_sdk.
+            flutter_path = sdk,
+            root_patterns = { "pubspec.yaml", ".git" },
+            ui = { border = "rounded" },
+            decorations = { statusline = { app_version = true, device = true } },
+            dev_log = { enabled = true, open_cmd = "botright 12split", focus_on_open = false },
+            widget_guides = { enabled = true },
+            emulators = {
+               launcher = function(emulator)
+                  local launcher = vim.fn.exepath("flutter-emulator")
+                  if launcher == "" then
+                     return
+                  end
+                  local args = { emulator.id }
+                  if emulator.cold_boot then
+                     table.insert(args, "-no-snapshot-load")
+                  end
+                  return { command = launcher, args = args }
+               end,
             },
             lsp = {
-               color = { enabled = true },
+               color = { enabled = vim.fn.has("nvim-0.12") == 0 },
                on_attach = function(_, bufnr)
-                  local function map(keys, cmd, desc)
-                     vim.keymap.set("n", keys, cmd, { buffer = bufnr, desc = desc })
+                  if vim.fn.has("nvim-0.12") == 1 then
+                     vim.lsp.document_color.enable(true, { bufnr = bufnr })
                   end
-
-                  -- Flutter actions
-                  map("<leader>dr", "<cmd>FlutterHotReload<CR>", "Flutter Hot Reload")
-                  map("<leader>ds", "<cmd>FlutterHotRestart<CR>", "Flutter Hot Restart")
-                  map("<leader>dq", "<cmd>FlutterQuit<CR>", "Flutter Quit")
-                  map("<leader>dd", "<cmd>FlutterDevices<CR>", "Flutter Devices")
-                  map("<leader>dl", "<cmd>FlutterLog<CR>", "Flutter Logs")
-
-                  map("<leader>de", function()
-                     local emulator = android_emulator()
-                     if not emulator then
-                        vim.notify(
-                           "No se encontró Android Emulator. Configura ANDROID_SDK_ROOT o ANDROID_HOME.",
-                           vim.log.levels.ERROR
-                        )
-                        return
-                     end
-
-                     vim.fn.jobstart({ emulator, "-list-avds" }, {
-                        stdout_buffered = true,
-                        on_stdout = function(_, data)
-                           if data then
-                              -- Limpiar ^M (\r) y filtrar líneas vacías o ruidosas
-                              local avds = vim.tbl_filter(
-                                 function(item)
-                                    return item and item ~= "" and not item:match("INFO")
-                                 end,
-                                 vim.tbl_map(function(line)
-                                    return line:gsub("\r", "")
-                                 end, data)
-                              )
-
-                              -- Menú interactivo
-                              vim.ui.select(avds, { prompt = "Selecciona un emulador AVD:" }, function(choice)
-                                 if choice then
-                                    vim.fn.jobstart({ emulator, "-avd", choice }, { detach = true })
-                                 end
-                              end)
-                           end
-                        end,
-                        on_stderr = function(_, data)
-                           if data then
-                              vim.notify(table.concat(data, "\n"), vim.log.levels.ERROR)
-                           end
-                        end,
-                     })
-                  end, "Listar y ejecutar emulador Android")
                end,
             },
             debugger = {
                enabled = true,
-               run_via_dap = true, -- true: DAP | false: flutter CLI
+               exception_breakpoints = { "Unhandled" },
+               register_configurations = function()
+                  local root = require("util.flutter").root()
+                  if root and vim.fn.filereadable(root .. "/.vscode/launch.json") == 1 then
+                     require("dap.ext.vscode").load_launchjs(root .. "/.vscode/launch.json", { dart = { "dart" } })
+                  end
+               end,
             },
-            closing_tags = {
-               highlight = "ErrorMsg",
-               prefix = ">>",
-            },
+            closing_tags = { highlight = "ErrorMsg", prefix = ">>" },
+         })
+
+         local group = vim.api.nvim_create_augroup("UserFlutterKeys", { clear = true })
+         vim.api.nvim_create_autocmd("FileType", {
+            group = group,
+            pattern = "dart",
+            callback = function(event)
+               local function map(keys, action, desc)
+                  vim.keymap.set("n", keys, action, { buffer = event.buf, desc = desc })
+               end
+               map("<leader>dr", "<cmd>FlutterReload<CR>", "Flutter: Hot Reload")
+               map("<leader>ds", "<cmd>FlutterRestart<CR>", "Flutter: Hot Restart")
+               map("<leader>dq", "<cmd>FlutterQuit<CR>", "Flutter: Quit")
+               map("<leader>dd", function()
+                  require("util.flutter").start()
+               end, "Flutter: Select Device and Debug")
+               map("<leader>dl", "<cmd>FlutterLogToggle<CR>", "Flutter: Toggle Logs")
+               map("<leader>de", "<cmd>FlutterEmulators<CR>", "Flutter: Launch Emulator")
+               map("<leader>dp", "<cmd>FlutterPubGet<CR>", "Flutter: Pub Get")
+               map("<F4>", "<cmd>FlutterReload<CR>", "Flutter: Hot Reload")
+               map("<S-F4>", "<cmd>FlutterRestart<CR>", "Flutter: Hot Restart")
+            end,
          })
       end,
+   },
+   {
+      "neovim/nvim-lspconfig",
+      opts = {
+         -- flutter-tools owns Dart LSP; avoid a second server/Mason SDK.
+         servers = { dartls = { enabled = false } },
+      },
    },
 }

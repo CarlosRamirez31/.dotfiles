@@ -191,8 +191,13 @@ return {
                -- disables netrw and use telescope-file-browser in its place
                hijack_netrw = true,
                mappings = {
+                  ["i"] = {
+                     ["<A-d>"] = function(prompt_bufnr) require("util.trash").telescope_delete(prompt_bufnr) end,
+                  },
                   -- your custom insert mode mappings
                   ["n"] = {
+                     ["d"] = function(prompt_bufnr) require("util.trash").telescope_delete(prompt_bufnr) end,
+                     ["R"] = function() require("util.trash").open() end,
                      -- your custom normal mode mappings
                      ["N"] = fb_actions.create,
                      ["h"] = fb_actions.goto_parent_dir,

@@ -45,6 +45,16 @@ Hermes y el escritorio virtual se activan únicamente de forma explícita:
 `./install.sh` y `./install.sh all` no instalan ni configuran Hermes. Consulta el
 [componente opcional](components/hermes/README.md) para autenticación y capturas.
 
+Flutter con Android SDK, emulador y dispositivo virtual en `dev` también es opcional:
+
+```bash
+./install.sh flutter
+./install.sh all flutter
+```
+
+Solo se activa al escribir `flutter`; la instalación normal y `all` lo excluyen.
+Consulta el [componente Flutter](components/flutter/README.md).
+
 El orden escrito no importa: el orquestador siempre respeta las dependencias.
 
 ## Módulos
@@ -62,6 +72,7 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | [`git-security`](components/git-security/README.md) | Git portable, identidad privada y firma SSH opcional |
 | [`backup`](components/backup/README.md) | copias cifradas y verificables con Restic |
 | [`hermes`](components/hermes/README.md) **opcional** | Hermes en dev, skills académicas y escritorio virtual con capturas del host |
+| [`flutter`](components/flutter/README.md) **opcional** | Flutter estable, Android SDK, emulador sin marco y AVD en dev |
 | [`workbench`](components/workbench/README.md) | entornos rootless de desarrollo y pentesting |
 | [`desktop-extras`](components/desktop-extras/README.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
 | [`session`](components/session/README.md) | bloqueo, inactividad, suspensión y energía |

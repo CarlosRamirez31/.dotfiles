@@ -1,0 +1,7 @@
+[Unit]
+Description=Remove Neovim trash entries older than five hours
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 "%h/.config/nvim/lua/util/nvim-trash.py" purge
+UMask=0077

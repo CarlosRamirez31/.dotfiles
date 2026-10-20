@@ -1,5 +1,15 @@
 local keymap = vim.keymap
 local opts = { noremap = true, silent = true }
+require("util.trash").setup()
+
+-- AVD maintenance must also work from the dashboard or a non-Dart buffer,
+-- without loading Flutter LSP or starting a device first.
+vim.api.nvim_create_user_command("FlutterWipeData", function()
+   require("util.flutter-emulator").wipe()
+end, { desc = "Flutter: Restablecer emulador (borrar datos)", force = true })
+keymap.set("n", "<leader>dW", "<cmd>FlutterWipeData<CR>", {
+   desc = "Flutter: Restablecer emulador (borrar datos)",
+})
 
 -- Do things without affecting the registers
 keymap.set("n", "x", '"_x')

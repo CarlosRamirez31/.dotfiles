@@ -33,7 +33,7 @@ default_components=(
     polybar
     doctor
 )
-optional_components=(hermes)
+optional_components=(hermes flutter)
 available_components=("${default_components[@]}" "${optional_components[@]}")
 
 usage() {

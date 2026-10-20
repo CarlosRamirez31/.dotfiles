@@ -38,8 +38,44 @@ nvim archivo
 | `Space+c/d` | Cambiar/eliminar sin ensuciar registros. |
 | `Space+z` | Zen Mode. |
 | `Space+cp` | Panel Copilot. |
+| `Space+fu` / `:NvimTrash` | Ver papelera y restaurar un archivo o carpeta en su ruta original. |
+
+### Papelera del explorador (5 horas)
+
+`d` en el explorador lateral de Snacks o en el navegador de Telescope (`sf`) mueve la selección a `~/.local/share/nvim-trash`. En Telescope también funciona `Alt+d` desde inserción. `R` dentro de ambos exploradores abre la lista de recuperación. Los buffers con texto sin guardar se conservan abiertos.
+
+Cada borrado aparece como una sola entrada: un archivo, o una carpeta completa con su contenido. Selecciona una entrada con `Enter` para recuperarla exactamente donde estaba; si su ruta ya está ocupada, se conserva en la papelera y no sobrescribe el archivo nuevo. La lista muestra la ruta original y el tiempo restante.
+
+La retención es de cinco horas desde el borrado, independientemente de la fecha del archivo. En Linux, `nvim-trash-cleanup.timer` comprueba cada minuto y elimina permanentemente solo las entradas vencidas de esta papelera, incluso con Neovim cerrado. Si el equipo está apagado o suspendido, limpia al reanudarse la sesión. Host y Distrobox `dev` comparten esta papelera. En otras plataformas, también se comprueban vencimientos cada minuto mientras Neovim está abierto. Se requiere Python; si falla, el borrado se cancela sin recurrir a eliminación permanente.
+
+Los diagnósticos de LSP se actualizan también en modo inserción, a medida que el servidor publica errores y advertencias.
 
 Flutter añade bajo `Space+d`: hot reload (`dr`), hot restart (`ds`), salir (`dq`), dispositivos (`dd`), logs (`dl`) y emuladores (`de`). La depuración DAP aporta continuar, pausar, step over/into/out, breakpoints, REPL y UI; WhichKey muestra las combinaciones activas.
+
+### Flutter en Android
+
+El SDK se instala con el [componente opcional Flutter](../flutter/README.md): `./install.sh flutter`. Incluye Android SDK, Android Emulator y un AVD; se excluye de la instalación normal y de `all`. El editor descubre el SDK mediante `PATH` o `.fvm/flutter_sdk` en el proyecto. Antes de ejecutar, verifica `flutter doctor -v` y `flutter devices`.
+
+El entorno Flutter se reserva para Distrobox `dev`. Sus SDKs van en `~/.local/share/flutter-dev/{flutter,android-sdk}`; Zsh solo los añade cuando está instalado el componente opcional y `CONTAINER_ID=dev`. Entra con `distrobox enter dev` y ejecuta Neovim desde allí para que LSP, DAP, Java y ADB compartan el contenedor. Los SDKs ocupan el home compartido, pero sus dependencias de sistema se instalan dentro de `dev`.
+
+Abre `lib/main.dart` y pulsa `F5`: guarda los archivos, detecta el `pubspec.yaml` más cercano y permite seleccionar el dispositivo para depurar. Durante una sesión, `F5` continúa la ejecución. No se guarda un serial de teléfono ni una ruta de proyecto fija. Se pueden añadir configuraciones propias en `.vscode/launch.json` para entradas alternativas y flavors.
+
+| Tecla | Acción |
+| --- | --- |
+| `F4` / `Space+dr` | Hot reload; guardar un Dart también recarga automáticamente. |
+| `Shift+F4` / `Space+ds` | Hot restart. |
+| `F5` | Seleccionar dispositivo y depurar / continuar. |
+| `Shift+F5` | Terminar la sesión. |
+| `Ctrl+F5` | Repetir la última sesión de depuración. |
+| `Ctrl+Shift+F5` | Reiniciar la sesión con DAP. |
+| `F9` | Poner/quitar breakpoint. |
+| `F10` / `F11` / `Shift+F11` | Step over / into / out. |
+| `Space+dp` | Descargar dependencias con pub get. |
+| `Space+dW` | Restablecer un emulador: borrar datos y dejarlo apagado, previa confirmación. |
+
+`Space+dW` (W mayúscula) o `:FlutterWipeData` funciona desde cualquier buffer, incluso el inicio de Neovim, sin abrir un archivo Dart ni arrancar previamente el emulador. Lista los AVDs instalados, incluidos los apagados, y pide confirmar el borrado de apps, cuentas y ajustes. Si el seleccionado está abierto, intenta cerrarlo mediante ADB. Después elimina sus discos de datos modificables, caché y snapshots, conservando la definición del dispositivo, y lo deja apagado. No lanza Android para limpiar. Python comprueba el bloqueo del AVD antes de borrar; si sigue en uso, aborta. Si no responde a ADB, ciérralo manualmente y repite la acción. Solo actúa sobre emuladores; no restablece teléfonos físicos. La tarjeta SD virtual, si existe, se conserva. El primer arranque puede tardar.
+
+En el Android activa Opciones de desarrollador y Depuración USB, conecta un cable de datos, desbloquea el teléfono y acepta la autorización RSA. En Arch se necesitan las reglas de `android-udev` y pertenecer a `adbusers` (requiere volver a iniciar sesión tras añadir el grupo). `adb devices -l` debe mostrar `device`; `unauthorized` significa que falta aceptar la autorización en pantalla. `Space+de` usa los emuladores ya creados en el SDK; no instala imágenes ni crea AVDs.
 
 ## Administración y diagnóstico interno
 

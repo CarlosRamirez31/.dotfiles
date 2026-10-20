@@ -45,6 +45,8 @@ if [[ (-e $runtime_dir || -L $runtime_dir) && $resolved_init != "$managed_init" 
 fi
 
 stow_component "$component_root"
+systemctl --user daemon-reload
+systemctl --user enable --now nvim-trash-cleanup.timer
 
 # Lazy sync installs the exact plugin versions recorded by lazy-lock.json.
 nvim --headless "+Lazy! sync" +qa

@@ -88,4 +88,23 @@ return {
         },
         properties = { floating = true, placement = awful.placement.centered },
     },
+    {
+        rule = { class = "Emulator", name = "^Emulator$" },
+        properties = {
+            floating = true,
+            -- Qt's utility window must not be centered or placed as a new
+            -- independent application by the generic rules above.
+            placement = function() end,
+        },
+        callback = function(c) require("emulator-toolbar").attach(c) end,
+    },
+    {
+        rule = { class = "Emulator", name = "^Extended [Cc]ontrols" },
+        properties = {
+            floating = true,
+            maximized = false,
+            fullscreen = false,
+            placement = awful.placement.centered + awful.placement.no_offscreen,
+        },
+    },
 }

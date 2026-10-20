@@ -1,0 +1,9 @@
+#!/usr/bin/env zsh
+set -eu
+if [[ ${CONTAINER_ID:-} != dev ]]; then
+    exec distrobox enter --name dev -- zsh "$0" "$@"
+fi
+source "${XDG_CONFIG_HOME:-$HOME/.config}/flutter/env.zsh"
+emulator_name="${1:-${FLUTTER_AVD_NAME:-Beambollow}}"
+if (( $# )); then shift; fi
+exec "$ANDROID_HOME/emulator/emulator" -avd "$emulator_name" -no-skin "$@"

@@ -16,9 +16,16 @@ return {
          {
             "<F5>",
             function()
-               require("dap").continue()
+               local dap = require("dap")
+               if dap.session() then
+                  dap.continue()
+               elseif require("util.flutter").root() then
+                  require("util.flutter").start()
+               else
+                  dap.continue()
+               end
             end,
-            desc = "DAP: Continue",
+            desc = "DAP: Start / Continue",
          },
          {
             "<S-F5>",
@@ -32,7 +39,7 @@ return {
             function()
                require("dap").run_last()
             end,
-            desc = "DAP: Run Without Debugging",
+            desc = "DAP: Repeat Last Debug Session",
          },
          {
             "<F6>",
@@ -125,10 +132,7 @@ return {
          {
             "<C-S-F5>",
             function()
-               require("dap").terminate()
-               vim.defer_fn(function()
-                  require("dap").run_last()
-               end, 300)
+               require("dap").restart()
             end,
             desc = "DAP: Restart Session",
          },

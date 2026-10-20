@@ -38,6 +38,13 @@ else
 fi
 
 state_file="${capacity_file%capacity}status"
+state=Unknown
+[[ ! -r $state_file ]] || state=$(<"$state_file")
+conservation=0
+charge_types_file="${capacity_file%capacity}charge_types"
+if [[ -r $charge_types_file ]] && [[ $(<"$charge_types_file") == *'[Long_Life]'* ]]; then
+    conservation=1
+fi
 plugged_in=0
 for supply in /sys/class/power_supply/*; do
     [[ -r $supply/type && -r $supply/online ]] || continue
@@ -47,8 +54,12 @@ for supply in /sys/class/power_supply/*; do
         break
     fi
 done
-if ((plugged_in)) || { [[ -r $state_file ]] && [[ $(<"$state_file") == Charging ]]; }; then
-    # Keep the capacity icon and show a small bolt before it while plugged in.
+if ((plugged_in && conservation)) && [[ $state == 'Not charging' || $state == Full ]]; then
+    # A heart means the firmware is holding the battery in conservation mode.
+    icon="%{T5}%{T-} $icon"
+    color='#f9de8f'
+elif [[ $state == Charging ]]; then
+    # Show the bolt only when the battery is actually charging.
     icon="%{T5}%{T-} $icon"
     color='#a0e8a2'
 fi

@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Prepare a portable RNNoise source without storing machine IDs in Git."""
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+
+SOURCE = 'dotfiles_voice_isolation'
+
+
+def pactl(*args):
+    return subprocess.check_output(['pactl', *args], text=True).strip()
+
+
+def select_source(sources, default, requested=''):
+    physical = [s['name'] for s in sources
+                if not s['name'].endswith('.monitor')
+                and str(s.get('properties', {}).get('node.virtual', '')).lower() not in ('true', '1')
+                and s.get('properties', {}).get('device.api')]
+    if requested:
+        if requested not in physical:
+            raise ValueError('VOICE_ISOLATION_SOURCE no corresponde a un micrófono físico disponible')
+        return requested
+    if default in physical:
+        return default
+    if not physical:
+        raise ValueError('No hay micrófono físico disponible')
+    return physical[0]
+
+
+def append_filter(base, graph):
+    base = base.rstrip()
+    if 'context.modules = [' not in base or not base.endswith(']'):
+        raise ValueError('Formato inesperado de /usr/share/pipewire/filter-chain.conf')
+    # A repeated context.modules key would replace the protocol/client modules.
+    return base[:-1] + ',\n' + json.dumps(graph) + '\n]\n'
+
+
+def prepare(runtime):
+    source = select_source(json.loads(pactl('-f', 'json', 'list', 'sources')),
+                           pactl('get-default-source'), os.getenv('VOICE_ISOLATION_SOURCE', ''))
+    threshold = float(os.getenv('VOICE_ISOLATION_THRESHOLD', '60'))
+    if not 0 <= threshold <= 100:
+        raise ValueError('VOICE_ISOLATION_THRESHOLD debe estar entre 0 y 100')
+    plugin = next((p for p in (
+        Path('/usr/lib/ladspa/librnnoise_ladspa.so'),
+        Path.home() / '.local/lib/ladspa/librnnoise_ladspa.so',
+    ) if p.is_file()), None)
+    if plugin is None:
+        raise ValueError('Instala noise-suppression-for-voice: ./install.sh voice-isolation')
+    # This client has its own config; unrelated filter-chain fragments are not loaded.
+    graph = {'name': 'libpipewire-module-filter-chain', 'args': {
+        'node.description': 'Aislamiento de voz', 'media.name': 'Aislamiento de voz',
+        'filter.graph': {'nodes': [{'type': 'ladspa', 'name': 'rnnoise',
+            'plugin': 'librnnoise_ladspa', 'label': 'noise_suppressor_mono',
+            'control': {'VAD Threshold (%)': threshold, 'VAD Grace Period (ms)': 200,
+                        'Retroactive VAD Grace (ms)': 100, 'Dry Mix': 0}}]},
+        'audio.rate': 48000, 'audio.position': ['MONO'],
+        'capture.props': {'node.name': 'dotfiles_voice_capture',
+                          'target.object': source, 'node.passive': True},
+        'playback.props': {'node.name': SOURCE, 'node.description': 'Aislamiento de voz',
+                           'media.class': 'Audio/Source', 'priority.session': 2200},
+    }}
+    base = Path('/usr/share/pipewire/filter-chain.conf').read_text()
+    runtime.mkdir(parents=True, exist_ok=True)
+    (runtime / 'filter-chain.conf').write_text(append_filter(base, graph))
+    (runtime / 'source').write_text(source)
+
+
+def volume(value):
+    if not re.fullmatch(r'(?:100|[0-9]{1,2})(?:\.[0-9]+)?%', value) or float(value[:-1]) > 100:
+        raise ValueError('El volumen debe ser un porcentaje entre 0% y 100%')
+    return value
+
+
+def activate(runtime):
+    input_volume = os.getenv('VOICE_ISOLATION_INPUT_VOLUME', 'keep')
+    if input_volume != 'keep':
+        input_volume = volume(input_volume)
+    output_volume = volume(os.getenv('VOICE_ISOLATION_OUTPUT_VOLUME', '80%'))
+    for _ in range(50):
+        if SOURCE in [s['name'] for s in json.loads(pactl('-f', 'json', 'list', 'sources'))]:
+            pactl('set-source-volume', SOURCE, output_volume)
+            pactl('set-default-source', SOURCE)
+            if input_volume != 'keep':
+                pactl('set-source-volume', (runtime / 'source').read_text(), input_volume)
+            return
+        time.sleep(0.1)
+    raise RuntimeError('PipeWire no creó la entrada Aislamiento de voz')
+
+
+if __name__ == '__main__':
+    try:
+        runtime = Path(os.environ['XDG_RUNTIME_DIR']) / 'dotfiles-voice-isolation'
+        {'prepare': prepare, 'activate': activate}[sys.argv[1]](runtime)
+    except (ValueError, RuntimeError, KeyError, IndexError, subprocess.CalledProcessError) as error:
+        sys.exit(str(error))

@@ -74,6 +74,14 @@ El cliente Docker usa por defecto la API compatible del Podman rootless existent
 
 El orden escrito no importa: el orquestador siempre respeta las dependencias.
 
+El aislamiento de voz con RNNoise es opcional y funciona en el host para OBS y otras aplicaciones:
+
+```bash
+./install.sh voice-isolation
+```
+
+Detecta el micrófono de cada equipo y mantiene sus ajustes locales fuera de Git. Consulta [Aislamiento de voz](components/voice-isolation/README.md).
+
 ## Módulos
 
 | Módulo | Para qué existe |
@@ -93,6 +101,7 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | [`rider`](components/rider/README.md) **opcional** | JetBrains Rider y SDK .NET en dev; `rider .` abre la carpeta actual |
 | [`docker`](components/docker/README.md) **opcional** | Docker CLI, Compose y Buildx en dev, usando la API compatible de Podman |
 | [`dbeaver`](components/dbeaver/README.md) **opcional** | DBeaver Community en dev, con lanzador gráfico independiente |
+| [`voice-isolation`](components/voice-isolation/README.md) **opcional** | Aislamiento de voz RNNoise con detección del micrófono y arranque automático |
 | [`workbench`](components/workbench/README.md) | entornos rootless de desarrollo y pentesting |
 | [`desktop-extras`](components/desktop-extras/README.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
 | [`session`](components/session/README.md) | bloqueo, inactividad, suspensión y energía |

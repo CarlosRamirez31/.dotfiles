@@ -33,7 +33,7 @@ default_components=(
     polybar
     doctor
 )
-optional_components=(hermes flutter rider docker dbeaver)
+optional_components=(hermes flutter rider docker dbeaver voice-isolation)
 available_components=("${default_components[@]}" "${optional_components[@]}")
 
 usage() {

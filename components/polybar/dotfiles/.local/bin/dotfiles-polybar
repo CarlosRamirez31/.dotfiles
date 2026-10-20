@@ -17,6 +17,22 @@ if [[ ${1:-} == --workspaces || ${1:-} == --tag ]]; then
     exit
 fi
 
+if [[ ${1:-} == --microphone ]]; then
+    if [[ -x $HOME/.local/bin/dotfiles-microphone ]]; then
+        case ${2:-status} in
+            status) exec "$HOME/.local/bin/dotfiles-microphone" bar ;;
+            menu) exec "$HOME/.local/bin/dotfiles-microphone" compact ;;
+            toggle) exec "$HOME/.local/bin/dotfiles-microphone" toggle ;;
+            *) exit 2 ;;
+        esac
+    elif [[ ${2:-status} == toggle ]]; then
+        wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+    else
+        printf '\n'
+    fi
+    exit
+fi
+
 if [[ ${1:-} == --volume ]]; then
     case ${2:-status} in
         up) wpctl set-volume --limit 1 @DEFAULT_AUDIO_SINK@ 5%+ ;;

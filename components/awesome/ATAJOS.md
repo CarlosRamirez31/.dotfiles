@@ -10,6 +10,10 @@
 | `Ctrl+Alt+T` | Abrir terminal. |
 | `Alt+Space`, `Alt+D`, `Alt+F2` | Abrir lanzador de aplicaciones. |
 | `Alt+Shift+D` | Abrir LazyDocker en una ventana flotante y centrada. |
+| `Alt+Shift+M` | Abrir el panel opcional de micrófono y aislamiento. |
+| `Alt+Ctrl+M` / tecla de silenciar micrófono | Apagar/encender el micrófono. |
+| `Alt+Ctrl+N` | Activar/desactivar el aislamiento de ruido. |
+| `Alt+Ctrl+V` | Activar/desactivar Solo mi voz, después de registrar la voz. |
 | `Alt+Tab` | Abrir selector de ventanas. También permite volver a una ventana minimizada. |
 | `Alt+B` | Abrir Firefox. |
 | `Alt+E` | Abrir Yazi, el gestor de archivos en terminal. |

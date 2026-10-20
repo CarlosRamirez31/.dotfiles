@@ -1,0 +1,30 @@
+#!/bin/bash
+set -uo pipefail
+case ${1:-} in
+    tags)
+        awesome-client "local result={} for s in screen do for i,t in ipairs(s.tags) do local colors={'#f9de8f','#ff9b93','#95e1d3','#81a1c1'}; local u=t.selected and '%{u#565c64}%{+u}' or ''; table.insert(result,'%{A1:/opt/presentacion/bin/panel tag '..i..':}%{F'..colors[i]..'}'..u..' '..t.name..' '..'%{-u}%{F-}%{A}') end end return table.concat(result)" 2>/dev/null | sed -n 's/^ *string "\(.*\)"$/\1/p'
+        ;;
+    tag)
+        [[ ${2:-} =~ ^[1-4]$ ]] || exit 2
+        awesome-client "local t=screen.primary.tags[$2]; if t then t:view_only() end" >/dev/null
+        ;;
+    volume)
+        if ! command -v pactl >/dev/null; then
+            printf '󰕾 —\n'
+            exit
+        fi
+        if [[ $(pactl get-sink-mute @DEFAULT_SINK@ 2>/dev/null) == *yes ]]; then
+            printf '󰖁\n'
+        else pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null | awk 'NR==1 {for(i=1;i<=NF;i++) if($i ~ /%/) {print "󰕾 " $i; exit}}'; fi
+        ;;
+    battery) "$HOME/.local/bin/dotfiles-polybar-battery" 2>/dev/null || true ;;
+    brightness)
+        brightness=$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -print -quit)
+        if [[ -n $brightness ]]; then awk -v n="$(cat "$brightness/brightness")" -v d="$(cat "$brightness/max_brightness")" 'BEGIN{printf "%d%%\n",100*n/d}'; fi
+        ;;
+    close)
+        choice=$(printf 'Cerrar escritorio virtual\nCancelar\n' | rofi -dmenu -i -p 'Presentación') || exit 0
+        [[ $choice != 'Cerrar escritorio virtual' ]] || awesome-client 'awesome.quit()' >/dev/null
+        ;;
+    *) exit 2 ;;
+esac

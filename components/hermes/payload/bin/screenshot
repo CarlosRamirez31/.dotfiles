@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+import datetime,fcntl,json,os,socket,subprocess,sys,time
+from pathlib import Path
+ROOT=Path('/opt/presentacion');RUN=ROOT/'run'; FOLDER=Path('@HOST_HOME@/Documents/Universidad/salidas/capturas')
+os.umask(0o077)
+def inbox(action,path=None):
+    state=json.loads((RUN/'state.json').read_text())
+    if os.environ.get('DISPLAY')!=state['host_display']: raise RuntimeError('La imagen de Hermes debe capturarse desde el host.')
+    request={'action':action,'session':state['session'],'source':'host','display':state['host_display']}
+    if path: request['path']=str(path)
+    with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as sock:
+        sock.settimeout(2);sock.connect(str(RUN/'hermes.sock'));sock.sendall(json.dumps(request).encode()+b'\n')
+        data=b''
+        while b'\n' not in data:
+            part=sock.recv(4096)
+            if not part or len(data)+len(part)>8192: raise RuntimeError('Hermes no respondió.')
+            data+=part
+        return json.loads(data.split(b'\n')[0])
+def main():
+    FOLDER.mkdir(parents=True,exist_ok=True)
+    lock=(RUN/'screenshot.lock').open('w')
+    try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except BlockingIOError:return
+    host='--host' in sys.argv
+    if host: sys.argv.remove('--host')
+    mode=sys.argv[1] if len(sys.argv)>1 else 'full'
+    file=Path(sys.argv[2]).expanduser().resolve() if len(sys.argv)>2 else FOLDER/('presentacion-'+datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S-')+str(time.time_ns())+'.png')
+    if file.exists():raise RuntimeError('El archivo ya existe; usa otro nombre.')
+    file.parent.mkdir(parents=True,exist_ok=True)
+    state=json.loads((RUN/'state.json').read_text())
+    if host:
+        os.environ['DISPLAY']=state['host_display']
+        if state.get('host_xauthority'):os.environ['XAUTHORITY']=state['host_xauthority']
+    elif os.environ.get('DISPLAY')!=state['display']:
+        raise RuntimeError('La captura virtual debe ejecutarse en su propio display.')
+    result=subprocess.run(['scrot','--silent',*(['--select'] if mode=='area' else []),str(file)])
+    if result.returncode or not file.is_file() or not file.stat().st_size:
+        file.unlink(missing_ok=True);return
+    file.chmod(0o600)
+    try: response=inbox('image',file) if host else None
+    except (OSError,RuntimeError,ValueError):response=None
+    if response and response.get('ok'):print(str(file)+' → Hermes')
+    else:
+        # With no inbox, preserve ordinary screenshot/clipboard behavior.
+        subprocess.run(['xclip','-selection','clipboard','-t','image/png','-i',str(file)],check=False)
+        print(file)
+        if response:print('Hermes: '+response.get('message','No se pudo enviar.'),file=sys.stderr)
+if __name__=='__main__':
+    try:main()
+    except (RuntimeError,OSError,ValueError) as exc:print('Error:',exc,file=sys.stderr);sys.exit(1)

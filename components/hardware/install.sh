@@ -11,6 +11,9 @@ if [[ $virtualization == none ]]; then
     packages+=(fwupd smartmontools)
 fi
 install_packages "${packages[@]}"
+stow_component "$component_root"
+systemctl --user daemon-reload
+systemctl --user enable dotfiles-touchpad-typing.service
 
 if [[ $virtualization == none ]] || compgen -G '/sys/class/bluetooth/hci*' >/dev/null; then
     sudo systemctl enable --now bluetooth.service

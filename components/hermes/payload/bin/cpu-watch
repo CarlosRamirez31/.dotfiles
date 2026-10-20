@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""Bounded local history for whole-machine stalls while presentation runs."""
+import datetime,json,logging,logging.handlers,os,signal,threading,time
+from pathlib import Path
+os.umask(0o077)
+stop=threading.Event()
+for sig in (signal.SIGTERM,signal.SIGINT): signal.signal(sig,lambda *_:stop.set())
+log=logging.getLogger('resource-history');log.setLevel(logging.INFO)
+handler=logging.handlers.RotatingFileHandler('/opt/presentacion/run/resource-history.jsonl',maxBytes=2_000_000,backupCount=2)
+handler.setFormatter(logging.Formatter('%(message)s')); log.addHandler(handler)
+hz=os.sysconf('SC_CLK_TCK'); page=os.sysconf('SC_PAGE_SIZE')
+def snapshot():
+    rows={}
+    for p in Path('/proc').glob('[0-9]*'):
+        try:
+            value=(p/'stat').read_text(); end=value.rindex(')'); f=value[end+2:].split()
+            rows[int(p.name)]={'ticks':int(f[11])+int(f[12]),'name':value[value.index('(')+1:end], 'rss_mib':round(int(f[21])*page/2**20,1)}
+        except (OSError,ValueError,IndexError): pass
+    fields=list(map(int,Path('/proc/stat').read_text().splitlines()[0].split()[1:9]))
+    return rows,sum(fields),fields[3],fields[4]
+def pressure(kind):
+    try: return Path('/proc/pressure/'+kind).read_text().strip()
+    except OSError: return ''
+before=snapshot(); last=time.monotonic()
+while not stop.wait(2):
+    after=snapshot(); now=time.monotonic(); elapsed=now-last; total=after[1]-before[1]
+    rows=[]
+    for pid,r in after[0].items():
+        if pid in before[0]:
+            rows.append({'pid':pid,'name':r['name'],'cpu_core_percent':round(100*max(0,r['ticks']-before[0][pid]['ticks'])/hz/elapsed,1),'rss_mib':r['rss_mib']})
+    mem={line.split(':')[0]:int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines()}
+    report={'time':datetime.datetime.now().astimezone().isoformat(),
+        'cpu_busy_percent':round(100*(1-(after[2]-before[2]+after[3]-before[3])/total),1) if total else 0,
+        'cpu_iowait_percent':round(100*(after[3]-before[3])/total,1) if total else 0,
+        'available_mib':round(mem['MemAvailable']/1024,1),'swap_used_mib':round((mem['SwapTotal']-mem['SwapFree'])/1024,1),
+        'shmem_mib':round(mem['Shmem']/1024,1),'pressure':{k:pressure(k) for k in ('cpu','memory','io')},
+        'top_cpu':sorted(rows,key=lambda r:r['cpu_core_percent'],reverse=True)[:10],
+        'top_memory':sorted(rows,key=lambda r:r['rss_mib'],reverse=True)[:5]}
+    log.info(json.dumps(report,ensure_ascii=False))
+    before=after;last=now
+handler.close()

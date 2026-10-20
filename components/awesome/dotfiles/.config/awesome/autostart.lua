@@ -35,5 +35,7 @@ awful.spawn.with_shell(
         "XCURSOR_SIZE=24 XDG_SESSION_TYPE=x11 XDG_CURRENT_DESKTOP=awesome " ..
         "XDG_SESSION_DESKTOP=awesome; " ..
         "dbus-update-activation-environment --systemd DISPLAY XAUTHORITY " ..
-        "XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE"
+        "XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE; " ..
+        "systemctl --user import-environment DISPLAY XAUTHORITY; " ..
+        "systemctl --user start dotfiles-touchpad-typing.service"
 )

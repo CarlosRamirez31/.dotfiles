@@ -33,11 +33,13 @@ default_components=(
     polybar
     doctor
 )
-available_components=("${default_components[@]}")
+optional_components=(hermes)
+available_components=("${default_components[@]}" "${optional_components[@]}")
 
 usage() {
-    printf 'Usage: %s [all|COMPONENT ...]\n' "${0##*/}"
+    printf 'Usage: %s [--dry-run] [all|COMPONENT ...]\n' "${0##*/}"
     printf 'Components installed by default: %s\n' "${default_components[*]}"
+    printf 'Optional (explicit selection only): %s\n' "${optional_components[*]}"
 }
 
 component_exists() {
@@ -49,6 +51,13 @@ component_exists() {
     return 1
 }
 
+dry_run=false
+requested_args=()
+for argument in "$@"; do
+    if [[ $argument == --dry-run ]]; then dry_run=true; else requested_args+=("$argument"); fi
+done
+set -- "${requested_args[@]}"
+
 if (($# == 1)) && [[ $1 == --help || $1 == -h ]]; then
     usage
     exit 0
@@ -57,7 +66,10 @@ fi
 if (($# == 0)) || { (($# == 1)) && [[ $1 == all ]]; }; then
     selected_components=("${default_components[@]}")
 else
-    requested_components=("$@")
+    requested_components=()
+    for argument in "$@"; do
+        if [[ $argument == all ]]; then requested_components+=("${default_components[@]}"); else requested_components+=("$argument"); fi
+    done
     for requested in "${requested_components[@]}"; do
         if ! component_exists "$requested"; then
             printf 'Unknown component: %s\n' "$requested" >&2
@@ -77,6 +89,11 @@ else
             fi
         done
     done
+fi
+
+if [[ $dry_run == true ]]; then
+    printf 'Selected components: %s\n' "${selected_components[*]}"
+    exit 0
 fi
 
 require_arch_user

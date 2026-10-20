@@ -3,7 +3,7 @@ command_timeout = 1200
 palette = "catppuccin_mocha"
 
 format = """
-$os$username$hostname$directory$git_branch$git_status$docker_context$package$c$cmake$dart$dotnet$golang$java$kotlin$lua$nodejs$php$python$rust$swift$fill$cmd_duration$jobs$time
+${custom.distrobox_dev}$os$username$hostname$directory$git_branch$git_status$docker_context$package$c$cmake$dart$dotnet$golang$java$kotlin$lua$nodejs$php$python$rust$swift$fill$cmd_duration$jobs$time
 $character"""
 
 right_format = "$status"
@@ -119,3 +119,11 @@ symbol = "󰪮 "
 
 [docker_context]
 symbol = " "
+
+# Mark only the Arch development Distrobox; keep the host and other profiles unchanged.
+[custom.distrobox_dev]
+when = 'test "$CONTAINER_ID" = dev'
+shell = ["sh"]
+symbol = "  "
+style = "bold purple"
+format = "[$symbol]($style)"

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Universidad · Archivos
+Exec=alacritty -e yazi "@HOST_HOME@/Documents/Universidad"
+Icon=system-file-manager
+Terminal=false
+Categories=Utility;

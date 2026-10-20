@@ -1,0 +1,12 @@
+REGLAS DE CITACIÓN
+
+- Paráfrasis: (Apellido, año) o Apellido (año).
+- Cita textual corta: comillas, autor, año y página o párrafo cuando exista.
+- Cita textual de 40 palabras o más: bloque independiente, sin comillas, con localizador.
+- Dos autores: Apellido y Apellido en narrativa; Apellido & Apellido entre paréntesis.
+- Tres o más autores: primer apellido y et al. desde la primera cita.
+- Autor corporativo: nombre completo la primera vez; abreviatura solo si queda clara.
+- Sin fecha: usar s. f. en español si la guía institucional no dispone otra forma.
+- Toda cita debe corresponder a una referencia y toda referencia debe usarse en el texto.
+- Conservar DOI como https://doi.org/... cuando exista.
+- No añadir fecha de recuperación salvo que el contenido esté diseñado para cambiar con el tiempo.

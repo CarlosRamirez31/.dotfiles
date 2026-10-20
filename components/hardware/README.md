@@ -55,3 +55,16 @@ journalctl -u bluetooth.service -b
 ```
 
 Si Bluetooth figura bloqueado, usa `rfkill unblock bluetooth`. `hardware` instala las herramientas pero no administra batería, audio ni teclas multimedia, que pertenecen a `session` y `system`.
+
+## Evitar movimientos del touchpad al escribir
+
+En sesiones Awesome con el controlador Synaptics, `dotfiles-touchpad-typing.service` ejecuta `syndaemon -R -i 0.2 -k`: pausa el touchpad mientras se escribe y lo reactiva 0,2 segundos después de la última tecla. Las teclas modificadoras aisladas no activan la pausa. No modifica el mouse USB/Bluetooth.
+
+Awesome inicia el servicio tras importar DISPLAY y XAUTHORITY. La condición de la unidad evita ejecutarlo cuando Synaptics no está disponible; no cambia el controlador del touchpad. Los sistemas que usan libinput conservan su detección nativa de escritura.
+
+```bash
+systemctl --user status dotfiles-touchpad-typing.service
+systemctl --user stop dotfiles-touchpad-typing.service
+```
+
+Para cambiar el tiempo, modifica el valor de `-i 0.2` en la unidad, ejecuta `systemctl --user daemon-reload` y reinicia el servicio.

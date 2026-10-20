@@ -1,0 +1,3 @@
+#!/bin/sh
+export HERMES_HOME="${HERMES_HOME:-/opt/hermes/.hermes}"
+exec /opt/hermes/.hermes/hermes-agent/.hermes/bin/hermes "$@"

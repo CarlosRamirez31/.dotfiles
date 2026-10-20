@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Prueba de pantalla compartida
+Exec=presentacion probar
+Icon=video-display
+Terminal=false
+Categories=Utility;

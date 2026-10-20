@@ -34,6 +34,17 @@ Para instalar componentes concretos:
 ./install.sh --help
 ```
 
+Hermes y el escritorio virtual se activan únicamente de forma explícita:
+
+```bash
+./install.sh hermes
+./install.sh all hermes
+./install.sh --dry-run all
+```
+
+`./install.sh` y `./install.sh all` no instalan ni configuran Hermes. Consulta el
+[componente opcional](components/hermes/README.md) para autenticación y capturas.
+
 El orden escrito no importa: el orquestador siempre respeta las dependencias.
 
 ## Módulos
@@ -50,6 +61,7 @@ El orden escrito no importa: el orquestador siempre respeta las dependencias.
 | [`quality`](components/quality/README.md) | validación reproducible de Bash, Zsh, JSON y Lua |
 | [`git-security`](components/git-security/README.md) | Git portable, identidad privada y firma SSH opcional |
 | [`backup`](components/backup/README.md) | copias cifradas y verificables con Restic |
+| [`hermes`](components/hermes/README.md) **opcional** | Hermes en dev, skills académicas y escritorio virtual con capturas del host |
 | [`workbench`](components/workbench/README.md) | entornos rootless de desarrollo y pentesting |
 | [`desktop-extras`](components/desktop-extras/README.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
 | [`session`](components/session/README.md) | bloqueo, inactividad, suspensión y energía |

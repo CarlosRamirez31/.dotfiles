@@ -21,6 +21,7 @@ application/x-7z-compressed=org.gnome.FileRoller.desktop
 application/x-rar=org.gnome.FileRoller.desktop
 application/x-tar=org.gnome.FileRoller.desktop
 application/x-ica=citrix-wfica.desktop
+x-scheme-handler/codex=chatgpt.desktop
 
 [Added Associations]
 text/html=firefox.desktop;

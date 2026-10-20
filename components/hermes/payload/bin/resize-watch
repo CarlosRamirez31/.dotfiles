@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Synchronize Xephyr's RandR monitor, wallpaper and our own Polybar."""
+import os, re, signal, subprocess, threading
+from pathlib import Path
+root=Path('/opt/presentacion')
+stop=threading.Event()
+for sig in (signal.SIGTERM,signal.SIGINT): signal.signal(sig,lambda *_:stop.set())
+bar=None
+last=None
+try:
+    while not stop.is_set():
+        info=subprocess.run(['xdpyinfo'],capture_output=True,text=True)
+        match=re.search(r'dimensions:\s+(\d+)x(\d+)',info.stdout)
+        if not match:
+            if info.returncode: break
+        else:
+            size=tuple(map(int,match.groups()))
+            if size!=last:
+                w,h=size
+                subprocess.run(['xrandr','--delmonitor','Virtual'],capture_output=True)
+                result=subprocess.run(['xrandr','--setmonitor','Virtual',f'{w}/{round(w*25.4/96)}x{h}/{round(h*25.4/96)}+0+0','default'],capture_output=True)
+                if result.returncode:
+                    stop.wait(.6)
+                    continue
+                path=(root/'config/wallpaper-path').read_text().strip()
+                if Path(path).is_file(): subprocess.run(['feh','--no-fehbg','--bg-fill',path],check=True)
+                if bar:
+                    bar.terminate()
+                    try: bar.wait(timeout=3)
+                    except subprocess.TimeoutExpired: bar.kill(); bar.wait()
+                env=dict(os.environ,MONITOR='Virtual')
+                with (root/'run/polybar.log').open('ab') as log:
+                    bar=subprocess.Popen(['polybar','--config='+str(root/'config/polybar/config.ini'),'top'],env=env,stdout=log,stderr=log)
+                last=size
+        stop.wait(.6)
+finally:
+    if bar and bar.poll() is None:
+        bar.terminate()
+        try: bar.wait(timeout=3)
+        except subprocess.TimeoutExpired: bar.kill(); bar.wait()

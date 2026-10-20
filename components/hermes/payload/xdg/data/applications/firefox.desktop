@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Firefox · Presentación
+Exec=presentacion firefox %u
+Icon=firefox
+Terminal=false
+Categories=Utility;

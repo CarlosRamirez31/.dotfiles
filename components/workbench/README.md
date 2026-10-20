@@ -12,7 +12,7 @@ Rootless necesita rangos asignados al usuario en `/etc/subuid` y `/etc/subgid`. 
 
 | Nombre | Imagen oficial | Para qué se usa |
 | --- | --- | --- |
-| `dev` | `docker.io/library/archlinux:latest` | Desarrollo general con compiladores, Git, Neovim, Node.js y Python. |
+| `dev` | `docker.io/library/archlinux:latest` | Desarrollo general con el mismo Zsh y prompt del host, compiladores, Git, Neovim, Node.js y Python. |
 | `kalilinux` | `docker.io/kalilinux/kali-rolling:latest` | Kali Linux con una selección práctica de herramientas para laboratorios autorizados. |
 | `parrotos` | `docker.io/parrotsec/security:latest` | Parrot Security; su imagen ya incluye la colección CLI de herramientas de seguridad de Parrot. |
 
@@ -55,6 +55,27 @@ distrobox rm parrotos
 ```
 
 Esto elimina los paquetes instalados dentro de ese contenedor. Los proyectos y dotfiles del home compartido permanecen en el host. Antes de confirmar, revisa siempre que el nombre sea correcto.
+
+## Terminal de desarrollo
+
+`dev` reutiliza los dotfiles y Oh My Zsh del home compartido. Instala Starship, Fastfetch, eza, Bat, FZF, fd, Ripgrep, Zoxide, Vivid y los plugins de sugerencias, resaltado, completado e historial de Zsh. Así conserva la apariencia y los atajos de la terminal del host sin instalar otro escritorio. Añade `jq`, `yq`, Lazygit, Tree-sitter CLI y el portapapeles X11 para trabajar con la configuración existente.
+
+## Hermes Agent en dev
+
+Hermes Agent se instala por separado dentro de `dev`, en `/opt/hermes`, mediante el [instalador oficial](https://hermes-agent.nousresearch.com/docs/getting-started/installation). Se usa la versión estable de terminal, con `--skip-browser --skip-computer-use`, sin instalar el escritorio ni habilitar un gateway. Sus dependencias administradas ocupan más espacio que las utilidades de Zsh.
+
+```bash
+distrobox enter dev
+hermes setup        # conectar el proveedor/modelo
+hermes              # abrir el agente
+hermes update       # actualizarlo
+```
+
+El comando del contenedor en `/usr/local/bin/hermes` selecciona `/opt/hermes/.hermes` como directorio de datos. El código, la configuración, las sesiones y las credenciales de esta instalación viven dentro del contenedor; no se versionan en los dotfiles. Borrar `dev` elimina esta instalación y sus datos internos: exporta un respaldo con las herramientas de Hermes antes de reconstruirlo. El manifiesto de Distrobox instala las utilidades de terminal, pero no reinstala Hermes automáticamente. Para reproducir Hermes, las skills y el escritorio de presentación, selecciona explícitamente `./install.sh hermes` (o `./install.sh all hermes`). El [componente opcional hermes](../hermes/README.md) nunca se ejecuta con la instalación normal ni con `all` por sí solo.
+
+Las personalizaciones restauradas son `academic-apa-writer`, `humanize-global`, los cambios locales en `youtube-content` y el bundle `/academico`. El entorno Python de los scripts académicos vive en `/opt/hermes/.hermes/academic/.venv`; la restauración conserva el proveedor y la autenticación actuales.
+
+Los documentos académicos sí son persistentes y compartidos con el host en `~/Documents/Universidad`: `entradas` para documentos aportados, `salidas` para entregables y `muestras` para muestras de escritura. Los resultados antiguos restaurados están en `salidas/respaldo-2026-10-18`. Las rutas internas `academic/sources`, `academic/output` y `academic/writing_samples` apuntan a estas carpetas. El directorio de trabajo de las herramientas de terminal de Hermes es `~/Documents/Universidad`. Borrar el contenedor conserva esta carpeta y el respaldo original.
 
 ## Qué prepara cada entorno de seguridad
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=Pause the Synaptics touchpad for 0.2 seconds after typing
+PartOf=graphical-session.target
+
+[Service]
+Type=exec
+ExecCondition=/bin/sh -c 'command -v syndaemon >/dev/null && synclient -l >/dev/null 2>&1'
+ExecStart=/usr/bin/syndaemon -R -i 0.2 -k
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

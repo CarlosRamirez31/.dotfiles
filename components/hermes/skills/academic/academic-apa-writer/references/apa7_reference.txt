@@ -1,0 +1,72 @@
+ÍNDICE OPERATIVO DE LA GUÍA APA 7 PROPORCIONADA POR EL USUARIO
+
+FUENTE PRIMARIA DE ESTA SKILL
+- Perfil institucional: references/UNICARIBE_FORMAT_PROFILE.md
+- Guía rápida UNICARIBE íntegra: references/Normas-APA-7ma-Edicion-UNICARIBE.pdf
+- Extracción UNICARIBE para búsqueda: references/Normas-APA-7ma-Edicion-UNICARIBE.txt
+- PDF íntegro: references/Guia-Normas-APA-7ma-edicion.pdf
+- Extracción íntegra para búsqueda: references/Guia-Normas-APA-7ma-edicion.txt
+- Este archivo es solo un índice de navegación. No sustituye la guía ni agrega reglas.
+
+ALCANCE Y PRECEDENCIA CONFIRMADOS EN LA GUÍA
+- La propia guía se presenta como un resumen producido a partir de normas-apa.org, no como publicación oficial de APA (p. 5).
+- La guía recomienda consultar https://apastyle.apa.org/ y advierte que universidades pueden adaptar las reglas (p. 5).
+- Para esta instalación, usa UNICARIBE como perfil institucional predeterminado. Aplica sus reglas claras de presentación antes de la guía APA general; una instrucción explícita del profesor o del usuario conserva prioridad.
+- No completes una regla ausente. Señala el vacío o consulta otra fuente solo con autorización y procedencia clara.
+
+MAPA DE CONTENIDO
+- Estructura y orden del documento: pp. 7-25.
+- Portada de estudiante y profesional: pp. 7-11.
+- Resumen, abstract y palabras clave: pp. 12-13.
+- Texto, método, resultados y discusión: pp. 14-15.
+- Notas al pie y notas finales: pp. 15-17.
+- Tablas: pp. 17-20.
+- Figuras: pp. 20-23.
+- Apéndices: pp. 23-25.
+- Papel, márgenes, fuentes, encabezado y numeración: pp. 26-28.
+- Cinco niveles de títulos: pp. 28-30.
+- Interlineado, alineación y sangría: pp. 30-33.
+- Citas: pp. 34-44.
+- Referencias y ejemplos por tipo de fuente: pp. 45-54.
+
+REGLAS DE MAQUETACIÓN CONFIRMADAS
+- Papel Carta: 21.59 x 27.94 cm / 8.5 x 11 pulgadas (p. 26).
+- Márgenes de 2.5 cm en los cuatro lados para el perfil UNICARIBE (guía rápida, p. 10). La guía APA general indica 2.54 cm / 1 pulgada (p. 26); esta instalación aplica la adaptación institucional.
+- Fuentes admitidas por la guía: Calibri 11, Arial 11, Lucida Sans Unicode 10, Times New Roman 12, Georgia 11 o Computer Modern 10; una sola familia y tamaño en todo el documento, salvo excepciones indicadas (pp. 26-27).
+- Esta plantilla elige Times New Roman 12, que es una de las opciones expresamente permitidas; no la presenta como la única fuente APA.
+- Doble espacio general y sin espacio adicional antes o después de párrafos; excepciones en portada, tablas, figuras, notas y ecuaciones (pp. 30-31).
+- Alineación a la izquierda, sin justificar, salvo exigencia institucional (p. 31).
+- Sangría de primera línea de 1.27 cm / 0.5 pulgadas; excepciones detalladas en pp. 32-33.
+- Número de página arriba a la derecha en todas las páginas, incluida la portada (pp. 27-28).
+- Portada de estudiante sin running head salvo solicitud del instructor o institución (p. 7).
+- Título de portada centrado y en negrita, en la mitad superior, seguido por una línea doble extra antes de los datos del autor (pp. 9 y 31).
+- Referencias en nueva página, título centrado y en negrita, doble espacio, orden alfabético y sangría francesa de 1.27 cm (pp. 45-47).
+
+CITAS CONFIRMADAS
+- Sistema autor-fecha y correspondencia recíproca entre citas recuperables y lista de referencias (pp. 34 y 45).
+- Paráfrasis: autor y año; página o párrafo recomendado, no obligatorio (pp. 39-40).
+- Cita directa de hasta 40 palabras: integrada al texto, con comillas, sin cursiva y con localizador (pp. 41-42).
+- Cita directa de más de 40 palabras: bloque nuevo, sangría de 1.27 cm, sin comillas, sin cursiva y a doble espacio (p. 43).
+- Comunicación personal: solo en texto; no se agrega a referencias porque no es recuperable (pp. 38-39 y 45).
+- Fuente secundaria: identificar la primaria con “como se citó en”; incluir en referencias solo la fuente secundaria consultada (p. 38).
+
+TABLAS Y FIGURAS CONFIRMADAS
+- Tabla: número en negrita, título breve en cursiva, encabezados, cuerpo y nota opcional (p. 18).
+- Limitar bordes de tabla: superior, inferior, debajo del encabezado y sobre totales cuando aplique; no usar bordes verticales ni cuadrícula alrededor de cada celda (p. 18).
+- Figura: número en negrita, título breve en cursiva, imagen, leyenda interna si aplica y nota opcional (pp. 20-21).
+- Citar tabla o figura por número, nunca por posición o página (p. 20).
+- Material reproducido o adaptado requiere nota de atribución y referencia; material propio no requiere declaración de copyright (pp. 22-23).
+
+CONVENCIONES MARKDOWN DEL EXPORTADOR
+- `# Título`: título del trabajo y portada; se repite centrado al iniciar el cuerpo cuando corresponde.
+- `##` a `######`: niveles APA 1 a 5, respectivamente.
+- Para niveles APA 4 y 5, escribe `##### Título. Texto que continúa` o `###### Título. Texto que continúa`; el texto queda en la misma línea.
+- `## Resumen` o `## Abstract`: nueva sección sin sangría en el párrafo.
+- `## Referencias`: nueva página; las entradas usan sangría francesa.
+- `> ...`: cita en bloque. Úsala solo cuando la cita directa tenga más de 40 palabras.
+
+CONTROL FINAL
+- Antes de exportar, consulta la sección completa de la guía que corresponda; no decidas solo con este índice.
+- Conserva autores, fechas, localizadores, DOI, URL, cifras y citas textuales.
+- No inventes referencias ni datos faltantes.
+- Si la guía APA general y una instrucción institucional clara difieren, documenta la diferencia y sigue la instrucción institucional, conforme a la advertencia de la propia guía (p. 5). No propagues enunciados ambiguos o manifiestamente incompatibles identificados en el perfil UNICARIBE.

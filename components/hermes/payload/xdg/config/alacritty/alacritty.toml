@@ -1,0 +1,105 @@
+[general]
+live_config_reload = true
+
+[env]
+TERM = "xterm-256color"
+
+[terminal.shell]
+program = "/usr/bin/zsh"
+args = ["--login"]
+
+[window]
+decorations = "None"
+opacity = 0.98
+blur = false
+dynamic_padding = true
+
+[window.padding]
+x = 12
+y = 12
+
+[font]
+size = 10.0
+
+[font.normal]
+family = "JetBrainsMono Nerd Font"
+style = "Regular"
+
+[font.bold]
+family = "JetBrainsMono Nerd Font"
+style = "Bold"
+
+[font.italic]
+family = "JetBrainsMono Nerd Font"
+style = "Italic"
+
+[font.bold_italic]
+family = "JetBrainsMono Nerd Font"
+style = "Bold Italic"
+
+[cursor.style]
+shape = "Beam"
+blinking = "On"
+
+[selection]
+save_to_clipboard = true
+
+# Send stable, explicit sequences for word deletion and keyboard selection.
+# Zsh maps the arrow sequences to selection-aware ZLE widgets.
+[[keyboard.bindings]]
+key = "Back"
+mods = "Control"
+chars = "\u0017"
+
+[[keyboard.bindings]]
+key = "Left"
+mods = "Shift"
+chars = "\u001b[1;2D"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Shift"
+chars = "\u001b[1;2C"
+
+[[keyboard.bindings]]
+key = "Left"
+mods = "Control|Shift"
+chars = "\u001b[1;6D"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Control|Shift"
+chars = "\u001b[1;6C"
+
+# Catppuccin Mocha palette.
+[colors.primary]
+background = "#1e1e2e"
+foreground = "#cdd6f4"
+
+[colors.cursor]
+cursor = "#f5e0dc"
+text = "#1e1e2e"
+
+[colors.selection]
+background = "#585b70"
+text = "#cdd6f4"
+
+[colors.normal]
+black = "#45475a"
+red = "#f38ba8"
+green = "#a6e3a1"
+yellow = "#f9e2af"
+blue = "#89b4fa"
+magenta = "#cba6f7"
+cyan = "#89dceb"
+white = "#bac2de"
+
+[colors.bright]
+black = "#585b70"
+red = "#f38ba8"
+green = "#a6e3a1"
+yellow = "#f9e2af"
+blue = "#89b4fa"
+magenta = "#cba6f7"
+cyan = "#89dceb"
+white = "#a6adc8"

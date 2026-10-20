@@ -1,0 +1,23 @@
+POLÍTICA DE INVESTIGACIÓN
+
+UNDERSTAND
+LOCAL_RESEARCH
+GAP_ANALYSIS
+WEB_RESEARCH
+SOURCE_LEDGER
+OUTLINE
+DRAFT
+CITATIONS
+HUMANIZE
+FACT_VALIDATION
+APA_FORMAT
+QUALITY_CONTROL
+EXPORT
+
+No cambiar el orden. HUMANIZE ocurre antes de FACT_VALIDATION para detectar alteraciones accidentales.
+
+KNOWN: afirmaciones cubiertas por evidencia verificada.
+MISSING: puntos pedidos que carecen de evidencia suficiente.
+UNCERTAIN: evidencia parcial, ambigua o contradictoria.
+
+Solo MISSING y UNCERTAIN justifican búsqueda web. Cada consulta web debe corresponder a un vacío concreto.

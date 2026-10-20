@@ -1,0 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+file=$(find "$HOME/Pictures/Wallpapers" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) | sort | rofi -dmenu -i -p 'Fondo virtual') || exit 0
+[[ -f $file ]] || exit 0
+feh --no-fehbg --bg-fill "$file"
+printf '%s\n' "$file" >/opt/presentacion/config/wallpaper-path

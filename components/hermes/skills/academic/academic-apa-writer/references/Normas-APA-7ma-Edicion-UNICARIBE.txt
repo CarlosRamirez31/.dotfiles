@@ -1,0 +1,211 @@
+=== PAGE 1 ===
+GUÍA RÁPIDA DE APA7ª EDICIÓN
+
+
+=== PAGE 2 ===
+LOSESTILOSDE CITA
+Esta guía es un resumen de los principales elementos para citar conforme al estilo de la American Psychological 
+Association, según la séptima edición del manual. En la redacción hay dos elementos fundamentales:
+las referencias bibliográﬁcas:
+una relación extensa y ordenada alfabéticamente al ﬁnal del documento o siguiendo una 
+sucesión numérica que corresponde al orden de citas en el texto.
+las citas en el texto:
+una forma de referencia breve entre paréntesis dentro de un párrafo o añadida como nota a pie 
+de página. En la 7ª ed. se distingue entre: citas narrativas y citas parentéticas.
+Junio de 2020, Biblioteca de Educación UAM
+
+=== PAGE 3 ===
+REFERENCIASBIBLIOGRÁFICAS
+Libro [se omite siempre el lugar de edición]
+Herrán Gascón,A., Cortina Selva,M. y GonzálezSánchez,
+I. (2006). La muerte y su didáctica. Manual para 
+educación infantil, primaria y secundaria. 
+Universitas.
+Antología o compilación
+Trillo, J. (Ed.).(2001). El legado pedagógico del siglo XX 
+para la escuela del siglo XXI.Graó.
+Artículo de revista electrónica [la sigla doi se incluye 
+dentro de la url]
+Herbst-Damn, K. L.,y Kulik, J. A. (2005). Volunteer 
+support, marital status, and the survival times
+of terminally ill patients. Health Psychology, 24, 225-
+229. http://doi.org/10.1037/0278-6133.24.2.225
+Junio de 2020, Biblioteca de Educación UAM
+Artículo de revista en papel
+Rodríguez, C.(2007). God's eye does not look at
+signs. Early development and semiotics.Infancia 
+y Aprendizaje, 30(3), 343-374.
+Artículo de periódico
+Trillo, J. (Ed.).(2001). El legado pedagógico del siglo
+XX para la escuela del siglo XXI.Graó.
+
+=== PAGE 4 ===
+REFERENCIASBIBLIOGRÁFICAS
+Artículo de revista en papel
+Rodríguez, C.(2007). God's eye does not look at signs. 
+Early development and semiotics. Infancia y 
+Aprendizaje, 30(3), 343-374.
+Blog
+Sánchez,C. (11 de febrero de 2020). Ejemplos de 
+Referencias Bibliográﬁcas APA.Normas APA(7ma
+edición).https://normasapa.org/referencias/ejemplo/
+Capítulo de un libro
+Santiago, M. (2000). Reglas de acentuación. En E. Montolío, C. 
+Figueras, M. Garachana, y M. Santiago (Eds.).Manual 
+práctico de escritura académica (pp. 15-43). Ariel.
+Junio de 2020, Biblioteca de Educación UAM
+Comunicación en congreso
+Alonso-Vega, J., Álvarez-Iglesias,A., Ávila-Herrero, 
+I., y Froxán-Parga,M. X. (2019, junio 18).
+Verbal interaction analysis of the intervention to 
+an adult with severe behavioral problems 
+[Presentación de póster]. XVI European Congress 
+of Psychology, Moscú, 
+Rusia.https://doi.org/10.26226/morressier.5cf
+632bbaf72dec2b05 5469e Datos de i
+Películas
+Zemeckis,R. (1994). Forrest Gump [película]. Paramount 
+Pictures.
+
+=== PAGE 5 ===
+REFERENCIASBIBLIOGRÁFICAS
+Legislación
+Ley Orgánica 8/2013, de 9 de diciembre, para la mejora de 
+la calidad educativa. Boletín Oﬁcial del Estado, 
+núm. 295, de 10 de diciembre de 2013, pp. 97858
+a 97921.
+http://www.boe.es/boe/dias/2013/12/10/pdfs/
+BOE-A-2013- 12886.pdf
+Datos de investigación
+Remesar Betlloch, X., Antelo, A., Llivina, C.,Albà, E., 
+Berdié, L., Agnelli, S.(2015). Inﬂuence of a 
+hyperlipidic diet on the composition of the
+non-membrane lipid 6 pool of red blood cells of male 
+and female rats. [Dataset]. Versión de 22 de junio de 
+2015. http://hdl.handle.net/2445/66010
+Publicacionesen redes sociales
+Angulo, R.[@RobertoAnguloS]. (2019, 25 de octubre). 
+Índice de inclusión de personas con discapacidad 
+de @SaldarriagaConc.Exclusión social y
+productiva (% de personas con discapacidad): 
+Chocó: 55% [gráﬁca e hipervínculo] [tuit]. Twitter. 
+https://bit.ly/2WzFs48
+Junio de 2020, Biblioteca de Educación UAM
+Software
+Borenstein, M., Hedges, L., Higgins, J. y Rothstein, H. (2014).
+Comprehensive meta-analysis. (versión 
+3.3.070)[software]. Biostat. http://bit.ly/337mCnL
+
+=== PAGE 6 ===
+REFERENCIASBIBLIOGRÁFICAS
+Tesisdoctoral electrónica
+Barreto, A. G. (2015). Fundarvid: una contextualización de 
+sus neologismos en la lengua de señas 
+colombiana [tesis de maestría, Universidad 
+Nacional de Colombia]. Repositorio Institucional 
+UN. http://bit. ly/2JHcwSV
+Tesisdoctoral impresa
+Fernández González,A. (2010). La inteligencia emocional 
+como variable predictora de adaptación psicosocial 
+en estudiantes de la Comunidad de Madrid (Tesis 
+doctoral). Universidad Autónoma de Madrid, Madrid.
+Vídeos
+La Pulla. (2019, 28 de octubre). Elecciones:lo bueno, 
+lo malo y lo feo [video]. YouTube. 
+https://bit.ly/2C23o6T
+Junio de 2020, Biblioteca de Educación UAM
+Web
+Peiró, P.(2019, 22 de noviembre). El 80% de los adolescentes 
+del mundo no hace el ejercicio mínimo recomendado. EL PAÍS. 
+https://elpais.com/elpais/2019/11/18/planeta_futuro/157408
+6350_697117.html
+*** Nota: publicaciones conveintiún o másautores:
+Castiblanco, R.,Moreno, H., Rojas,S.,Zamora, F.,Rivera, A.,
+Bedoya, M. A., Aróstegui, J., Rodríguez, D., Salinas,G.,Martínez, W., Camargo,
+D.,Sánchez,A., Ramírez, Y.,Arias, M., Castro, K. Y.,Carrillo, H.,Valdez López,
+J., Hermosa, F.,Daza,C.,… Hernández, T.(2020). La variación de los esfuerzos
+mecánicos en la cadera con el ergómetro de escaleras.Revista de Salud
+Pública, 16(2), 41-67
+Más ejemplos sobre cómoreferenciar y citar mapas,canciones,fuentes no publicadas,literatura
+gris (etc.): https://normas-apa.org/referencias/ejemplos/
+
+=== PAGE 7 ===
+CITASEN ELTEXTO
+Adaptadas al idioma español, las citas se insertan de la siguiente forma:
+Un autor:
+(Trueba, 2018)
+Dos autores:
+(León y Montero, 2015)
+Treso másautores:
+se cita solo el primero.
+Primer autor et al. Seco et
+al. (2016) en cita narrativa
+o (Seco et al., 2020) en
+cita parentética
+Recuerdaque la 7ª ed. de las APAdistingue entre citas narrativas y parentéticas
+Junio de 2020, Biblioteca de Educación UAM
+
+=== PAGE 8 ===
+CASOSESPECIALES
+Citas múltiples: ordenación cronológica (mismo autor) o 
+alfabética (varios autores) de las citas.
+(Anderson, 2005, 2007)(Anderson, 2009a, 2009b) 
+(Anderson, 2005; Hinojosa y Lang,2004; 
+Nummenmaa, Hyona y Davis,2006)
+Autores conapellidos iguales:(P.Smith, 2020) 
+(I. Smith, 2017)
+Junio de 2020, Biblioteca de Educación UAM
+Traduccionesde trabajos: (Piaget, 1970/1988)
+Trabajossin autor identiﬁcado: ("Primeras palabras 
+del título", 2020)
+Citas de una institución: La primera vez: (Universidad 
+Autónoma de Madrid [UAM], 2019) Siguientes 
+citas: (UAM, 2019)
+Contenido audiovisual: Youtube, TV, TED, audiolibros…
+Incluye una marca de tiempo para el comienzo de la cita
+en lugar de un número de página.
+Las personas hacen "inferencias y juicios radicales a partir
+del lenguaje corporal" (Cuddy, 2015, 2:12).Obras de teatro: se cita el acto, la escenay las líneas. En 
+Mucho ruido y pocas nueces,Don John dijo: "Mientras 
+tanto, déjame ser como soy y no intentes alterarme" 
+(Shakespeare,1623/1995, 1.3.36–37)
+
+=== PAGE 9 ===
+CITASTEXTUALES
+Junio de 2020, Biblioteca de Educación UAM
+Ademásdel autor y la fecha, hay que hacer constarla página o rango de páginas.De no existir, se tendrá 
+que mencionarel párrafo concreto del que se ha obtenido la información:
+● Menos de 40 palabras:citas dentro de un párrafo encerradas entre " y ".
+● Más de 40 palabras:nuevo párrafo conmargen adicionalde 5 espaciosy sincomillas.
+● Cita textual extraída de una página:(Zoﬁo, 2010, p. 14)
+● Cita textual extraída de másde una página:(Zoﬁo, 2010, pp. 140-141)
+● Cita textual sin numeraciónde página:(Zoﬁo, 2010, párr. 3)
+
+=== PAGE 10 ===
+PREPARACIÓNDEL DOCUMENTO
+Junio de 2020, Biblioteca de Educación UAM
+● Tipografía: texto en Calibri, Arial o Georgia a 11 pt. Times New Roman a 12 pt, Computer Modern a 10 
+pt. Tablasy ﬁguras en Arial, Calibri, Lucida Sans,entre 8 y 14 puntos
+● Espaciadointerlineal: doble espacio
+● Márgenes:2,5 cm a cadalado
+● Alineación del texto: izquierda, con el derecho sin justiﬁcar
+● Párrafos y sangría:primera línea, de 5 a 7 espacios+ dos espacios después de punto y coma + un 
+espacio en el resto de signos
+● Numeración:desde la primera página (portada) 5 niveles consecutivos de encabezadosToda la info 
+sobre esto en: normas.apa.org
+
+=== PAGE 11 ===
+MÁS INFORMACIÓN
+Junio de 2020, Biblioteca de Educación UAM
+● UAM, Biblioteca (2020). Citas y elaboración de bibliografía: el plagio y el uso ético de la
+información. Estilo APA. http://biblioguias.uam.es/citar/estilo_apa
+● American Psychological Association. (2020). Publication Manual of the American Psychological
+Association : The Oﬃcial Guide to APA Style (7th ed.). https ://bit.ly/APA7ed León, Orfelio, G.
+(2019). Cómo redactar textos cientíﬁcos y seguir las normasAPA 7ª , 5ª ed. Garceta.
+● Guía resumen del Manual de Publicaciones de Normas APA Séptima Edición 2020.
+https://normasapa.pro/wpcontent/uploads/2020/02/Normas_apa_septima_edicion_spanish.pdf
+● Moreno, D., Carrillo, J. (2019). Normas APA 7ª edición: guía de citación y referenciación.
+https://www.ucentral.edu.co/sites/default/ﬁles/inline-ﬁles/guia-normasapa-7-ed-2019-11-6.pdf
+Consultanuestra biblioguia o apúntate a uno de nuestros cursossobre RefWorks
+
+=== PAGE 12 ===

@@ -1,0 +1,7 @@
+#!/bin/sh
+umask 077
+printf '%s\n' "$DBUS_SESSION_BUS_ADDRESS" >/opt/presentacion/run/bus-address
+picom --config /opt/presentacion/config/picom.conf >>/opt/presentacion/run/picom.log 2>&1 &
+/opt/presentacion/bin/resize-watch >>/opt/presentacion/run/resize.log 2>&1 &
+/opt/presentacion/bin/cpu-watch >>/opt/presentacion/run/resource-watch.log 2>&1 &
+exec awesome --config /opt/presentacion/config/rc.lua

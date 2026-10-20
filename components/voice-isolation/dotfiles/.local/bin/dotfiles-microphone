@@ -14,6 +14,7 @@ import sys
 import tempfile
 import threading
 import time
+import uuid
 
 HOME = Path.home()
 CONFIG = Path(os.getenv('XDG_CONFIG_HOME', HOME / '.config')) / 'voice-isolation'
@@ -22,10 +23,20 @@ STATE = Path(os.getenv('XDG_RUNTIME_DIR', '/tmp')) / 'dotfiles-microphone.json'
 SOURCE = 'dotfiles_personal_voice'
 BUS = 'dotfiles_personal_voice_bus'
 FILTER = 'dotfiles_voice_isolation'
+VOICE_THRESHOLD = 0.60
+VOICE_CONTINUE_THRESHOLD = 0.45
+VOICE_UNCERTAIN_CHUNKS = 2
 
 
 def run(*args):
-    return subprocess.check_output(args, text=True, stderr=subprocess.PIPE, timeout=30).strip()
+    try:
+        return subprocess.check_output(args, text=True, stderr=subprocess.PIPE, timeout=30).strip()
+    except FileNotFoundError as error:
+        raise RuntimeError('Falta el comando «' + args[0] + '» en el host.') from error
+    except subprocess.CalledProcessError as error:
+        detail = (error.stderr or error.stdout or '').strip()
+        raise RuntimeError('Falló «' + ' '.join(args) + '»: ' +
+                           (detail or f'código de salida {error.returncode}')) from error
 
 
 def pactl(*args):
@@ -34,6 +45,21 @@ def pactl(*args):
 
 def sources():
     return json.loads(pactl('-f', 'json', 'list', 'sources'))
+
+
+def modules():
+    items = json.loads(pactl('-f', 'json', 'list', 'modules'))
+    if any('index' not in item for item in items):
+        # Some pactl versions omit module indices in JSON on PipeWire.
+        indices = {}
+        for line in pactl('list', 'short', 'modules').splitlines():
+            columns = line.split('\t')
+            if len(columns) >= 3 and columns[0].isdigit():
+                indices[(columns[1], columns[2])] = int(columns[0])
+        for item in items:
+            if 'index' not in item:
+                item['index'] = indices.get((item['name'], item.get('argument', '')))
+    return [item for item in items if item.get('index') is not None]
 
 
 def physical(items):
@@ -47,6 +73,67 @@ def settings():
         return json.loads((CONFIG / 'microphone.json').read_text())
     except FileNotFoundError:
         return {'noise': True, 'personal': False, 'source': ''}
+
+
+def voice_profiles():
+    profiles = settings().get('profiles', {})
+    if not profiles and (DATA / 'my-voice.npy').exists():
+        return {'legacy': {'name': 'Mi voz', 'file': 'my-voice.npy'}}
+    return profiles
+
+
+def selected_profile():
+    profiles = voice_profiles()
+    key = settings().get('profile')
+    return key if key in profiles else next(iter(profiles), None)
+
+
+def profile_path():
+    profile = voice_profiles().get(selected_profile(), {})
+    return DATA / Path(profile.get('file', 'missing-profile')).name
+
+
+def select_profile(key):
+    if key not in voice_profiles():
+        raise ValueError('El perfil seleccionado ya no existe.')
+    config = settings()
+    config['profiles'] = voice_profiles()
+    config['profile'] = key
+    save(config)
+    if config.get('personal') and not personal_running():
+        change('personal', True)
+    print('Perfil seleccionado y guardado: ' + voice_profiles()[key]['name'], flush=True)
+
+
+def delete_profile(key):
+    profiles = voice_profiles()
+    if key not in profiles:
+        raise ValueError('El perfil seleccionado ya no existe.')
+    active = selected_profile() == key
+    resume = active and settings().get('personal', False)
+    if resume and len(profiles) == 1:
+        change('personal', False)
+    profile = profiles.pop(key)
+    config = settings()
+    config['profiles'] = profiles
+    if active:
+        config['profile'] = next(iter(profiles), None)
+    (DATA / Path(profile['file']).name).unlink(missing_ok=True)
+    save(config)
+    if resume and profiles and not personal_running():
+        change('personal', True)
+    print('Perfil «' + profile['name'] + '» eliminado. ' +
+          ('Selección guardada.' if profiles else 'No quedan perfiles. Solo mi voz está apagado.'), flush=True)
+
+
+def configure_profile(name):
+    name = (name or '').strip()
+    if not name or len(name) > 80:
+        raise ValueError('Escribe un nombre de perfil de 1 a 80 caracteres.')
+    if not model_ready():
+        print('Preparando reconocimiento automáticamente; la primera vez puede tardar varios minutos…', flush=True)
+        subprocess.run([str(HOME / '.local/libexec/dotfiles-personal-voice-setup')], check=True)
+    os.execv(str(DATA / 'venv/bin/python'), [str(DATA / 'venv/bin/python'), __file__, 'enroll', name])
 
 
 def source_label(source, port=None):
@@ -163,7 +250,7 @@ def ensure_endpoint():
                   'sink_properties="device.description=Prueba-Solo-mi-voz priority.session=0 node.virtual=true"')
         pactl('load-module', 'module-remap-source', 'master=' + BUS + '.monitor',
               'source_name=' + SOURCE, 'channels=1',
-              'source_properties="device.description=Solo-mi-voz-experimental node.virtual=true priority.session=0"')
+              'source_properties="device.description=Microfono-controlado-Solo-mi-voz node.virtual=true priority.session=0"')
     pactl('set-source-volume', SOURCE, '100%')
 
 
@@ -177,24 +264,38 @@ def read_exact(stream, size):
     return bytes(data)
 
 
+def write_exact(stream, data):
+    # Unbuffered audio pipes can write fewer bytes than requested.
+    view = memoryview(data)
+    while view:
+        written = stream.write(view)
+        if not written:
+            raise BrokenPipeError('La salida del micrófono controlado dejó de aceptar audio.')
+        view = view[written:]
+
+
 class VoiceGate:
-    """Conservative gate; never claims to separate overlapping voices."""
+    """Pass a recognized speaker with bounded tolerance for brief confidence dips."""
     def __init__(self):
         self.previous = 0.0
+        self.uncertain = 0
 
     def process(self, samples, probability):
-        # Unknown/uncertain speaker: silence the entire block, with no hangover
-        # that could carry the next person's voice after the target stops.
-        if probability < 0.85 or not math.isfinite(probability):
+        strong = math.isfinite(probability) and probability >= VOICE_THRESHOLD
+        continuing = (math.isfinite(probability) and self.previous > 0
+                      and probability >= VOICE_CONTINUE_THRESHOLD
+                      and self.uncertain < VOICE_UNCERTAIN_CHUNKS)
+        if not strong and not continuing:
             self.previous = 0.0
+            self.uncertain = 0
             return bytes(len(samples) * 2)
-        target = 1.0
+        self.uncertain = 0 if strong else self.uncertain + 1
         out = array.array('h', samples)
-        fade = min(160, len(out))
-        for i in range(len(out)):
-            gain = self.previous + (target - self.previous) * min(1, i / max(1, fade))
+        fade = min(80, len(out))
+        for i in range(fade):
+            gain = self.previous + (1.0 - self.previous) * i / max(1, fade)
             out[i] = int(out[i] * gain)
-        self.previous = target
+        self.previous = 1.0
         return out.tobytes()
 
 
@@ -240,15 +341,22 @@ def model_check():
     print(f'Modelo preparado: {average * 1000:.0f} ms por bloque de 160 ms.', flush=True)
 
 
-def enroll():
+def enroll(name=None):
     import numpy as np
     if not model_ready():
         raise ValueError('Prepara primero el reconocimiento de voz.')
     model, _ = load_model()
     source = choose(sources(), settings().get('source', ''), pactl('get-default-source'))
     check_port(source, settings().get('port'))
-    print('Habla solo tú durante 15 segundos, con voz normal y sin otras personas hablando.', flush=True)
-    p = subprocess.Popen(['parec', '--device=' + source['name'], '--format=s16le', '--rate=16000', '--channels=1'], stdout=subprocess.PIPE)
+    if settings().get('muted') or source.get('mute'):
+        raise ValueError('Enciende el micrófono antes de grabar el perfil.')
+    # Use the same processed input as live recognition when it is available.
+    input_name = FILTER if FILTER in [s['name'] for s in sources()] else source['name']
+    for seconds in (3, 2, 1):
+        print(f'Empieza a leer en {seconds}…', flush=True)
+        time.sleep(1)
+    print('GRABANDO · Lee el texto durante 15 segundos.', flush=True)
+    p = subprocess.Popen(['parec', '--client-name=dotfiles-microphone', '--device=' + input_name, '--format=s16le', '--rate=16000', '--channels=1'], stdout=subprocess.PIPE)
     try:
         raw = read_exact(p.stdout, 16000 * 2 * 15)
     finally:
@@ -258,12 +366,25 @@ def enroll():
         raise ValueError('La grabación fue demasiado corta o silenciosa. Vuelve a registrar tu voz.')
     if np.mean(np.abs(samples) >= 0.999) > 0.01:
         raise ValueError('El micrófono satura. Baja su volumen y vuelve a registrar tu voz.')
+    print('Grabación terminada. Guardando el perfil de voz…', flush=True)
     embedding = model.extract_emb(samples).cpu().numpy()
+    if embedding.size != 192 or not np.isfinite(embedding).all():
+        raise ValueError('No se pudo obtener un perfil válido. Vuelve a grabar tu voz.')
     DATA.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=DATA, delete=False) as f:
         np.save(f, embedding, allow_pickle=False)
-    os.replace(f.name, DATA / 'my-voice.npy')
-    print('Tu perfil de voz quedó guardado localmente. No se conservó la grabación.', flush=True)
+    key = uuid.uuid4().hex
+    filename = 'profile-' + key + '.npy'
+    os.replace(f.name, DATA / filename)
+    config = settings()
+    profiles = voice_profiles()
+    profiles[key] = {'name': (name or 'Mi voz').strip(), 'file': filename,
+                     'created': time.strftime('%Y-%m-%d %H:%M'), 'input': input_name}
+    config.update(profiles=profiles, profile=key)
+    save(config)
+    if config.get('personal') and not personal_running():
+        change('personal', True)
+    print('Perfil «' + profiles[key]['name'] + '» guardado y seleccionado.', flush=True)
 
 
 def serve():
@@ -272,7 +393,7 @@ def serve():
     config = settings()
     if not config.get('personal'):
         return
-    if not model_ready() or not (DATA / 'my-voice.npy').exists():
+    if not model_ready() or not profile_path().exists():
         raise ValueError('Registra tu voz antes de activar Solo mi voz.')
     if FILTER not in [s['name'] for s in sources()]:
         raise ValueError('Activa primero el aislamiento de ruido. La entrada normal no se modificó.')
@@ -280,7 +401,8 @@ def serve():
         os.execv(str(DATA / 'venv/bin/python'), [str(DATA / 'venv/bin/python'), __file__, 'serve'])
     import numpy as np
     _, session = load_model()
-    session.set_enrollment_emb(np.load(DATA / 'my-voice.npy', allow_pickle=False))
+    session.set_enrollment_emb(np.load(profile_path(), allow_pickle=False))
+    active_profile = selected_profile()
     capture = playback = None
     def terminate(*_):
         raise SystemExit(0)
@@ -289,26 +411,38 @@ def serve():
         ensure_endpoint()
         pactl('set-source-mute', SOURCE, '1' if config.get('muted') else '0')
         capture = subprocess.Popen(['parec', '--client-name=dotfiles-microphone',
-            '--stream-name=Solo-mi-voz-experimental', '--device=' + FILTER,
-            '--format=s16le', '--rate=16000', '--channels=1'], stdout=subprocess.PIPE)
+            '--stream-name=Solo-mi-voz', '--device=' + FILTER,
+            '--format=s16le', '--rate=16000', '--channels=1',
+            '--latency-msec=20', '--process-time-msec=10'], stdout=subprocess.PIPE, bufsize=0)
         playback = subprocess.Popen(['pacat', '--playback', '--device=' + BUS,
-            '--format=s16le', '--rate=16000', '--channels=1', '--latency-msec=30'], stdin=subprocess.PIPE)
+            '--format=s16le', '--rate=16000', '--channels=1', '--latency-msec=20', '--process-time-msec=10'], stdin=subprocess.PIPE, bufsize=0)
         gate = VoiceGate()
         set_status(source=FILTER, description='Solo mi voz · experimental',
                    noise=True, personal=True, state='active')
         slow = 0
+        last_status = 0
         while True:
             raw = read_exact(capture.stdout, 5120)
             if len(raw) != 5120:
                 raise RuntimeError('La prueba dejó de recibir audio. Aislamiento de voz sigue siendo la entrada normal.')
             begin = time.monotonic()
+            if selected_profile() != active_profile:
+                session.set_enrollment_emb(np.load(profile_path(), allow_pickle=False))
+                active_profile = selected_profile()
+                gate = VoiceGate()
             samples = np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768
-            raw = gate.process(array.array('h', raw), float(session.process_chunk(samples)))
+            probability = float(session.process_chunk(samples))
+            raw = gate.process(array.array('h', raw), probability)
+            processing_ms = (time.monotonic() - begin) * 1000
+            if time.monotonic() - last_status >= 1:
+                set_status(state='active', profile=active_profile, probability=probability,
+                           passing=gate.previous > 0, processing_ms=round(processing_ms, 1),
+                           chunk_ms=160, capture_buffer_ms=20, playback_buffer_ms=20, updated=time.time())
+                last_status = time.monotonic()
             slow = slow + 1 if time.monotonic() - begin > 0.16 else 0
-            if slow >= 8:
+            if slow >= 32:
                 raise RuntimeError('La prueba no alcanza tiempo real. Usa Aislamiento de voz.')
-            playback.stdin.write(raw)
-            playback.stdin.flush()
+            write_exact(playback.stdin, raw)
     finally:
         for process in (capture, playback):
             if process is not None:
@@ -327,10 +461,10 @@ def serve():
 
 def cleanup_endpoint():
     # Remove only this experiment's modules; never unload the RNNoise filter.
-    modules = json.loads(pactl('-f', 'json', 'list', 'modules'))
+    loaded_modules = modules()
     for module_type, marker in (('module-remap-source', 'source_name=' + SOURCE),
                                 ('module-null-sink', 'sink_name=' + BUS)):
-        for module in modules:
+        for module in loaded_modules:
             if module.get('name') == module_type and marker in module.get('argument', '').split():
                 pactl('unload-module', str(module['index']))
 
@@ -347,12 +481,28 @@ def cleanup_legacy_endpoint():
                 pactl('move-source-output', str(stream['index']), FILTER)
         if pactl('get-default-source') == legacy['name']:
             pactl('set-default-source', FILTER)
-    modules = json.loads(pactl('-f', 'json', 'list', 'modules'))
+    loaded_modules = modules()
     for module_type, marker in (('module-remap-source', 'source_name=dotfiles_microphone'),
                                 ('module-null-sink', 'sink_name=dotfiles_microphone_bus')):
-        for module in modules:
+        for module in loaded_modules:
             if module.get('name') == module_type and marker in module.get('argument', '').split():
                 pactl('unload-module', str(module['index']))
+
+
+def ensure_personal_service():
+    unit = CONFIG.parent / 'systemd/user/dotfiles-microphone.service'
+    if unit.exists():
+        return
+    template = Path(__file__).resolve().parents[2] / '.config/systemd/user/dotfiles-microphone.service'
+    if not template.exists():
+        raise ValueError('Falta el servicio en el host. Reinstala el componente voice-isolation.')
+    # systemctl disable can remove Stow's externally linked unit as well as
+    # its startup link. Recreate only our missing registration from its source.
+    unit.parent.mkdir(parents=True, exist_ok=True)
+    if unit.is_symlink():
+        unit.unlink()
+    unit.symlink_to(template)
+    run('systemctl', '--user', 'daemon-reload')
 
 
 def personal_running():
@@ -363,26 +513,43 @@ def personal_running():
 def change(key, value, port=None):
     config = settings()
     if key == 'personal':
-        previous = config.get('personal', False)
         if value:
-            if not model_ready() or not (DATA / 'my-voice.npy').exists():
+            if not model_ready() or not profile_path().exists():
                 raise ValueError('Registra primero tu voz en el panel.')
             if FILTER not in [s['name'] for s in sources()]:
                 raise ValueError('Activa primero el aislamiento de ruido.')
         config[key] = value
         save(config)
+        started = time.time()
         try:
             if value:
-                run('systemctl', '--user', 'disable', '--now', 'dotfiles-microphone.service')
-                run('systemctl', '--user', 'daemon-reload')
+                ensure_personal_service()
+                run('systemctl', '--user', 'enable', 'dotfiles-microphone.service')
                 cleanup_legacy_endpoint()
+            # Keep the unit registered; serve() reads the saved personal flag.
             run('systemctl', '--user', 'restart' if value else 'stop', 'dotfiles-microphone.service')
+            if value:
+                # systemctl restart alone only confirms that the process was spawned.
+                for _ in range(300):
+                    if not personal_running():
+                        raise RuntimeError('El reconocimiento no pudo iniciarse. Consulta el estado del servicio.')
+                    try:
+                        status = json.loads(STATE.read_text())
+                    except (OSError, ValueError):
+                        status = {}
+                    if status.get('state') == 'active' and status.get('updated', 0) >= started:
+                        break
+                    time.sleep(0.1)
+                else:
+                    raise RuntimeError('El reconocimiento no recibió audio en 30 segundos. Revisa la entrada.')
         except Exception:
-            config['personal'] = previous
+            with suppress(Exception):
+                run('systemctl', '--user', 'stop', 'dotfiles-microphone.service')
+            config['personal'] = False
             save(config)
             raise
         if value:
-            print('Prueba iniciada. Elige Solo-mi-voz-experimental solo en la aplicación de prueba. Aislamiento de voz sigue siendo tu entrada habitual.')
+            print('Guardado y activo. En tu aplicación selecciona «Microfono-controlado-Solo-mi-voz».')
         else:
             print('Prueba detenida. Aislamiento de voz no se modificó.')
         return
@@ -399,6 +566,8 @@ def change(key, value, port=None):
     if key == 'noise':
         if value:
             run('systemctl', '--user', 'restart', 'dotfiles-voice-isolation.service')
+            if config.get('personal'):
+                run('systemctl', '--user', 'restart', 'dotfiles-microphone.service')
         else:
             run('systemctl', '--user', 'stop', 'dotfiles-microphone.service')
             run('systemctl', '--user', 'stop', 'dotfiles-voice-isolation.service')
@@ -505,22 +674,30 @@ def gui(compact=False):
             self.volume.connect('key-release-event', lambda w, _: self.job([__file__, 'volume', str(w.get_value())]))
             box.pack_start(self.volume, False, False, 0)
             self.noise = Gtk.CheckButton(label='Aislamiento de ruido (RNNoise)')
-            self.personal = Gtk.CheckButton(label='Probar Solo mi voz · entrada separada')
+            self.personal = Gtk.CheckButton(label='Solo mi voz · usar el perfil seleccionado')
             self.noise.connect('toggled', lambda w: self.toggle('noise', w))
             self.personal.connect('toggled', lambda w: self.toggle('personal', w))
             command_row(self.noise, lambda active: 'Alt + Ctrl + N')
             command_row(self.personal, lambda active: 'Alt + Ctrl + V')
-            help_label = Gtk.Label(label='Entrada habitual: «Aislamiento de voz».\nPara probar: elige «Solo-mi-voz-experimental» solo en la aplicación de prueba.\nLa prueba puede cortar tu voz; no separa dos personas hablando a la vez.', xalign=0, wrap=True)
+            help_label = Gtk.Label(label='Para filtrar otras voces, selecciona «Microfono-controlado-Solo-mi-voz» en tu aplicación.\nLos cambios y el perfil seleccionado se guardan automáticamente. No separa voces simultáneas.', xalign=0, wrap=True)
             if not compact:
                 box.pack_start(help_label, False, False, 0)
-            row = Gtk.Box(spacing=8)
-            setup = Gtk.Button(label='Preparar reconocimiento')
-            setup.connect('clicked', lambda _: self.job([str(HOME / '.local/libexec/dotfiles-personal-voice-setup')]))
-            enroll_button = Gtk.Button(label='Registrar mi voz (15 s)')
-            enroll_button.connect('clicked', lambda _: self.job([str(DATA / 'venv/bin/python'), __file__, 'enroll']))
-            row.pack_start(setup, True, True, 0); row.pack_start(enroll_button, True, True, 0)
+            self.profiles = Gtk.ComboBoxText()
+            self.profiles.connect('changed', lambda w: self.job([__file__, 'profile', w.get_active_id()])
+                if not self.refreshing and w.get_active_id() else None)
+            box.pack_start(Gtk.Label(label='Perfil de voz guardado', xalign=0), False, False, 0)
+            profile_row = Gtk.Box(spacing=8)
+            profile_row.pack_start(self.profiles, True, True, 0)
+            self.delete = Gtk.Button(label='Eliminar perfil')
+            self.delete.connect('clicked', self.confirm_delete)
+            profile_row.pack_end(self.delete, False, False, 0)
+            box.pack_start(profile_row, False, False, 0)
+            self.profile_status = Gtk.Label(xalign=0, wrap=True)
+            box.pack_start(self.profile_status, False, False, 0)
             if not compact:
-                box.pack_start(row, False, False, 0)
+                create = Gtk.Button(label='Configurar un nuevo perfil de voz…')
+                create.connect('clicked', self.new_profile)
+                box.pack_start(create, False, False, 0)
             refresh = Gtk.Button(label='Actualizar micrófonos / audífonos conectados')
             refresh.connect('clicked', lambda _: self.refresh())
             box.pack_start(refresh, False, False, 0)
@@ -541,6 +718,66 @@ def gui(compact=False):
             self.connect('key-press-event', lambda _, event: self.destroy() if event.keyval == Gdk.KEY_Escape else False)
             GLib.timeout_add_seconds(2, self.status)
 
+        def confirm_delete(self, _):
+            key = self.profiles.get_active_id()
+            profile = voice_profiles().get(key)
+            if self.busy or not profile:
+                return
+            dialog = Gtk.MessageDialog(transient_for=self, modal=True,
+                message_type=Gtk.MessageType.QUESTION, buttons=Gtk.ButtonsType.NONE,
+                text='¿Eliminar el perfil «' + profile['name'] + '»?')
+            dialog.format_secondary_text('Se borrará el perfil guardado. Si es el último, Solo mi voz se apagará.')
+            dialog.add_button('Cancelar', Gtk.ResponseType.CANCEL)
+            dialog.add_button('Eliminar perfil', Gtk.ResponseType.OK)
+            response = dialog.run()
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK:
+                self.job([__file__, 'delete-profile', key])
+
+        def new_profile(self, _):
+            if self.busy:
+                return
+            dialog = Gtk.Dialog(title='Nuevo perfil de voz', transient_for=self, modal=True)
+            dialog.set_default_size(540, 370)
+            dialog.set_name('microphone-panel')
+            dialog.add_button('Cancelar', Gtk.ResponseType.CANCEL)
+            dialog.add_button('Grabar y guardar perfil (15 s)', Gtk.ResponseType.OK)
+            content = dialog.get_content_area()
+            content.set_spacing(14)
+            content.set_border_width(20)
+            content.pack_start(Gtk.Label(label='Nombre del perfil', xalign=0), False, False, 0)
+            entry = Gtk.Entry(placeholder_text='Nombre del perfil, por ejemplo: Carlos · audífonos')
+            content.pack_start(entry, False, False, 0)
+            content.pack_start(Gtk.Label(label='Al iniciar tendrás 3 segundos para prepararte. Lee con voz normal,\nsin otras personas hablando. Sigue leyendo hasta que termine la grabación de 15 segundos;\nno necesitas terminar todo el texto. El perfil se guarda y selecciona al terminar.',
+                                        xalign=0, wrap=True), False, False, 0)
+            content.pack_start(Gtk.Label(label='Texto para leer en voz alta', xalign=0), False, False, 0)
+            text = Gtk.Label(label='Hoy estoy configurando mi perfil de voz para que el micrófono reconozca '
+                'mi manera de hablar. Quiero conversar con claridad, a un volumen natural y sin gritar. '
+                'Esta es mi voz cuando trabajo, explico mis ideas y hablo con otras personas cada día. '
+                'Por la mañana reviso mis pendientes, organizo mis tareas y preparo lo que necesito para empezar. '
+                'A veces hago preguntas, comparto una noticia o cuento algo que me ocurrió durante la semana. '
+                'Me gusta hablar con tranquilidad y pronunciar cada palabra de forma natural. '
+                'Ahora sigo leyendo este texto mientras el sistema aprende a reconocer las características de mi voz, '
+                'con mis pausas habituales y mi tono de conversación.',
+                xalign=0, wrap=True, selectable=True)
+            text.set_max_width_chars(65)
+            content.pack_start(text, True, True, 0)
+            progress = Gtk.Label(label='Listo para grabar', xalign=0, wrap=True)
+            content.pack_start(progress, False, False, 0)
+            dialog.show_all()
+            # Keep the reading text visible throughout the recording.
+            def response(d, result):
+                if result != Gtk.ResponseType.OK:
+                    d.destroy()
+                elif not entry.get_text().strip():
+                    entry.set_placeholder_text('Escribe un nombre para guardar el perfil')
+                else:
+                    d.get_widget_for_response(Gtk.ResponseType.OK).set_sensitive(False)
+                    entry.set_sensitive(False)
+                    d.set_modal(False)
+                    self.job([__file__, 'configure-profile', entry.get_text().strip()], d.destroy, progress.set_text)
+            dialog.connect('response', response)
+
         def status(self):
             try:
                 refreshing = self.refreshing
@@ -550,7 +787,7 @@ def gui(compact=False):
                     config = settings()
                     self.noise.set_active(config.get('noise', True))
                     self.personal.set_active(config.get('personal', False))
-                    self.personal.set_sensitive(model_ready() and (DATA / 'my-voice.npy').exists())
+                    self.personal.set_sensitive(model_ready() and profile_path().exists())
                 finally:
                     self.refreshing = refreshing
                 apps = recording_apps()
@@ -572,8 +809,17 @@ def gui(compact=False):
                 self.refreshing = True
                 self.personal.set_active(experiment)
                 self.refreshing = refreshing
+                try:
+                    state = json.loads(STATE.read_text())
+                except (OSError, ValueError):
+                    state = {}
+                profile = voice_profiles().get(selected_profile(), {})
+                feedback = (' · voz reconocida' if state.get('passing') else ' · esperando la voz del perfil') if experiment else ' · filtro apagado'
+                if state.get('state') == 'error':
+                    feedback = ' · ' + state.get('error', 'Error al procesar audio')
+                self.profile_status.set_text(('Guardado: ' + profile['name'] if profile else 'Crea un perfil para reconocer tu voz') + feedback)
                 self.info.set_text(('Entrada normal: Aislamiento de voz' if normal else 'Entrada normal: micrófono físico')
-                    + (' · prueba encendida en entrada separada' if experiment else ' · prueba apagada'))
+                    + (' · Solo mi voz activo' if experiment else ' · Solo mi voz apagado'))
             except (OSError, ValueError, KeyError, subprocess.SubprocessError):
                 self.info.set_text('No se pudo consultar el audio. La entrada normal no se modificó.')
             return True
@@ -581,6 +827,11 @@ def gui(compact=False):
         def refresh(self):
             self.refreshing = True
             config = settings()
+            self.profiles.remove_all()
+            for key, profile in voice_profiles().items():
+                self.profiles.append(key, profile['name'])
+            self.profiles.set_active_id(selected_profile())
+            self.delete.set_sensitive(bool(voice_profiles()))
             self.combo.remove_all()
             try:
                 items = sources()
@@ -598,7 +849,7 @@ def gui(compact=False):
                 self.noise.set_active(config.get('noise', True))
                 self.enabled.set_active(not muted())
                 self.personal.set_active(config.get('personal', False))
-                self.personal.set_sensitive(model_ready() and (DATA / 'my-voice.npy').exists())
+                self.personal.set_sensitive(model_ready() and profile_path().exists())
             except Exception as e:
                 self.message.set_text(str(e))
             self.refreshing = False
@@ -613,7 +864,7 @@ def gui(compact=False):
             if not self.refreshing:
                 self.job([__file__, key, 'on' if widget.get_active() else 'off'])
 
-        def job(self, command):
+        def job(self, command, callback=None, progress=None):
             if self.busy:
                 return
             self.busy = True
@@ -625,9 +876,11 @@ def gui(compact=False):
                     for line in p.stdout:
                         last = line.strip()
                         GLib.idle_add(self.message.set_text, last[-450:])
+                        if progress:
+                            GLib.idle_add(progress, last[-450:])
                     if p.wait():
                         raise RuntimeError(last or 'No se pudo aplicar el cambio. Revisa el servicio.')
-                    GLib.idle_add(self.message.set_text, last[-450:] or 'Cambio aplicado.')
+                    GLib.idle_add(self.message.set_text, last[-450:] or 'Cambios guardados automáticamente.')
                 except Exception as e:
                     GLib.idle_add(self.message.set_text, str(e))
                 finally:
@@ -635,6 +888,8 @@ def gui(compact=False):
             def done():
                 self.busy = False
                 self.refresh()
+                if callback:
+                    callback()
                 return False
             threading.Thread(target=work, daemon=True).start()
 
@@ -645,7 +900,7 @@ def gui(compact=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'on', 'off', 'toggle', 'app', 'serve', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'model-check', 'cleanup-legacy'])
+    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'on', 'off', 'toggle', 'app', 'serve', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'configure-profile', 'profile', 'delete-profile', 'model-check', 'cleanup-legacy'])
     parser.add_argument('value', nargs='?')
     parser.add_argument('port', nargs='?')
     args = parser.parse_args()
@@ -669,7 +924,10 @@ def main():
         if args.value not in ('on', 'off', 'toggle'): raise ValueError('Usa on, off o toggle.')
         current = personal_running() if args.command == 'personal' and args.value == 'toggle' else settings().get(args.command, True)
         change(args.command, not current if args.value == 'toggle' else args.value == 'on')
-    elif args.command == 'enroll': enroll()
+    elif args.command == 'enroll': enroll(args.value)
+    elif args.command == 'configure-profile': configure_profile(args.value)
+    elif args.command == 'profile': select_profile(args.value)
+    elif args.command == 'delete-profile': delete_profile(args.value)
     elif args.command == 'model-check': model_check()
 
 

@@ -44,6 +44,23 @@ class Microphone(unittest.TestCase):
             self.assertEqual(ctl.call_args_list[1].args, ('set-source-mute', m.SOURCE, '1'))
             self.assertEqual(ctl.call_count, 2)
 
+    def test_missing_service_registration_is_restored_from_host_component(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(m, 'CONFIG', Path(directory) / 'voice-isolation'), patch.object(m, 'run') as run:
+            m.ensure_personal_service()
+            unit = Path(directory) / 'systemd/user/dotfiles-microphone.service'
+            self.assertTrue(unit.is_file())
+            self.assertTrue(unit.is_symlink())
+            self.assertIn('ExecStart=%h/.local/bin/dotfiles-microphone serve', unit.read_text())
+            run.assert_called_once_with('systemctl', '--user', 'daemon-reload')
+            m.ensure_personal_service()
+            self.assertEqual(run.call_count, 1)
+
+    def test_command_failure_shows_actual_host_error(self):
+        error = m.subprocess.CalledProcessError(1, ['systemctl'], stderr='Unit dotfiles-microphone.service does not exist')
+        with patch.object(m.subprocess, 'check_output', side_effect=error):
+            with self.assertRaisesRegex(RuntimeError, 'does not exist'):
+                m.run('systemctl', '--user', 'enable', 'dotfiles-microphone.service')
+
     def test_explicit_disconnected_mic_does_not_fall_back(self):
         with self.assertRaises(ValueError):
             m.choose([mic('laptop')], 'missing-usb', 'laptop')
@@ -57,9 +74,10 @@ class Microphone(unittest.TestCase):
         self.assertEqual([s['name'] for s in m.physical(items)], ['laptop'])
 
     def test_personal_switch_does_not_control_rnnoise_or_default_source(self):
-        with tempfile.TemporaryDirectory() as directory, patch.object(m, 'CONFIG', Path(directory)), patch.object(m, 'DATA', Path(directory)), patch.object(m, 'model_ready', return_value=True), patch.object(m, 'sources', return_value=[{'name': m.FILTER}]), patch.object(m, 'cleanup_legacy_endpoint') as cleanup, patch.object(m, 'run', return_value='') as run:
+        with tempfile.TemporaryDirectory() as directory, patch.object(m, 'CONFIG', Path(directory)), patch.object(m, 'DATA', Path(directory)), patch.object(m, 'model_ready', return_value=True), patch.object(m, 'sources', return_value=[{'name': m.FILTER}]), patch.object(m, 'ensure_personal_service'), patch.object(m, 'cleanup_legacy_endpoint') as cleanup, patch.object(m, 'personal_running', return_value=True), patch.object(m, 'STATE') as state, patch.object(m, 'run', return_value='') as run:
             (Path(directory) / 'my-voice.npy').touch()
             m.save({'noise': True, 'personal': False, 'source': 'laptop'})
+            state.read_text.return_value = json.dumps({'state': 'active', 'updated': 99999999999})
             m.change('personal', True)
             self.assertTrue(m.settings()['noise'])
             self.assertTrue(m.settings()['personal'])
@@ -67,8 +85,7 @@ class Microphone(unittest.TestCase):
             self.assertTrue(m.settings()['noise'])
             self.assertFalse(m.settings()['personal'])
             self.assertEqual([call.args for call in run.call_args_list], [
-                ('systemctl', '--user', 'disable', '--now', 'dotfiles-microphone.service'),
-                ('systemctl', '--user', 'daemon-reload'),
+                ('systemctl', '--user', 'enable', 'dotfiles-microphone.service'),
                 ('systemctl', '--user', 'restart', 'dotfiles-microphone.service'),
                 ('systemctl', '--user', 'stop', 'dotfiles-microphone.service')])
             cleanup.assert_called_once()
@@ -106,6 +123,10 @@ class Microphone(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     m.serve()
                 self.assertIn('--device=' + m.FILTER, popen.call_args_list[0].args[0])
+                self.assertIn('--latency-msec=20', popen.call_args_list[0].args[0])
+                self.assertEqual(popen.call_args_list[0].kwargs['bufsize'], 0)
+                self.assertIn('--latency-msec=20', popen.call_args_list[1].args[0])
+                self.assertEqual(popen.call_args_list[1].kwargs['bufsize'], 0)
                 self.assertEqual([call.args for call in ctl.call_args_list], [('set-source-mute', m.SOURCE, '0')])
                 run.assert_not_called()
                 capture.terminate.assert_called_once()
@@ -140,14 +161,100 @@ class Microphone(unittest.TestCase):
             self.assertNotIn(('unload-module', '21'), calls)
             self.assertFalse(any(call[0] == 'set-default-source' for call in calls))
 
+    def test_profiles_preserve_legacy_voice_and_remember_selection(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(m, 'CONFIG', Path(directory)), patch.object(m, 'DATA', Path(directory)):
+            (Path(directory) / 'my-voice.npy').touch()
+            self.assertEqual(m.selected_profile(), 'legacy')
+            profiles = m.voice_profiles()
+            profiles['other'] = {'name': 'Auriculares', 'file': 'other.npy'}
+            m.save({'personal': False, 'profiles': profiles})
+            m.select_profile('other')
+            self.assertEqual(m.profile_path(), Path(directory) / 'other.npy')
+            self.assertTrue((Path(directory) / 'my-voice.npy').exists())
+            self.assertEqual(m.settings()['profile'], 'other')
+            with self.assertRaises(ValueError):
+                m.select_profile('missing')
+
+    def test_delete_inactive_profile_preserves_active_profile_and_file(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(m, 'CONFIG', Path(directory)), patch.object(m, 'DATA', Path(directory)), patch.object(m, 'change') as change:
+            (Path(directory) / 'my-voice.npy').touch()
+            (Path(directory) / 'other.npy').touch()
+            m.save({'personal': True, 'profile': 'legacy', 'profiles': {
+                'legacy': {'name': 'Mi voz', 'file': 'my-voice.npy'},
+                'other': {'name': 'Otra voz', 'file': 'other.npy'}}})
+            m.delete_profile('other')
+            self.assertEqual(m.selected_profile(), 'legacy')
+            self.assertTrue(m.settings()['personal'])
+            self.assertFalse((Path(directory) / 'other.npy').exists())
+            self.assertTrue((Path(directory) / 'my-voice.npy').exists())
+            change.assert_not_called()
+
+    def test_delete_last_profile_stops_filter_without_recreating_legacy(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(m, 'CONFIG', Path(directory)), patch.object(m, 'DATA', Path(directory)), patch.object(m, 'run', return_value=''):
+            (Path(directory) / 'my-voice.npy').touch()
+            m.save({'personal': True, 'noise': True})
+            m.delete_profile('legacy')
+            self.assertEqual(m.voice_profiles(), {})
+            self.assertIsNone(m.selected_profile())
+            self.assertFalse(m.settings()['personal'])
+            self.assertTrue(m.settings()['noise'])
+
+    def test_delete_active_profile_selects_remaining_and_restarts_filter(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(m, 'CONFIG', Path(directory)), patch.object(m, 'DATA', Path(directory)), patch.object(m, 'run', return_value=''), patch.object(m, 'sources', return_value=[{'name': m.FILTER}]), patch.object(m, 'model_ready', return_value=True), patch.object(m, 'cleanup_legacy_endpoint'), patch.object(m, 'personal_running', return_value=True), patch.object(m, 'STATE') as state:
+            state.read_text.return_value = json.dumps({'state': 'active', 'updated': 99999999999})
+            (Path(directory) / 'my-voice.npy').touch()
+            (Path(directory) / 'other.npy').touch()
+            m.save({'personal': True, 'profile': 'legacy', 'profiles': {
+                'legacy': {'name': 'Mi voz', 'file': 'my-voice.npy'},
+                'other': {'name': 'Otra voz', 'file': 'other.npy'}}})
+            m.delete_profile('legacy')
+            self.assertEqual(m.selected_profile(), 'other')
+            self.assertTrue(m.settings()['personal'])
+            self.assertEqual(set(m.voice_profiles()), {'other'})
+
+    def test_module_cleanup_handles_pactl_json_without_indices(self):
+        items = [{'name': 'module-null-sink', 'argument': 'sink_name=' + m.BUS}]
+        def control(*args):
+            if args == ('-f', 'json', 'list', 'modules'):
+                return json.dumps(items)
+            if args == ('list', 'short', 'modules'):
+                return '42\tmodule-null-sink\tsink_name=' + m.BUS + '\t\n'
+            return ''
+        with patch.object(m, 'pactl', side_effect=control) as ctl:
+            m.cleanup_endpoint()
+            self.assertIn(('unload-module', '42'), [call.args for call in ctl.call_args_list])
+
+    def test_gate_keeps_brief_confidence_dips_without_opening_for_uncertain_voice(self):
+        samples = array.array('h', [10000] * 2560)
+        gate = m.VoiceGate()
+        self.assertEqual(gate.process(samples, 0.55), bytes(5120))
+        self.assertTrue(any(gate.process(samples, 0.65)))
+        self.assertTrue(any(gate.process(samples, 0.55)))
+        self.assertTrue(any(gate.process(samples, 0.50)))
+        self.assertEqual(gate.process(samples, 0.55), bytes(5120))
+        self.assertTrue(any(gate.process(samples, 0.65)))
+        self.assertEqual(gate.process(samples, 0.2), bytes(5120))
+        self.assertEqual(gate.process(samples, 0.55), bytes(5120))
+
+    def test_unbuffered_audio_writer_handles_partial_writes(self):
+        blocks = []
+        def write(data):
+            amount = min(7, len(data))
+            blocks.append(bytes(data[:amount]))
+            return amount
+        m.write_exact(SimpleNamespace(write=write), b'voice-audio' * 9)
+        self.assertEqual(b''.join(blocks), b'voice-audio' * 9)
+        with self.assertRaises(BrokenPipeError):
+            m.write_exact(SimpleNamespace(write=lambda data: 0), b'voice')
+
     def test_gate_silences_rejected_voice_and_fades_transitions(self):
         gate = m.VoiceGate()
         samples = array.array('h', [10000] * 2560)
         self.assertEqual(m.VoiceGate().process(samples, 0.1), bytes(5120))
-        passed = array.array('h', gate.process(samples, 0.9))
+        passed = array.array('h', gate.process(samples, 0.75))
         self.assertEqual(passed[0], 0)
         self.assertEqual(passed[-1], 10000)
-        self.assertEqual(gate.process(samples, 0.8), bytes(5120))
+        self.assertEqual(gate.process(samples, 0.2), bytes(5120))
         self.assertEqual(gate.process(samples, 0.1), bytes(5120))
         self.assertEqual(gate.process(samples, float('nan')), bytes(5120))
 

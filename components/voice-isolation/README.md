@@ -12,24 +12,24 @@ En llamadas y grabación habitual elige **Aislamiento de voz** o **Predeterminad
 
 ## Probar Solo mi voz
 
-La prueba es una entrada distinta: **Solo-mi-voz-experimental**. Consume el audio de RNNoise, pero no reinicia su servicio, no cambia el micrófono físico ni su ganancia y no establece una nueva entrada predeterminada. Se inicia manualmente; no se activa al instalar ni al registrar la voz. Un fallo de la prueba no detiene el aislamiento normal. Al apagarla se retiran únicamente sus módulos virtuales.
+La prueba es una entrada distinta: **Microfono-controlado-Solo-mi-voz**. Consume el audio de RNNoise, pero no reinicia su servicio, no cambia el micrófono físico ni su ganancia y no establece una nueva entrada predeterminada. Su estado y el perfil elegido se guardan automáticamente y se restauran al iniciar sesión; crear un perfil no enciende el filtro por sí solo. Un fallo de la prueba no detiene el aislamiento normal. Al apagarla se retiran únicamente sus módulos virtuales.
 
 1. Mantén activo **Aislamiento de ruido**.
-2. Si hace falta, pulsa **Preparar reconocimiento** y luego **Registrar mi voz (15 s)**. Habla solo tú, en un ambiente tranquilo.
-3. Activa **Probar Solo mi voz · entrada separada** o ejecuta `dotfiles-microphone personal on`.
-4. Selecciona **Solo-mi-voz-experimental** únicamente en la aplicación donde quieras probarla. Las demás aplicaciones pueden seguir usando **Aislamiento de voz**.
+2. Pulsa **Configurar un nuevo perfil de voz…**, escribe un nombre y lee el texto propuesto. El mismo flujo prepara el reconocimiento si hace falta, cuenta tres segundos, graba 15 segundos y guarda y selecciona el perfil. Puedes crear varios perfiles y elegirlos en **Perfil de voz guardado**. El perfil anterior aparece como **Mi voz**. **Eliminar perfil** pide confirmación; si eliminas el perfil activo elige otro disponible y si era el último apaga Solo mi voz.
+3. Activa **Solo mi voz · usar el perfil seleccionado** o ejecuta `dotfiles-microphone personal on`.
+4. Selecciona **Microfono-controlado-Solo-mi-voz** únicamente en la aplicación donde quieras probarla. Las demás aplicaciones pueden seguir usando **Aislamiento de voz**.
 5. Para terminar, apaga la casilla o ejecuta `dotfiles-microphone personal off`. Si tu aplicación conserva un dispositivo fijo, vuelve a elegir **Aislamiento de voz**.
 
-La detección personal usa 16 kHz y bloques de 160 ms, más el tiempo de inferencia. Puede sonar menos natural y rechazar palabras propias. Silencia bloques con probabilidad menor de 0,85; no separa voces simultáneas ni sirve para autenticar identidad. Si no alcanza tiempo real, se detiene la prueba.
+La detección personal usa 16 kHz y bloques de 160 ms, más el tiempo de inferencia. Puede sonar menos natural y rechazar palabras propias. Abre con probabilidad de 0,60 y conserva hasta dos bloques de confianza intermedia (mínimo 0,45) para reducir palabras cortadas. Una voz claramente rechazada cierra la salida inmediatamente; no separa voces simultáneas ni sirve para autenticar identidad. Si no alcanza tiempo real, se detiene la prueba.
 
-**Preparar reconocimiento** instala un entorno Python privado con PyTorch CPU y [nomo-pvad release-1.1](https://github.com/tuya/nomo-pvad), fijado al commit `cb828468d183424fd574984f00b3ffbcce0be9bc`, y comprueba el modelo. RNNoise básico no descarga estos modelos. La voz se procesa localmente; el registro se descarta y solo se guarda el perfil numérico privado en `~/.local/share/voice-isolation/personal-voice/my-voice.npy`. Modelos, perfiles y ajustes particulares quedan fuera de Git.
+La preparación automática instala un entorno Python privado con PyTorch CPU y [nomo-pvad release-1.1](https://github.com/tuya/nomo-pvad), fijado al commit `cb828468d183424fd574984f00b3ffbcce0be9bc`, y comprueba el modelo. RNNoise básico no descarga estos modelos. La voz se procesa localmente; el registro se descarta y solo se guarda el perfil numérico privado en `~/.local/share/voice-isolation/personal-voice/profile-*.npy` (el perfil anterior `my-voice.npy` se conserva). Modelos, perfiles y ajustes particulares quedan fuera de Git.
 
 ## Actualizar desde Microfono-controlado
 
-La instalación detiene y deshabilita el servicio del puente anterior, activa RNNoise directo y retira **Microfono-controlado**, migrando sus capturas a **Aislamiento de voz**. Conserva las entradas físicas y las capturas ajenas a ese puente. Para retirar solo la entrada vieja con RNNoise ya funcionando:
+La instalación activa RNNoise directo y retira el puente obsoleto **Microfono-controlado**, migrando sus capturas a **Aislamiento de voz**. Restaura el filtro personal si estaba guardado como encendido. Conserva las entradas físicas y las capturas ajenas a ese puente. Para retirar solo la entrada vieja con RNNoise ya funcionando:
 
 ```bash
-systemctl --user disable --now dotfiles-microphone.service
+dotfiles-microphone personal off
 systemctl --user daemon-reload
 dotfiles-microphone cleanup-legacy
 ```
@@ -51,7 +51,7 @@ dotfiles-microphone personal off
 dotfiles-microphone source NOMBRE_FUENTE [NOMBRE_CONECTOR]
 ```
 
-La entrada elegida y el volumen se guardan en `~/.config/voice-isolation/microphone.json`. Los ajustes de RNNoise van en `~/.config/voice-isolation/environment`:
+El panel confirma los cambios guardados y muestra si reconoce la voz del perfil o está esperando. La activación comprueba que el servicio recibe audio antes de confirmar. La entrada elegida, el volumen, los nombres de perfiles y la selección se guardan en `~/.config/voice-isolation/microphone.json`. Los ajustes de RNNoise van en `~/.config/voice-isolation/environment`:
 
 ```ini
 VOICE_ISOLATION_INPUT_VOLUME=keep
@@ -67,3 +67,7 @@ Comprobaciones sin capturar audio:
 ```bash
 python3 -m unittest discover -s components/voice-isolation/tests
 ```
+
+El servicio y sus comandos se ejecutan en el host. Apagar Solo mi voz guarda `personal: false` y detiene el proceso sin eliminar el enlace de su unidad de systemd. Si el enlace falta por una desactivación anterior, el panel lo restaura desde el componente instalado al encender el filtro.
+
+Solo mi voz solicita búferes de captura y reproducción de 20 ms, sin búfer adicional de Python. El modelo analiza bloques de 160 ms, por lo que conserva una latencia propia; el estado muestra el tiempo de procesamiento para diagnosticar carga de CPU. La tolerancia breve a menor confianza mejora la continuidad a cambio de una menor rigidez al filtrar voces.

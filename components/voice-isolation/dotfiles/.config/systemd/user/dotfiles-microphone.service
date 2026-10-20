@@ -1,12 +1,16 @@
 [Unit]
-Description=Experimental personal voice input (separate from direct RNNoise)
-After=pipewire-pulse.service wireplumber.service
+Description=Personal voice profiles on an independent microphone input
+After=pipewire-pulse.service wireplumber.service dotfiles-voice-isolation.service
 Wants=pipewire-pulse.service wireplumber.service
+Requires=dotfiles-voice-isolation.service
 PartOf=pipewire.service
+StartLimitIntervalSec=120
+StartLimitBurst=3
 
 [Service]
 ExecStart=%h/.local/bin/dotfiles-microphone serve
-Restart=no
+Restart=on-failure
+RestartSec=5
 TimeoutStopSec=10
 
 [Install]

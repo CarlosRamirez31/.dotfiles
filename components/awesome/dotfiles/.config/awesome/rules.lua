@@ -1,13 +1,29 @@
 local awful = require("awful")
 local gears = require("gears")
 
+local function prepare_mouse_geometry(c)
+    c.fullscreen = false
+    c.maximized = false
+    c.maximized_horizontal = false
+    c.maximized_vertical = false
+    c.floating = true
+    c:emit_signal("request::activate", "mouse_click", { raise = true })
+end
+
+local function resize_with_mouse(c)
+    prepare_mouse_geometry(c)
+    awful.mouse.client.resize(c)
+end
+
 -- Alt + Shift and a mouse drag turns the client floating, then moves it.
 local floating_client_buttons = gears.table.join(
     awful.button({ "Mod1", "Shift" }, 1, function(c)
-        c.floating = true
-        c:emit_signal("request::activate", "mouse_click", { raise = true })
+        prepare_mouse_geometry(c)
         awful.mouse.client.move(c)
-    end)
+    end),
+    -- Resize from the nearest corner, independently in both dimensions.
+    awful.button({ "Mod1" }, 3, resize_with_mouse),
+    awful.button({ "Mod1", "Shift" }, 3, resize_with_mouse)
 )
 
 return {
@@ -47,6 +63,15 @@ return {
             ontop = true,
             skip_taskbar = true,
         },
+    },
+    {
+        -- Keep the usual layout; mask only Qt's unused area around Android.
+        rule = { class = "Emulator" },
+        properties = {
+            size_hints_honor = true,
+            titlebars_enabled = false,
+        },
+        callback = function(c) require("emulator-shape").attach(c) end,
     },
     {
         rule = { role = "dotfiles-displays" },

@@ -29,6 +29,8 @@ una ventana nueva de Firefox en lugar de activar una que esté en otro tag.
 | `Alt+Q` | Cerrar la ventana enfocada. |
 | `Alt+F9` | Minimizar la ventana enfocada. |
 | `Alt+V` | Alternar la ventana enfocada entre mosaico y flotante. |
+| `Alt+clic derecho + arrastrar` o `Alt+Shift+clic derecho + arrastrar` | Reajustar libremente ancho y alto desde la esquina más cercana; convierte la ventana en flotante. |
+| `Alt+Shift+clic izquierdo + arrastrar` | Mover la ventana y convertirla en flotante. |
 | `Alt+Shift+=` | Aumentar el tamaño de una ventana flotante. |
 | `Alt+Shift+-` | Reducir el tamaño de una ventana flotante. |
 | `Alt+H/J/K/L` | Mover el foco a izquierda/abajo/arriba/derecha. |
@@ -39,6 +41,10 @@ una ventana nueva de Firefox en lugar de activar una que esté en otro tag.
 | `Ctrl+Alt+J/K` | Reducir/aumentar el espacio relativo de la ventana actual. |
 | `Ctrl+Alt+←/→` | Reducir/aumentar el ancho relativo de la columna actual. |
 | `Ctrl+Alt+↓/↑` | Reducir/aumentar el espacio relativo de la ventana actual. |
+
+Los ajustes de espacio con `Ctrl+Alt+H/J/K/L` y `Ctrl+Alt+flechas` usan pasos
+de 0.01 en el factor de reparto (antes 0.05), para un control más fino en todas
+las pantallas.
 
 ## Escritorios (tags)
 

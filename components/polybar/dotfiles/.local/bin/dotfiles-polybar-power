@@ -3,11 +3,12 @@ set -euo pipefail
 if command -v awesome-client >/dev/null 2>&1 && awesome-client 'require("quickmenus").toggle("power")' >/dev/null 2>&1; then
     exit 0
 fi
-choice=$(printf 'Lock\nLogout\nSuspend\nReboot\nShutdown' | rofi -m -1 -dmenu -p 'Power')
+choice=$(printf 'Lock\nLogout\nSuspend\nHibernar\nReboot\nShutdown' | rofi -m -1 -dmenu -p 'Power')
 case "$choice" in
     Lock) exec "$HOME/.local/bin/dotfiles-lock" ;;
     Logout) exec awesome-client 'awesome.quit()' ;;
     Suspend) exec "$HOME/.local/bin/dotfiles-sleep" ;;
+    Hibernar) systemctl hibernate ;;
     Reboot) systemctl reboot ;;
     Shutdown) systemctl poweroff ;;
 esac

@@ -196,6 +196,18 @@ local function power_content(confirm_kind)
         hide("power")
         awful.spawn.with_shell("$HOME/.local/bin/dotfiles-sleep")
     end))
+    rows:add(action_row("󰋊", "Hibernar", "Guardar la sesión en disco y apagar el equipo", palette.blue, function()
+        hide("power")
+        awful.spawn.easy_async({ "systemctl", "hibernate" }, function(_, stderr, _, code)
+            if code ~= 0 then
+                require("naughty").notify({
+                    preset = require("naughty").config.presets.critical,
+                    title = "No se pudo hibernar",
+                    text = stderr,
+                })
+            end
+        end)
+    end))
     rows:add(action_row("󰍃", "Cerrar sesión", "Salir de AwesomeWM", palette.yellow, function()
         hide("power")
         awesome.quit()

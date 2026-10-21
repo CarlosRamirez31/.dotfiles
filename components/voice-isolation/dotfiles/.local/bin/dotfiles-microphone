@@ -207,6 +207,40 @@ def bar_status():
     return '%{F' + color + '}' + icon + '%{F-}' + ((' ' + names) if names and not is_muted else '')
 
 
+def bar_watch():
+    """Publish microphone changes without restarting Python every two seconds."""
+    subscription = subprocess.Popen(['pactl', 'subscribe'], stdout=subprocess.PIPE,
+                                    stderr=subprocess.DEVNULL, text=True, bufsize=1)
+    previous = None
+
+    def emit():
+        nonlocal previous
+        value = bar_status()
+        if value != previous:
+            print(value, flush=True)
+            previous = value
+
+    def stop_bar(signum, frame):
+        raise SystemExit(0)
+
+    old_handler = signal.signal(signal.SIGTERM, stop_bar)
+    try:
+        emit()
+        for event in subscription.stdout:
+            if any(' on ' + kind + ' #' in event for kind in ('source', 'source-output', 'server')):
+                emit()
+        raise RuntimeError('La conexión de audio se cerró; se reiniciará el indicador.')
+    finally:
+        signal.signal(signal.SIGTERM, old_handler)
+        if subscription.poll() is None:
+            subscription.terminate()
+        try:
+            subscription.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            subscription.kill()
+            subscription.wait()
+
+
 def save(values):
     CONFIG.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(mode='w', dir=CONFIG, delete=False) as f:
@@ -1015,13 +1049,14 @@ def gui(compact=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'on', 'off', 'toggle', 'app', 'serve', 'worker', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'configure-profile', 'profile', 'delete-profile', 'model-check', 'cleanup-legacy'])
+    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'bar-watch', 'on', 'off', 'toggle', 'app', 'serve', 'worker', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'configure-profile', 'profile', 'delete-profile', 'model-check', 'cleanup-legacy'])
     parser.add_argument('value', nargs='?')
     parser.add_argument('port', nargs='?')
     args = parser.parse_args()
     if args.command == 'gui': gui()
     elif args.command == 'compact': gui(True)
     elif args.command == 'bar': print(bar_status())
+    elif args.command == 'bar-watch': bar_watch()
     elif args.command in ('on', 'off', 'toggle'): microphone_switch(args.command)
     elif args.command == 'app':
         if args.port not in ('on', 'off'): raise ValueError('Usa app ID on u off.')

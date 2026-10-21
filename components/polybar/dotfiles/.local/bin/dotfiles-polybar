@@ -12,7 +12,12 @@ if [[ ${1:-} == --workspaces || ${1:-} == --tag ]]; then
     if [[ $action == --tag ]]; then
         awesome-client "for s in screen do if s.outputs['$monitor'] then local t=s.tags[$index]; if t then t:view_only() end end end" >/dev/null
     else
-        awesome-client "local result={} for s in screen do if s.outputs['$monitor'] then for i,t in ipairs(s.tags) do local colors={'#f9de8f','#ff9b93','#95e1d3','#81a1c1'}; local color=colors[i] or '#cdd6f4'; local underline=t.selected and '%{u#565c64}%{+u}' or ''; local reset=t.selected and '%{-u}' or ''; table.insert(result, '%{A1:dotfiles-polybar --tag $monitor '..i..':}%{F'..color..'}'..underline..' '..t.name..' '..reset..'%{F-}%{A}') end end end return table.concat(result)" | sed -n 's/^ *string "\(.*\)"$/\1/p'
+        cache="${XDG_RUNTIME_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}}/dotfiles-polybar-tags/$monitor"
+        if [[ ! -r $cache ]]; then
+            awesome-client 'require("polybar-tags").start()' >/dev/null
+        fi
+        # GNU tail uses inotify here; -F also follows atomic replacements.
+        exec tail -n 1 -F -- "$cache" 2>/dev/null
     fi
     exit
 fi
@@ -21,6 +26,7 @@ if [[ ${1:-} == --microphone ]]; then
     if [[ -x $HOME/.local/bin/dotfiles-microphone ]]; then
         case ${2:-status} in
             status) exec "$HOME/.local/bin/dotfiles-microphone" bar ;;
+            watch) exec "$HOME/.local/bin/dotfiles-microphone" bar-watch ;;
             menu) exec "$HOME/.local/bin/dotfiles-microphone" compact ;;
             toggle) exec "$HOME/.local/bin/dotfiles-microphone" toggle ;;
             *) exit 2 ;;
@@ -29,6 +35,7 @@ if [[ ${1:-} == --microphone ]]; then
         wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
     else
         printf '\n'
+        if [[ ${2:-status} == watch ]]; then sleep 30; fi
     fi
     exit
 fi

@@ -24,6 +24,31 @@ def mic(name):
 
 
 class Microphone(unittest.TestCase):
+    def test_bar_watch_ignores_client_churn_and_publishes_recording_changes(self):
+        events = io.StringIO("Event 'new' on client #1\nEvent 'new' on source-output #2\nEvent 'change' on source #3\n")
+        subscription = Mock(stdout=events)
+        subscription.poll.return_value = 0
+        output = io.StringIO()
+        with patch.object(m.subprocess, 'Popen', return_value=subscription), \
+                patch.object(m.signal, 'signal'), \
+                patch.object(m, 'bar_status', side_effect=['', 'OBS', 'OBS']) as status, \
+                patch.object(m.sys, 'stdout', output):
+            with self.assertRaisesRegex(RuntimeError, 'conexión de audio'):
+                m.bar_watch()
+        self.assertEqual(output.getvalue(), '\nOBS\n')
+        self.assertEqual(status.call_count, 3)
+
+    def test_bar_watch_stops_subscription_if_status_fails(self):
+        subscription = Mock(stdout=io.StringIO(''))
+        subscription.poll.return_value = None
+        with patch.object(m.subprocess, 'Popen', return_value=subscription), \
+                patch.object(m.signal, 'signal'), \
+                patch.object(m, 'bar_status', side_effect=RuntimeError('Audio no disponible')):
+            with self.assertRaisesRegex(RuntimeError, 'Audio no disponible'):
+                m.bar_watch()
+        subscription.terminate.assert_called_once()
+        subscription.wait.assert_called_once_with(timeout=3)
+
     def test_indicator_excludes_desktop_and_filter_streams_and_groups_apps(self):
         items = [dict(mic('laptop'), index=1), {'name': 'speakers.monitor', 'index': 2}, {'name': m.SOURCE, 'index': 3}]
         streams = [

@@ -31,6 +31,17 @@ en su monitor y tag. Durante el cambio las pantallas externas parpadean.
 El botón **Recuperar imagen de los monitores** y `dotfiles-display --recover`
 repiten esta recuperación sin guardar otra distribución.
 
+## Escritorios y consumo
+
+La lista de escritorios de Polybar se publica desde las señales de Awesome.
+La barra espera cambios del archivo por monitor mediante inotify, sin lanzar
+`awesome-client` cada 0,3 segundos. Los clics siguen seleccionando el escritorio
+de la pantalla correspondiente.
+El indicador del micrófono también escucha cambios de audio mediante
+`pactl subscribe`, actualizando grabación y mute sin arrancar Python cada dos
+segundos. Si la conexión de audio termina, Polybar reintenta después de cinco
+segundos.
+
 ## Tapa de la laptop
 
 En **Super+P → Tapa y energía…** puedes elegir qué hacer con batería, corriente

@@ -26,6 +26,56 @@ def outputs(count=20):
 
 
 class DisplaysTest(unittest.TestCase):
+    def test_unchanged_automatic_checks_do_not_probe_hardware_or_apply_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, 'dotfiles-display-topology').write_text('DP-0')
+            result = subprocess.CompletedProcess([], 0, fixture(1))
+            with patch.dict(displays.os.environ, {'XDG_RUNTIME_DIR': directory}), \
+                    patch.object(displays.sys, 'argv', ['dotfiles-display', '--auto']), \
+                    patch.object(displays, 'hardware_topology', return_value='connected'), \
+                    patch.object(displays, 'disable_disconnected_outputs', return_value=False), \
+                    patch.object(displays, 'docked', return_value=False), \
+                    patch.object(displays, 'automatic') as automatic, \
+                    patch.object(displays.subprocess, 'run', return_value=result) as run:
+                displays.main()
+                displays.main()
+            self.assertEqual(len(run.call_args_list), 1)
+            for call in run.call_args_list:
+                self.assertEqual(call.args[0], ['xrandr', '--current'])
+            automatic.assert_not_called()
+
+    def test_connector_change_invalidates_automatic_cache(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.CompletedProcess([], 0, fixture(1))
+            with patch.dict(displays.os.environ, {'XDG_RUNTIME_DIR': directory}), \
+                    patch.object(displays.sys, 'argv', ['dotfiles-display', '--auto']), \
+                    patch.object(displays, 'hardware_topology', side_effect=['old', 'new']), \
+                    patch.object(displays, 'disable_disconnected_outputs', return_value=False), \
+                    patch.object(displays, 'docked', return_value=False), \
+                    patch.object(displays, 'automatic'), \
+                    patch.object(displays.subprocess, 'run', return_value=result) as run:
+                displays.main()
+                displays.main()
+            self.assertEqual(len(run.call_args_list), 2)
+            self.assertEqual(Path(directory, 'dotfiles-display-hardware-topology').read_text(), 'cleanup-v1:new')
+
+    def test_unplugged_active_output_is_disabled_without_touching_connected_monitors(self):
+        listing = ('eDP-2 connected primary 1920x1080+1920+0\n'
+                   'HDMI-1-1 disconnected 1920x1080+0+0\n'
+                   'DP-1-1 disconnected\n'
+                   'DP-2 connected 1920x1080+3840+0\n')
+        result = subprocess.CompletedProcess([], 0, listing)
+        with patch.object(displays.subprocess, 'run', return_value=result) as run:
+            self.assertTrue(displays.disable_disconnected_outputs())
+        self.assertEqual(run.call_args_list[-1].args[0],
+                         ['xrandr', '--current', '--output', 'HDMI-1-1', '--off'])
+
+    def test_disconnected_cleanup_requires_a_visible_connected_anchor(self):
+        result = subprocess.CompletedProcess([], 0, 'HDMI-1-1 disconnected 1920x1080+0+0\n')
+        with patch.object(displays.subprocess, 'run', return_value=result) as run:
+            self.assertFalse(displays.disable_disconnected_outputs())
+        self.assertEqual(run.call_count, 1)
+
     def row(self, count=3):
         detected = outputs(count)
         for i, output in enumerate(detected):

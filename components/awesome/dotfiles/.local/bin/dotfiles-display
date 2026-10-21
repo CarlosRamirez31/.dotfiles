@@ -81,8 +81,11 @@ def configure_lid(actions, password=None):
     print('Política de tapa aplicada: batería={}, corriente={}, monitores externos={}.'.format(*actions))
 
 
-def query():
-    result = subprocess.run(['xrandr', '--query'], capture_output=True, text=True, check=True, timeout=10)
+def query(current=False):
+    # Periodic checks must not probe connectors: probing can resume a sleeping
+    # discrete GPU. Explicit panel/recovery requests still refresh the hardware.
+    result = subprocess.run(['xrandr', '--current' if current else '--query'],
+                            capture_output=True, text=True, check=True, timeout=10)
     outputs = []
     current = None
     for line in result.stdout.splitlines():
@@ -107,6 +110,38 @@ def query():
     for output in outputs:
         output['modes'].sort(key=mode_size, reverse=True)
     return outputs
+
+
+def hardware_topology():
+    """Read cached kernel connector state without asking Xorg to probe GPUs."""
+    try:
+        states = [(str(path), path.read_text().strip())
+                  for path in sorted(Path('/sys/class/drm').glob('card*-*/status'))]
+        if states:
+            return json.dumps([states, lid_closed()])
+    except OSError:
+        pass
+    return None
+
+
+def disable_disconnected_outputs():
+    """Release CRTCs left active after unplugging a Reverse PRIME monitor."""
+    result = subprocess.run(['xrandr', '--current'], capture_output=True,
+                            text=True, check=True, timeout=10)
+    lines = result.stdout.splitlines()
+    # Keep a visible connected output as an anchor during automatic cleanup.
+    if not any(re.match(r'^\S+ connected\b.*\d+x\d+\+-?\d+\+-?\d+', line)
+               for line in lines):
+        return False
+    stale = [match[1] for line in lines
+             if (match := re.match(r'^(\S+) disconnected\s+\d+x\d+\+-?\d+\+-?\d+', line))]
+    if not stale:
+        return False
+    args = ['xrandr', '--current']
+    for name in stale:
+        args.extend(['--output', name, '--off'])
+    subprocess.run(args, capture_output=True, text=True, check=True, timeout=15)
+    return True
 
 
 def mode_size(mode):
@@ -886,7 +921,15 @@ def main():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return
-        outputs = query()
+        auto = '--auto' in sys.argv and '--recover' not in sys.argv
+        hardware_stamp = runtime / 'dotfiles-display-hardware-topology'
+        hardware = hardware_topology() if auto else None
+        if hardware is not None:
+            hardware = 'cleanup-v1:' + hardware
+        if hardware is not None and hardware_stamp.exists() and hardware_stamp.read_text() == hardware:
+            return
+        cleaned = disable_disconnected_outputs() if auto else False
+        outputs = query(current=auto)
         if '--recover' in sys.argv:
             report = []
             for args in [['xrandr', '--query'], ['xrandr', '--listproviders'], ['xrandr', '--listmonitors']]:
@@ -901,9 +944,11 @@ def main():
             # layout over the live session every five seconds.
             topology = key(outputs)
             stamp = runtime / 'dotfiles-display-topology'
-            if not stamp.exists() or stamp.read_text() != topology:
+            if cleaned or not stamp.exists() or stamp.read_text() != topology:
                 automatic(outputs)
                 stamp.write_text(topology)
+            if hardware is not None:
+                hardware_stamp.write_text(hardware)
         else:
             gui(outputs)
 

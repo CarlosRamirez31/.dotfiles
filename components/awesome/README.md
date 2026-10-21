@@ -42,6 +42,14 @@ se desactiva el panel integrado; dos monitores externos quedan como dos pantalla
 activas. Al abrir la tapa se vuelve a habilitar el panel integrado. La detección
 puede tardar hasta cinco segundos y queda pausada mientras el panel de pantallas
 está abierto. Sin monitores externos no se desactiva la única pantalla.
+La comprobación periódica lee los estados de conexión del kernel y la tapa;
+si no cambian, no ejecuta XRandR. Si cambian, usa `xrandr --current`, sin sondear
+el hardware para evitar despertar la GPU dedicada cada cinco segundos.
+Al detectar un cambio, apaga las salidas desconectadas que todavía conservan
+una resolución activa antes de restaurar la distribución de las conectadas.
+Abrir **Super+P** o usar
+`dotfiles-display --recover` fuerza una consulta completa si Xorg no ha recibido
+el cambio de conexión.
 
 Para elegir la acción del sistema al cerrar la tapa, ejecuta en una terminal:
 

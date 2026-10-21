@@ -9,9 +9,10 @@ from pathlib import Path
 
 
 class Screen:
-    def __init__(self):
+    def __init__(self, other=False):
         self.tty = sys.stdout.isatty()
         self.width = min(84, max(36, shutil.get_terminal_size((80, 24)).columns - 2))
+        self.other = other
         self.stage = 0
         self.passage = ''
         self.instruction = ''
@@ -22,20 +23,20 @@ class Screen:
         width = self.width - 4
         lines = ['PRUEBA DE VOZ  /  SOLO MI VOZ', '']
         if self.stage:
-            title = ('TU VOZ', 'OTRA PERSONA', 'SILENCIO')[self.stage - 1]
-            lines += [f'ETAPA {self.stage}/3  ·  {title}', self.instruction, '', state]
+            title = 'OTRA PERSONA' if self.other else 'TU VOZ CON PAUSA'
+            lines += [f'PRUEBA ÚNICA  ·  {title}', self.instruction, '', state]
             if remaining is not None:
-                lines += [f'Empieza en {remaining} segundos. Todos en silencio.']
+                lines += [f'Empieza en {remaining} segundos. Permanece en silencio.']
             else:
                 filled = round(24 * self.elapsed / self.seconds)
                 lines += [f'[{"━" * filled}{"·" * (24 - filled)}]  {self.elapsed:02d} / {self.seconds:02d} s']
             lines += ['', 'TEXTO PARA LEER' if self.passage else 'DURANTE ESTA ETAPA',
-                      self.passage or 'Ambos permanezcan callados hasta que termine el contador.']
+                      self.passage]
         else:
-            lines += [state, '', '1. Tu voz: 10 segundos', '2. Otra persona: 10 segundos',
-                      '3. Silencio: 5 segundos', '',
-                      'Confirma cada etapa con Enter. Tendrás 5 segundos para prepararte.',
-                      'Lee el texto seguido hasta que termine el tiempo.', '',
+            lines += [state, '', ('Otra persona lee durante 10 segundos; tú permaneces callado.' if self.other else
+                       'Solo tú: lee 4 segundos, calla 2 y vuelve a leer 4.'), '',
+                      'Confirma con Enter. Tendrás 5 segundos para prepararte.',
+                      'Lee a tu ritmo normal y sigue las indicaciones de la pantalla.', '',
                       'El audio se mide y se descarta. No se guarda ninguna grabación.']
         lines += ['', footer, 'Ctrl+C para salir']
         wrapped = []
@@ -53,7 +54,7 @@ class Screen:
         if self.tty:
             print('\033[?25h', end='', flush=True)
         try:
-            input('  Pulsa Enter cuando estén listos: ')
+            input('  Pulsa Enter cuando estés listo: ')
         finally:
             if self.tty:
                 print('\033[?25l', end='', flush=True)
@@ -67,31 +68,40 @@ class Screen:
         self.show('PREPARACIÓN', 'Lee las instrucciones y confirma con Enter.')
         self.confirm()
         for remaining in range(5, 0, -1):
-            self.show('PREPÁRATE', 'Todavía no hablen.', remaining=remaining)
+            self.show('PREPÁRATE', 'Mantén el silencio.', remaining=remaining)
             time.sleep(1)
-        self.show('SILENCIO AHORA' if self.stage == 3 else 'LEE AHORA',
-                  'Continúa hasta que termine el contador.')
+        self.show(self.action(), 'Sigue la indicación que aparece sobre el contador.')
+
+    def action(self):
+        if self.elapsed >= self.seconds:
+            return 'PRUEBA COMPLETADA'
+        if not self.other and 4 <= self.elapsed < 6:
+            return 'PAUSA · GUARDA SILENCIO'
+        if not self.other and self.elapsed >= 6:
+            return 'VUELVE A LEER'
+        return 'LEE AHORA'
 
     def progress(self, second, rms):
         self.elapsed = second
         meter = min(16, round(rms * 160))
-        self.show('ETAPA COMPLETADA' if second == self.seconds else
-                  ('SILENCIO AHORA' if self.stage == 3 else 'LEE AHORA'),
+        self.show(self.action(),
                   ('Puedes dejar de leer. ' if second == self.seconds else '') +
                   f'Audio hacia las aplicaciones: [{"■" * meter}{"·" * (16 - meter)}]')
 
 
 def main():
-    screen = Screen()
+    other = '--otras-voces' in sys.argv
+    screen = Screen(other=other)
     if '--preview' in sys.argv:
         screen.stage = 1
-        screen.instruction = 'Lee tú. La otra persona debe permanecer callada.'
+        screen.instruction = ('Tú callado; lee la otra persona.' if other else
+                              'Lee 4 segundos, calla 2 y vuelve a leer 4. Sigue las indicaciones.')
         screen.passage = ('Esta mañana abrí la ventana y miré las nubes mientras preparaba un café. '
                           'Después busqué mi cuaderno y organicé las cosas sobre la mesa. '
                           'Estoy leyendo a mi ritmo normal, sin gritar ni cambiar mi voz, '
                           'como cuando converso con alguien de confianza. '
-                          'Sigo leyendo tranquilamente hasta que termine el contador.')
-        screen.show('PREPÁRATE', 'Todavía no hablen.', remaining=5)
+                          'Continúo desde donde me quedé después de la pausa.')
+        screen.show('PREPÁRATE', 'Mantén el silencio.', remaining=5)
         return 0
     try:
         if screen.tty:
@@ -100,7 +110,7 @@ def main():
         screen.confirm()
         screen.show('CONECTANDO EL MICRÓFONO…', 'Espera mientras se activa el modelo.')
         runpy.run_path(str(Path(__file__).resolve().with_name('dotfiles-voice-probe')),
-                       init_globals={'screen': screen}, run_name='voice_probe')
+                       init_globals={'screen': screen, 'other': other}, run_name='voice_probe')
     except (KeyboardInterrupt, EOFError):
         message = 'Prueba cancelada. El micrófono de prueba se cerró.'
         code = 130
@@ -114,7 +124,7 @@ def main():
         if screen.tty:
             print('\033[?25h\033[?1049l', end='', flush=True)
     print(message)
-    print('Diagnóstico: /tmp/solo-mi-voz-prueba.jsonl')
+    print('Diagnóstico: ' + ('/tmp/otras-voces-prueba.jsonl' if other else '/tmp/solo-mi-voz-prueba.jsonl'))
     return code
 
 

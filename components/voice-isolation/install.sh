@@ -14,4 +14,4 @@ if python3 -c 'import json, os, pathlib, sys; p = pathlib.Path(os.getenv("XDG_CO
 else
     systemctl --user stop dotfiles-microphone.service
 fi
-printf 'Entrada habitual: Aislamiento de voz. Solo mi voz conserva el perfil y el estado guardados y usa Microfono-controlado-Solo-mi-voz.\n'
+printf 'Entrada habitual: Aislamiento de voz. Solo mi voz conserva el perfil y el estado guardados y usa Microfono solo mi voz.\n'

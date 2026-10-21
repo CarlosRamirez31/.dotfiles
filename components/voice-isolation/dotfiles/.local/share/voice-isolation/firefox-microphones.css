@@ -1,0 +1,7 @@
+/* Firefox microphone permission picker: show microphones, not sink monitors.
+ * This only changes the browser menu; PipeWire routing stays intact.
+ */
+#webRTC-selectMicrophone-menupopup > menuitem[label^="Monitor of "],
+#webRTC-selectMicrophone-menupopup > menuitem[label^="Monitor de "] {
+  display: none !important;
+}

@@ -28,6 +28,77 @@ loader.exec_module(m)
 
 @unittest.skipIf(np is None, 'Requires numpy in the private voice runtime')
 class OriginalAudio(unittest.TestCase):
+    def test_native_denoiser_does_not_flatten_float_headroom(self):
+        received = []
+        def process(state, output, samples):
+            values = np.ctypeslib.as_array(samples, shape=(480,))
+            received.append(values.copy())
+            np.ctypeslib.as_array(output, shape=(480,))[:] = values * 0.5
+            return 0.9
+        reducer = object.__new__(a.NoiseReducer)
+        reducer.state = 1
+        reducer.library = SimpleNamespace(rnnoise_process_frame=process)
+        samples = np.linspace(-1.6, 1.6, 480, dtype=np.float32)
+        result = reducer.process(samples)
+        self.assertGreater(float(np.max(received[0])), 32768)
+        np.testing.assert_array_equal(result, samples * 0.5)
+
+    def test_profile_gain_changes_recognition_but_not_native_noise_processing(self):
+        class NonlinearNoise:
+            delay_samples = 480
+            def process(self, values):
+                return (values * values * values).astype(np.float32)
+            def close(self):
+                pass
+        first = a.PersonalAudio(0.5, 0.8, NonlinearNoise(), fullband=True)
+        second = a.PersonalAudio(0.25, 0.8, NonlinearNoise(), fullband=True)
+        values = np.linspace(-1.2, 1.2, 960, dtype='<f4')
+        left, right = [], []
+        for offset in range(0, len(values), 480):
+            raw = values[offset:offset + 480].tobytes()
+            left.append(first.process(raw))
+            right.append(second.process(raw))
+        left = np.frombuffer(b''.join(left), dtype='<f4').reshape(-1, 4)
+        right = np.frombuffer(b''.join(right), dtype='<f4').reshape(-1, 4)
+        np.testing.assert_array_equal(left[:, 1:], right[:, 1:])
+        np.testing.assert_allclose(left[:, 0], right[:, 0] * 2, atol=1e-7)
+        np.testing.assert_allclose(left[:, 1:].reshape(-1), values ** 3 * 0.8, atol=1e-7)
+        self.assertGreater(first.levels['input_peak'], 1)
+        self.assertGreater(first.levels['output_over_range_samples'], 0)
+        self.assertEqual(first.levels['output_samples'], 960)
+        first.close()
+        second.close()
+
+    def test_fullband_output_preserves_native_samples_and_recognition(self):
+        class DelayedNoise:
+            delay_samples = 480
+            def __init__(self):
+                self.previous = np.zeros(480, dtype=np.float32)
+            def process(self, values):
+                result, self.previous = self.previous, values.copy()
+                return result
+            def close(self):
+                pass
+        t = np.arange(4800) / 48000
+        values = (0.1 * np.sin(2 * np.pi * 700 * t) +
+                  0.2 * np.sin(2 * np.pi * 12000 * t)).astype('<f4')
+        legacy = a.PersonalAudio(0.5, 0.25, DelayedNoise())
+        fullband = a.PersonalAudio(0.5, 0.25, DelayedNoise(), fullband=True)
+        old, new = [], []
+        for offset in range(0, len(values), 480):
+            raw = values[offset:offset + 480].tobytes()
+            old.append(legacy.process(raw))
+            new.append(fullband.process(raw))
+        old = np.frombuffer(b''.join(old), dtype='<f4').reshape(-1, 2)
+        new = np.frombuffer(b''.join(new), dtype='<f4').reshape(-1, 4)
+        np.testing.assert_array_equal(new[:, 0], old[:, 0])
+        output = new[:, 1:].reshape(-1)
+        self.assertEqual(len(output), len(values))
+        np.testing.assert_allclose(output, np.concatenate((np.zeros(480), values[:-480])) * 0.25,
+                                   rtol=1e-6, atol=1e-8)
+        legacy.close()
+        fullband.close()
+
     def test_original_and_cleaned_columns_are_paired_after_frame_delay(self):
         class DelayedNoise:
             def __init__(self, frames):
@@ -160,6 +231,7 @@ class OriginalAudio(unittest.TestCase):
                 self.assertIn('--device=physical', spawn.call_args_list[0].args[0])
                 self.assertIn('--format=float32le', spawn.call_args_list[0].args[0])
                 self.assertIn('--rate=48000', spawn.call_args_list[0].args[0])
+                self.assertIn('--rate=48000', spawn.call_args_list[1].args[0])
                 self.assertEqual([call.args for call in control.call_args_list],
                                  [('get-default-source',), ('set-source-mute', m.SOURCE, '0')])
                 capture.terminate.assert_called_once()

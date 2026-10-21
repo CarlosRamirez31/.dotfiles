@@ -326,6 +326,61 @@ class Microphone(unittest.TestCase):
         self.assertEqual(gate.process(samples, 0.2), bytes(5120))
         self.assertEqual(gate.process(samples, 0.50), bytes(5120))
 
+    def test_pause_clears_only_analysis_after_consecutive_quiet_rejections(self):
+        session = Mock()
+        session.process_chunk.return_value = 0.1
+        recognition = m.PauseAwareRecognition(session)
+        for _ in range(2):
+            self.assertEqual(recognition.process_chunk('pcm', 0.001), 0.1)
+        session.reset.assert_not_called()
+        recognition.process_chunk('pcm', 0.001)
+        self.assertTrue(recognition.in_pause)
+        self.assertEqual(recognition.resets, 1)
+        recognition.process_chunk('pcm', 0.001)
+        self.assertEqual(session.process_chunk.call_count, 4)
+        self.assertEqual(recognition.resets, 2)
+        session.set_enrollment_emb.assert_not_called()
+        session.process_chunk.return_value = 0.8
+        self.assertEqual(recognition.process_chunk('soft voice', 0.0005), 0.8)
+        self.assertFalse(recognition.in_pause)
+        self.assertEqual(recognition.quiet_chunks, 0)
+
+    def test_pause_reset_never_uses_low_confidence_alone_as_silence(self):
+        session = Mock()
+        session.process_chunk.return_value = 0.1
+        recognition = m.PauseAwareRecognition(session)
+        for _ in range(10):
+            recognition.process_chunk('audible other voice', 0.02)
+        session.reset.assert_not_called()
+        session.process_chunk.return_value = 0.9
+        for _ in range(10):
+            recognition.process_chunk('quiet target voice', 0.001)
+        session.reset.assert_not_called()
+
+    def test_interrupted_quiet_does_not_reset_context_or_accept_uncertain_voice(self):
+        session = Mock()
+        session.process_chunk.return_value = 0.1
+        recognition = m.PauseAwareRecognition(session)
+        for rms in (0.001, 0.001, 0.02, 0.001, 0.001):
+            recognition.process_chunk('pcm', rms)
+        session.reset.assert_not_called()
+        recognition.process_chunk('pcm', 0.001)
+        session.process_chunk.return_value = 0.55
+        probability = recognition.process_chunk('new speaker', 0.02)
+        samples = array.array('h', [10000] * 2560)
+        self.assertEqual(m.VoiceGate().process(samples, probability), bytes(5120))
+
+    def test_smooth_opening_does_not_pulse_between_accepted_blocks(self):
+        gate = m.VoiceGate(rate=48000, attack_ms=10)
+        samples = array.array('h', [10000] * 7680)
+        first = array.array('h', gate.process(samples, 0.9))
+        self.assertEqual(first[0], 0)
+        self.assertEqual(first[479], 10000)
+        self.assertEqual(first[480:], samples[480:])
+        self.assertTrue(all(a <= b for a, b in zip(first[:479], first[1:480])))
+        self.assertEqual(gate.process(samples, 0.9), samples.tobytes())
+        self.assertEqual(gate.process(samples, 0.1), bytes(len(samples) * 2))
+
     def test_gate_recognition_refreshes_tolerance_and_invalid_confidence_closes_it(self):
         samples = array.array('h', [10000] * 2560)
         gate = m.VoiceGate()

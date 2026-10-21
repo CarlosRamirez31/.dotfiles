@@ -66,7 +66,11 @@ class NoiseReducer:
             raise RuntimeError('RNNoise personal está cerrado.')
         if np.shape(samples) != (NATIVE_FRAME_SAMPLES,) or not np.isfinite(samples).all():
             raise ValueError('RNNoise personal requiere un frame finito de 480 muestras.')
-        values = np.ascontiguousarray(np.clip(samples, -1, 1) * 32768, dtype=np.float32)
+        # RNNoise accepts float PCM, including headroom above the int16 range.
+        # Clamping here would irreversibly flatten peaks before denoising.
+        values = np.ascontiguousarray(samples * 32768, dtype=np.float32)
+        if not np.isfinite(values).all():
+            raise ValueError('La entrada excedió el rango flotante de RNNoise.')
         output = np.empty(NATIVE_FRAME_SAMPLES, dtype=np.float32)
         pointer = ctypes.POINTER(ctypes.c_float)
         self.library.rnnoise_process_frame(self.state, output.ctypes.data_as(pointer),
@@ -123,14 +127,17 @@ def prepare_enrollment(samples):
 
 
 class PersonalAudio:
-    """One 48 kHz capture, two paired 16 kHz columns: original and cleaned."""
-    def __init__(self, gain, output_gain=1.0, denoiser=None):
+    """Paired recognition and cleaned audio; optionally retain native output rate."""
+    def __init__(self, gain, output_gain=1.0, denoiser=None, fullband=False):
         if type(gain) not in (int, float) or not np.isfinite(gain) or not 0 < gain <= 1:
             raise ValueError('El perfil tiene un factor de reconocimiento inválido.')
         if not np.isfinite(output_gain) or output_gain < 0:
             raise ValueError('La salida tiene un volumen inválido.')
         self.gain = gain
         self.output_gain = output_gain
+        self.fullband = fullband
+        self.levels = {'input_peak': 0.0, 'output_peak': 0.0,
+                       'output_over_range_samples': 0, 'output_samples': 0}
         self.denoiser = denoiser or NoiseReducer()
         delay_frames = self.denoiser.delay_samples // NATIVE_FRAME_SAMPLES
         self.delay_seconds = self.denoiser.delay_samples / NATIVE_RATE
@@ -144,15 +151,30 @@ class PersonalAudio:
         if len(values) != NATIVE_FRAME_SAMPLES or not np.isfinite(values).all():
             raise RuntimeError('La captura original entregó un frame inválido.')
         scaled = (values * self.gain).astype(np.float32)
-        cleaned = self.denoiser.process(scaled)
+        # Enrollment gain belongs to recognition, not the nonlinear denoiser.
+        # Native output uses the physical signal level, like the normal filter.
+        cleaned = self.denoiser.process(values if self.fullband else scaled)
         # Delay the original branch by the denoiser's measured algorithmic delay.
         # Both branches come from one capture; never compare
         # a decision about one capture with filtered audio from another capture.
         original16 = self.original_downsample.process(self.previous.popleft())
-        # Headroom is for recognition/native processing; restore that scale on
-        # output and retain the user's existing virtual-source volume.
-        cleaned16 = self.clean_downsample.process(cleaned) * (self.output_gain / self.gain)
+        # Retain the enrollment scale in recognition and preserve source volume
+        # on output. Only the older 16 kHz route compensates enrollment gain.
         self.previous.append(scaled.copy())
+        if self.fullband:
+            # Pack three native output samples beside each recognition sample.
+            # Only recognition is downsampled; preserve all cleaned output samples.
+            output48 = cleaned * self.output_gain
+            previous_levels = self.levels
+            self.levels = {
+                'input_peak': max(previous_levels['input_peak'], float(np.max(np.abs(values)))),
+                'output_peak': max(previous_levels['output_peak'], float(np.max(np.abs(output48)))),
+                'output_over_range_samples': previous_levels['output_over_range_samples'] +
+                    int(np.count_nonzero((output48 < -1) | (output48 > 32767 / 32768))),
+                'output_samples': previous_levels['output_samples'] + len(output48),
+            }
+            return np.column_stack((original16, output48.reshape(-1, 3))).astype('<f4').tobytes()
+        cleaned16 = self.clean_downsample.process(cleaned) * (self.output_gain / self.gain)
         return np.column_stack((original16, cleaned16)).astype('<f4').tobytes()
 
     def close(self):

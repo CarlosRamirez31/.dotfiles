@@ -16,6 +16,23 @@ loader.exec_module(m)
 
 
 class PcmTransport(unittest.TestCase):
+    def test_native_output_keeps_frame_duration_and_gate_decisions(self):
+        import array
+        with patch.object(m.PcmOutput, '_write'):
+            playback = m.PcmOutput(None, rate=48000)
+            playback.thread.join(timeout=2)
+        gate = m.VoiceGate(rate=48000)
+        samples = array.array('h', [1000] * 7680)
+        raw = gate.process(samples, 0.9)
+        captured = time.monotonic()
+        playback.write_block(captured, raw)
+        frames = list(playback.frames.queue)
+        self.assertEqual(len(frames), 16)
+        self.assertTrue(all(len(frame[2]) == 960 for frame in frames))
+        self.assertAlmostEqual(frames[-1][1] - frames[0][1], 0.15)
+        self.assertEqual(b''.join(frame[2] for frame in frames), raw)
+        self.assertEqual(gate.process(samples, 0.1), bytes(15360))
+
     def test_underrun_silence_and_speech_share_one_realtime_clock(self):
         class Writer:
             count = 0

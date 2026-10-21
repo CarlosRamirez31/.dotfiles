@@ -17,7 +17,8 @@ if __name__ == '__main__':
     raise SystemExit
 
 runtime = Path('/run/user') / str(os.getuid())
-report = Path('/tmp/solo-mi-voz-prueba.jsonl')
+other = globals().get('other', False)
+report = Path('/tmp/otras-voces-prueba.jsonl' if other else '/tmp/solo-mi-voz-prueba.jsonl')
 stop = threading.Event()
 lock = threading.Lock()
 energy = [0, 0]
@@ -70,7 +71,7 @@ try:
             current = status()
             if (current.get('state') == 'active' and current.get('profile') == expected_profile
                     and current.get('recognition_route') == expected_route
-                    and current.get('pipeline_version') == 4
+                    and current.get('pipeline_version') in (4, 5, 6, 7)
                     and current.get('updated', 0) >= started):
                 break
             if process.poll() is not None:
@@ -79,18 +80,18 @@ try:
                 output.write(json.dumps({'startup_failed': True, 'model': status(), 'routing': routing()}) + '\n')
                 raise RuntimeError('El modelo no se activó en 20 segundos; se guardó el diagnóstico.')
             time.sleep(0.2)
-        for phase, seconds, instruction, passage in (
-            ('tu_voz', 10, 'AHORA: habla SOLO TÚ durante 10 segundos.',
-             'Esta mañana abrí la ventana y miré las nubes mientras preparaba un café. Después busqué mi cuaderno '
-             'y organicé las cosas sobre la mesa. Estoy leyendo a mi ritmo normal, sin gritar ni cambiar mi voz, '
-             'como cuando converso con alguien de confianza. Sigo leyendo tranquilamente hasta que termine el contador.'),
-            ('otra_voz', 10, 'AHORA: tú CALLADO; que hable OTRA PERSONA durante 10 segundos.',
-             'Ayer salí a caminar por una calle tranquila y encontré una pequeña librería. Me detuve frente a la '
-             'ventana para mirar las fotografías y los libros de viajes. Al regresar compré pan y saludé a un vecino. '
-             'Continúo leyendo con mi propia voz, sin imitar a nadie, hasta que termine el contador.'),
-            ('silencio', 5, 'AHORA: silencio durante 5 segundos.', None),
-        ):
-            screen.prepare(instruction.replace('AHORA: ', ''), passage, seconds)
+        if other:
+            phase, instruction, passage = ('otra_voz', 'Tú permanece callado; el texto lo lee la otra persona.',
+                'Ayer salí a caminar por una calle tranquila y encontré una pequeña librería. Me detuve frente a la '
+                'ventana para mirar las fotografías y los libros de viajes. Al regresar compré pan y saludé a un vecino. '
+                'Continúo leyendo con mi propia voz, sin imitar a nadie, hasta que termine el contador.')
+        else:
+            phase, instruction, passage = ('tu_voz', 'Lee 4 segundos, calla 2 y vuelve a leer 4. Sigue las indicaciones.',
+                'Esta mañana abrí la ventana y miré las nubes mientras preparaba un café. Después busqué mi cuaderno '
+                'y organicé las cosas sobre la mesa. Estoy leyendo a mi ritmo normal, sin gritar ni cambiar mi voz, '
+                'como cuando converso con alguien de confianza. Continúo desde donde me quedé después de la pausa.')
+        for phase, seconds, instruction, passage in ((phase, 10, instruction, passage),):
+            screen.prepare(instruction, passage, seconds)
             for second in range(seconds):
                 with lock:
                     energy[:] = [0, 0]
@@ -99,7 +100,9 @@ try:
                     total, count = energy
                 model = status()
                 record = {'time': datetime.datetime.now().isoformat(), 'phase': phase,
-                          'second': second + 1, 'output_rms': math.sqrt(total / max(1, count)) / 32768,
+                          'second': second + 1,
+                          'expected_action': 'silencio' if not other and second in (4, 5) else 'hablar',
+                          'output_rms': math.sqrt(total / max(1, count)) / 32768,
                           'model': model}
                 if second == 0:
                     record['routing'] = routing()

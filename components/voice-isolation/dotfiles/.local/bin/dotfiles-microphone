@@ -25,12 +25,16 @@ CONFIG = Path(os.getenv('XDG_CONFIG_HOME', HOME / '.config')) / 'voice-isolation
 DATA = Path(os.getenv('XDG_DATA_HOME', HOME / '.local/share')) / 'voice-isolation/personal-voice'
 STATE = Path(os.getenv('XDG_RUNTIME_DIR', '/tmp')) / 'dotfiles-microphone.json'
 SOURCE = 'dotfiles_personal_voice'
+SOURCE_DESCRIPTION = 'Microfono solo mi voz'
 BUS = 'dotfiles_personal_voice_bus'
 FILTER = 'dotfiles_voice_isolation'
 VOICE_THRESHOLD = 0.60
 VOICE_CONTINUE_THRESHOLD = 0.45
 # Keep the original confidence thresholds; bridge at most 480 ms of uncertainty.
 VOICE_UNCERTAIN_CHUNKS = 3
+# Clear stale analysis context only after consecutive quiet, rejected chunks.
+VOICE_PAUSE_RMS = 0.002
+VOICE_PAUSE_CHUNKS = 3
 PCM_RATE = 16000
 PCM_FRAME_MS = 10
 PCM_FRAME_BYTES = PCM_RATE * 2 * PCM_FRAME_MS // 1000
@@ -318,7 +322,7 @@ def ensure_endpoint():
                   'sink_properties="device.description=Prueba-Solo-mi-voz priority.session=0 node.virtual=true"')
         pactl('load-module', 'module-remap-source', 'master=' + BUS + '.monitor',
               'source_name=' + SOURCE, 'channels=1',
-              'source_properties="device.description=Microfono-controlado-Solo-mi-voz node.virtual=true priority.session=0"')
+              'source_properties=' + json.dumps('device.description="' + SOURCE_DESCRIPTION + '" node.virtual=true priority.session=0'))
     pactl('set-source-volume', SOURCE, '100%')
 
 
@@ -400,8 +404,12 @@ class PcmInput:
 
 class PcmOutput:
     """Play matching frames independently of inference, with bounded pending audio."""
-    def __init__(self, stream):
+    def __init__(self, stream, rate=PCM_RATE):
         self.stream = stream
+        self.rate = rate
+        self.frame_bytes = rate * 2 * PCM_FRAME_MS // 1000
+        self.underrun_frames = 0
+        self.started_audio = False
         self.frames = queue.Queue(maxsize=PCM_QUEUE_FRAMES)
         self.stopped = threading.Event()
         self.error = None
@@ -418,15 +426,18 @@ class PcmOutput:
                     return
                 try:
                     generation, captured, raw = self.frames.get_nowait()
+                    self.started_audio = True
                 except queue.Empty:
-                    generation, captured, raw = self.generation, None, bytes(PCM_FRAME_BYTES)
+                    if self.started_audio:
+                        self.underrun_frames += 1
+                    generation, captured, raw = self.generation, None, bytes(self.frame_bytes)
                 if self.stopped.is_set():
                     return
                 if generation != self.generation:
-                    captured, raw = None, bytes(PCM_FRAME_BYTES)
+                    captured, raw = None, bytes(self.frame_bytes)
                 if captured is not None and time.monotonic() - captured > PCM_MAX_AGE_SECONDS:
                     # Never play stale speech, even if it was previously accepted.
-                    write_exact(self.stream, bytes(PCM_FRAME_BYTES))
+                    write_exact(self.stream, bytes(self.frame_bytes))
                     raise RuntimeError('La salida personal llegó atrasada; se detuvo la prueba.')
                 write_exact(self.stream, raw)
                 # Silence and accepted speech share the same real-time clock.
@@ -440,10 +451,10 @@ class PcmOutput:
             raise self.error
         if time.monotonic() - captured > PCM_MAX_AGE_SECONDS:
             raise RuntimeError('La inferencia personal llegó atrasada; se descartó su audio.')
-        for offset in range(0, len(raw), PCM_FRAME_BYTES):
+        for offset in range(0, len(raw), self.frame_bytes):
             try:
-                self.frames.put_nowait((self.generation, captured + offset / (PCM_RATE * 2),
-                                        raw[offset:offset + PCM_FRAME_BYTES]))
+                self.frames.put_nowait((self.generation, captured + offset / (self.rate * 2),
+                                        raw[offset:offset + self.frame_bytes]))
             except queue.Full:
                 raise RuntimeError('La salida personal está saturada; se detuvo para evitar retrasos.')
 
@@ -456,11 +467,37 @@ class PcmOutput:
                 return
 
 
+class PauseAwareRecognition:
+    """Clear a quiet analysis window without changing the enrolled identity."""
+    def __init__(self, session):
+        self.session = session
+        self.quiet_chunks = 0
+        self.in_pause = False
+        self.resets = 0
+
+    def process_chunk(self, samples, rms):
+        probability = float(self.session.process_chunk(samples))
+        quiet = (math.isfinite(rms) and rms <= VOICE_PAUSE_RMS
+                 and math.isfinite(probability) and probability < VOICE_CONTINUE_THRESHOLD)
+        self.quiet_chunks = self.quiet_chunks + 1 if quiet else 0
+        if self.quiet_chunks >= VOICE_PAUSE_CHUNKS:
+            # reset() clears only the sliding audio buffer, retaining enrollment.
+            # Continue classifying even very quiet input; never accept a speaker
+            # from the previous phrase without a new identity decision.
+            self.session.reset()
+            self.resets += 1
+            self.in_pause = True
+        else:
+            self.in_pause = False
+        return probability
+
+
 class VoiceGate:
     """Pass a recognized speaker with bounded tolerance for brief confidence dips."""
-    def __init__(self):
+    def __init__(self, rate=PCM_RATE, attack_ms=5):
         self.previous = 0.0
         self.uncertain = 0
+        self.fade_samples = rate * attack_ms // 1000
 
     def process(self, samples, probability):
         strong = math.isfinite(probability) and probability >= VOICE_THRESHOLD
@@ -473,9 +510,10 @@ class VoiceGate:
             return bytes(len(samples) * 2)
         self.uncertain = 0 if strong else self.uncertain + 1
         out = array.array('h', samples)
-        fade = min(80, len(out))
+        fade = min(self.fade_samples, len(out))
         for i in range(fade):
-            gain = self.previous + (1.0 - self.previous) * i / max(1, fade)
+            ramp = 0.5 - 0.5 * math.cos(math.pi * i / max(1, fade - 1))
+            gain = self.previous + (1.0 - self.previous) * ramp
             out[i] = int(out[i] * gain)
         self.previous = 1.0
         return out.tobytes()
@@ -720,6 +758,7 @@ def process_voice():
     route = profile_route(profile)
     _, session = load_model()
     session.set_enrollment_emb(np.load(profile_path(), allow_pickle=False))
+    pause_recognition = PauseAwareRecognition(session) if route is ProfileRoute.ORIGINAL else None
     capture = playback = None
     capture_pcm = playback_pcm = None
     processor = None
@@ -737,7 +776,7 @@ def process_voice():
             audio = personal_audio_module()
             normal = next(source for source in items if source['name'] == FILTER)
             processor = audio.PersonalAudio(profile.get('recognition_gain'),
-                                            audio.linear_source_volume(normal))
+                                            audio.linear_source_volume(normal), fullband=True)
             capture_source = physical_source['name']
             capture_format, capture_rate = 'float32le', audio.NATIVE_RATE
         pactl('set-source-mute', SOURCE, '1' if config.get('muted') else '0')
@@ -745,15 +784,16 @@ def process_voice():
             '--stream-name=Solo-mi-voz', '--device=' + capture_source,
             '--format=' + capture_format, '--rate=' + str(capture_rate), '--channels=1',
             '--latency-msec=20', '--process-time-msec=10'], stdout=subprocess.PIPE, bufsize=0)
+        output_rate = audio.NATIVE_RATE if processor is not None else PCM_RATE
         playback = subprocess.Popen(['pacat', '--playback', '--device=' + BUS,
-            '--format=s16le', '--rate=16000', '--channels=1', '--latency-msec=20', '--process-time-msec=10'], stdin=subprocess.PIPE, bufsize=0)
+            '--format=s16le', '--rate=' + str(output_rate), '--channels=1', '--latency-msec=20', '--process-time-msec=10'], stdin=subprocess.PIPE, bufsize=0)
         if processor is not None:
             capture_pcm = PcmInput(capture.stdout, audio.NATIVE_FRAME_BYTES,
                                    processor.process, processor.delay_seconds)
         else:
             capture_pcm = PcmInput(capture.stdout)
-        playback_pcm = PcmOutput(playback.stdin)
-        gate = VoiceGate()
+        playback_pcm = PcmOutput(playback.stdin, rate=output_rate)
+        gate = VoiceGate(rate=output_rate, attack_ms=10 if processor is not None else 5)
         set_status(source=capture_source, recognition_route=route,
                    description='Reconocimiento cargado; esperando el primer bloque de audio.',
                    noise=True, personal=True, state='starting', profile=active_profile, updated=time.time())
@@ -770,14 +810,16 @@ def process_voice():
                 # The supervisor restarts for the new profile, without counting a failure.
                 return
             if route is ProfileRoute.ORIGINAL:
-                pair = np.frombuffer(raw, dtype='<f4').reshape(-1, 2)
+                pair = np.frombuffer(raw, dtype='<f4').reshape(-1, 4)
                 samples = pair[:, 0].copy()
-                clean = np.clip(pair[:, 1], -1, 32767 / 32768)
+                clean = np.clip(pair[:, 1:].reshape(-1), -1, 32767 / 32768)
                 output_raw = (clean * 32768).astype('<i2').tobytes()
             else:
                 samples = np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768
                 output_raw = raw
-            probability = float(session.process_chunk(samples))
+            input_rms = float(np.sqrt(np.mean(samples.astype(np.float64) ** 2)))
+            probability = (pause_recognition.process_chunk(samples, input_rms)
+                           if pause_recognition is not None else float(session.process_chunk(samples)))
             if not math.isfinite(probability) or not 0 <= probability <= 1:
                 raise RuntimeError('El reconocimiento devolvió una puntuación inválida; se detuvo la prueba.')
             raw = gate.process(array.array('h', output_raw), probability)
@@ -795,10 +837,17 @@ def process_voice():
                            chunk_ms=160, capture_buffer_ms=20, playback_buffer_ms=20,
                            capture_queue_ms=capture_pcm.frames.qsize() * PCM_FRAME_MS,
                            playback_queue_ms=playback_pcm.frames.qsize() * PCM_FRAME_MS,
+                           playback_underrun_ms=playback_pcm.underrun_frames * PCM_FRAME_MS,
                            block_age_ms=round((time.monotonic() - captured) * 1000, 1),
                            window_blocks=len(window_scores), window_passing_blocks=window_passing,
                            window_probability_min=min(window_scores), window_probability_max=max(window_scores),
-                           sequence=sequence, pipeline_version=4, updated=time.time())
+                           output_rate=output_rate,
+                           audio_levels=processor.levels if processor is not None else None,
+                           input_rms=input_rms,
+                           recognition_in_pause=pause_recognition.in_pause if pause_recognition else False,
+                           recognition_context_resets=pause_recognition.resets if pause_recognition else 0,
+                           gate_attack_ms=10 if processor is not None else 5,
+                           sequence=sequence, pipeline_version=7, updated=time.time())
                 last_status = time.monotonic()
                 window_scores.clear()
                 window_passing = 0
@@ -914,7 +963,7 @@ def change(key, value, port=None):
             save(config)
             raise
         if value:
-            print('Guardado. El modelo se activa solo cuando una aplicación usa «Microfono-controlado-Solo-mi-voz».')
+            print('Guardado. El modelo se activa solo cuando una aplicación usa «Microfono solo mi voz».')
         else:
             print('Prueba detenida. Aislamiento de voz no se modificó.')
         return
@@ -1044,7 +1093,7 @@ def gui(compact=False):
             self.personal.connect('toggled', lambda w: self.toggle('personal', w))
             command_row(self.noise, lambda active: 'Alt + Ctrl + N')
             command_row(self.personal, lambda active: 'Alt + Ctrl + V')
-            help_label = Gtk.Label(label='Para filtrar otras voces, selecciona «Microfono-controlado-Solo-mi-voz» en tu aplicación.\nLos cambios y el perfil seleccionado se guardan automáticamente. No separa voces simultáneas.', xalign=0, wrap=True)
+            help_label = Gtk.Label(label='Para filtrar otras voces, selecciona «Microfono solo mi voz» en tu aplicación.\nLos cambios y el perfil seleccionado se guardan automáticamente. No separa voces simultáneas.', xalign=0, wrap=True)
             if not compact:
                 box.pack_start(help_label, False, False, 0)
             self.profiles = Gtk.ComboBoxText()

@@ -4,10 +4,13 @@ import argparse
 import array
 from contextlib import suppress
 import fcntl
+from enum import Enum
+import importlib.util
 import json
 import math
 import os
 from pathlib import Path
+import queue
 import signal
 import selectors
 import subprocess
@@ -26,7 +29,37 @@ BUS = 'dotfiles_personal_voice_bus'
 FILTER = 'dotfiles_voice_isolation'
 VOICE_THRESHOLD = 0.60
 VOICE_CONTINUE_THRESHOLD = 0.45
-VOICE_UNCERTAIN_CHUNKS = 2
+# Keep the original confidence thresholds; bridge at most 480 ms of uncertainty.
+VOICE_UNCERTAIN_CHUNKS = 3
+PCM_RATE = 16000
+PCM_FRAME_MS = 10
+PCM_FRAME_BYTES = PCM_RATE * 2 * PCM_FRAME_MS // 1000
+VOICE_BLOCK_FRAMES = 16
+PCM_QUEUE_FRAMES = 32
+PCM_MAX_AGE_SECONDS = 0.48
+ENROLLMENT_TEXT = ('Esta mañana abrí la ventana y sentí el aire fresco. En la calle pasaban algunas '
+    'personas mientras una bicicleta avanzaba despacio. Preparé un café, busqué mi cuaderno '
+    'y me senté cerca de la mesa. Hoy quiero hablar con tranquilidad, usando mi voz normal '
+    'y dejando que las palabras salgan sin esfuerzo. Continúo leyendo a mi ritmo hasta '
+    'que termine el contador, sin gritar ni cambiar mi manera de hablar.')
+
+
+class ProfileRoute(str, Enum):
+    FILTERED = 'filtered'
+    ORIGINAL = 'original'
+
+
+def personal_audio_module():
+    path = Path(__file__).resolve().parents[1] / 'libexec/dotfiles-personal-audio.py'
+    spec = importlib.util.spec_from_file_location('personal_audio', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def profile_route(profile):
+    # Existing profiles were enrolled after RNNoise; never reinterpret their embeddings.
+    return ProfileRoute(profile.get('recognition_route', ProfileRoute.FILTERED))
 
 
 def run(*args):
@@ -309,6 +342,120 @@ def write_exact(stream, data):
         view = view[written:]
 
 
+class PcmInput:
+    """Drain capture in 10 ms frames; stop rather than accumulate stale speech."""
+    def __init__(self, stream, frame_bytes=PCM_FRAME_BYTES, transform=None, delay=0.0):
+        self.stream = stream
+        self.frame_bytes = frame_bytes
+        self.transform = transform
+        self.delay = delay
+        self.frames = queue.Queue(maxsize=PCM_QUEUE_FRAMES)
+        self.stopped = threading.Event()
+        self.error = None
+        self.thread = threading.Thread(target=self._read, daemon=True)
+        self.thread.start()
+
+    def _read(self):
+        try:
+            sequence = 0
+            origin = None
+            while not self.stopped.is_set():
+                raw = read_exact(self.stream, self.frame_bytes)
+                if self.stopped.is_set():
+                    return
+                if len(raw) != self.frame_bytes:
+                    raise RuntimeError('La prueba dejó de recibir audio. Aislamiento de voz sigue disponible.')
+                if origin is None:
+                    origin = time.monotonic() - PCM_FRAME_MS / 1000
+                # Reading an old OS-pipe frame must not give it a fresh timestamp.
+                captured = origin + sequence * PCM_FRAME_MS / 1000 - self.delay
+                if self.transform is not None:
+                    raw = self.transform(raw)
+                try:
+                    self.frames.put_nowait((sequence, captured, raw))
+                except queue.Full:
+                    raise RuntimeError('La captura personal acumuló demasiado audio; se detuvo para evitar retrasos.')
+                sequence += 1
+        except Exception as error:
+            self.error = error
+
+    def read_block(self):
+        frames = []
+        for _ in range(VOICE_BLOCK_FRAMES):
+            if self.error is not None:
+                raise self.error
+            try:
+                frames.append(self.frames.get(timeout=2))
+            except queue.Empty:
+                if self.error is not None:
+                    raise self.error
+                raise RuntimeError('El micrófono personal dejó de entregar audio.')
+        if self.error is not None:
+            raise self.error
+        sequence, captured, _ = frames[0]
+        if time.monotonic() - captured > PCM_MAX_AGE_SECONDS:
+            raise RuntimeError('El audio de captura personal llegó atrasado; se detuvo la prueba.')
+        return sequence, captured, b''.join(frame[2] for frame in frames)
+
+
+class PcmOutput:
+    """Play matching frames independently of inference, with bounded pending audio."""
+    def __init__(self, stream):
+        self.stream = stream
+        self.frames = queue.Queue(maxsize=PCM_QUEUE_FRAMES)
+        self.stopped = threading.Event()
+        self.error = None
+        self.generation = 0
+        self.thread = threading.Thread(target=self._write, daemon=True)
+        self.thread.start()
+
+    def _write(self):
+        try:
+            frame_seconds = PCM_FRAME_MS / 1000
+            deadline = time.monotonic()
+            while not self.stopped.is_set():
+                if self.stopped.wait(timeout=max(0, deadline - time.monotonic())):
+                    return
+                try:
+                    generation, captured, raw = self.frames.get_nowait()
+                except queue.Empty:
+                    generation, captured, raw = self.generation, None, bytes(PCM_FRAME_BYTES)
+                if self.stopped.is_set():
+                    return
+                if generation != self.generation:
+                    captured, raw = None, bytes(PCM_FRAME_BYTES)
+                if captured is not None and time.monotonic() - captured > PCM_MAX_AGE_SECONDS:
+                    # Never play stale speech, even if it was previously accepted.
+                    write_exact(self.stream, bytes(PCM_FRAME_BYTES))
+                    raise RuntimeError('La salida personal llegó atrasada; se detuvo la prueba.')
+                write_exact(self.stream, raw)
+                # Silence and accepted speech share the same real-time clock.
+                # Never emit an extra block in a burst after filling an underrun.
+                deadline = max(deadline + frame_seconds, time.monotonic())
+        except Exception as error:
+            self.error = error
+
+    def write_block(self, captured, raw):
+        if self.error is not None:
+            raise self.error
+        if time.monotonic() - captured > PCM_MAX_AGE_SECONDS:
+            raise RuntimeError('La inferencia personal llegó atrasada; se descartó su audio.')
+        for offset in range(0, len(raw), PCM_FRAME_BYTES):
+            try:
+                self.frames.put_nowait((self.generation, captured + offset / (PCM_RATE * 2),
+                                        raw[offset:offset + PCM_FRAME_BYTES]))
+            except queue.Full:
+                raise RuntimeError('La salida personal está saturada; se detuvo para evitar retrasos.')
+
+    def reset(self):
+        self.generation += 1
+        while True:
+            try:
+                self.frames.get_nowait()
+            except queue.Empty:
+                return
+
+
 class VoiceGate:
     """Pass a recognized speaker with bounded tolerance for brief confidence dips."""
     def __init__(self):
@@ -336,7 +483,7 @@ class VoiceGate:
 
 def load_model():
     import torch
-    torch.set_num_threads(min(4, os.cpu_count() or 1))
+    torch.set_num_threads(min(8, os.cpu_count() or 1))
     sys.path.insert(0, str(DATA / 'nomo-pvad'))
     from nomo_pvad import NomoPVAD, NomoPVADSession
     try:
@@ -380,27 +527,37 @@ def enroll(name=None):
     import numpy as np
     if not model_ready():
         raise ValueError('Prepara primero el reconocimiento de voz.')
+    audio = personal_audio_module()
+    probe = audio.NoiseReducer()
+    probe.close()
     model, _ = load_model()
     source = choose(sources(), settings().get('source', ''), pactl('get-default-source'))
     check_port(source, settings().get('port'))
     if settings().get('muted') or source.get('mute'):
         raise ValueError('Enciende el micrófono antes de grabar el perfil.')
-    # Use the same processed input as live recognition when it is available.
-    input_name = FILTER if FILTER in [s['name'] for s in sources()] else source['name']
+    input_name = source['name']
+    print('Nuevo perfil: reconocimiento desde audio original. Los perfiles anteriores se conservan.', flush=True)
+    print('TEXTO PARA LEER A TU RITMO:\n' + ENROLLMENT_TEXT, flush=True)
     for seconds in (3, 2, 1):
         print(f'Empieza a leer en {seconds}…', flush=True)
         time.sleep(1)
     print('GRABANDO · Lee el texto durante 15 segundos.', flush=True)
-    p = subprocess.Popen(['parec', '--client-name=dotfiles-microphone', '--device=' + input_name, '--format=s16le', '--rate=16000', '--channels=1'], stdout=subprocess.PIPE)
+    p = subprocess.Popen(['parec', '--client-name=dotfiles-microphone', '--device=' + input_name,
+        '--format=float32le', '--rate=16000', '--channels=1', '--latency-msec=20'], stdout=subprocess.PIPE, bufsize=0)
     try:
-        raw = read_exact(p.stdout, 16000 * 2 * 15)
+        blocks = []
+        for second in range(15):
+            raw = read_exact(p.stdout, 16000 * 4)
+            if len(raw) != 16000 * 4:
+                raise ValueError('El micrófono dejó de entregar audio durante el registro.')
+            blocks.append(raw)
+            values = np.frombuffer(raw, dtype='<f4')
+            rms = float(np.sqrt(np.mean(values.astype(np.float64) ** 2)))
+            print(f'GRABANDO · {second + 1}/15 segundos · nivel {rms:.4f}', flush=True)
     finally:
-        p.terminate(); p.wait(timeout=3)
-    samples = np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768
-    if len(samples) < 16000 * 14 or np.sqrt(np.mean(samples ** 2)) < 0.002:
-        raise ValueError('La grabación fue demasiado corta o silenciosa. Vuelve a registrar tu voz.')
-    if np.mean(np.abs(samples) >= 0.999) > 0.01:
-        raise ValueError('El micrófono satura. Baja su volumen y vuelve a registrar tu voz.')
+        stop_process(p)
+    samples = np.frombuffer(b''.join(blocks), dtype='<f4').copy()
+    samples, recognition_gain = audio.prepare_enrollment(samples)
     print('Grabación terminada. Guardando el perfil de voz…', flush=True)
     embedding = model.extract_emb(samples).cpu().numpy()
     if embedding.size != 192 or not np.isfinite(embedding).all():
@@ -414,7 +571,9 @@ def enroll(name=None):
     config = settings()
     profiles = voice_profiles()
     profiles[key] = {'name': (name or 'Mi voz').strip(), 'file': filename,
-                     'created': time.strftime('%Y-%m-%d %H:%M'), 'input': input_name}
+                     'created': time.strftime('%Y-%m-%d %H:%M'), 'input': input_name,
+                     'recognition_route': ProfileRoute.ORIGINAL, 'recognition_gain': recognition_gain,
+                     'capture_format': 'float32le', 'profile_version': 3}
     config.update(profiles=profiles, profile=key)
     save(config)
     if config.get('personal') and not personal_running():
@@ -455,13 +614,16 @@ class PersonalVoiceMonitor:
         self.state = None
         self.failures = 0
         self.retry_at = 0
+        self.profile = None
 
     def waiting(self):
-        if self.state != 'waiting':
-            set_status(state='waiting', profile=selected_profile(), passing=False,
+        profile = selected_profile()
+        if self.state != 'waiting' or self.profile != profile:
+            set_status(state='waiting', profile=profile, passing=False,
                        description='Listo; el modelo está apagado hasta que una aplicación use Solo mi voz.',
                        updated=time.time())
         self.state = 'waiting'
+        self.profile = profile
 
     def update(self, needed):
         if not needed:
@@ -470,6 +632,11 @@ class PersonalVoiceMonitor:
             self.retry_at = 0
             self.waiting()
             return
+        profile = selected_profile()
+        if self.process is not None and self.profile != profile:
+            self.close()
+            self.failures = 0
+            self.retry_at = 0
         if self.process is not None and self.process.poll() is not None:
             self.process = None
             self.failures += 1
@@ -482,6 +649,7 @@ class PersonalVoiceMonitor:
                        description='Una aplicación está usando Solo mi voz. Cargando el modelo…', updated=time.time())
             self.process = subprocess.Popen([str(DATA / 'venv/bin/python'), __file__, 'worker'])
             self.state = 'running'
+            self.profile = profile
 
     def close(self):
         stop_process(self.process)
@@ -541,54 +709,104 @@ def process_voice():
         return
     if not model_ready() or not profile_path().exists():
         raise ValueError('Registra tu voz antes de activar Solo mi voz.')
-    if FILTER not in [s['name'] for s in sources()]:
+    items = sources()
+    if FILTER not in [s['name'] for s in items]:
         raise ValueError('Activa primero el aislamiento de ruido. La entrada normal no se modificó.')
     if Path(sys.prefix) != DATA / 'venv':
         os.execv(str(DATA / 'venv/bin/python'), [str(DATA / 'venv/bin/python'), __file__, 'worker'])
     import numpy as np
+    active_profile = selected_profile()
+    profile = voice_profiles().get(active_profile, {})
+    route = profile_route(profile)
     _, session = load_model()
     session.set_enrollment_emb(np.load(profile_path(), allow_pickle=False))
-    active_profile = selected_profile()
     capture = playback = None
+    capture_pcm = playback_pcm = None
+    processor = None
     def terminate(*_):
         raise SystemExit(0)
     signal.signal(signal.SIGTERM, terminate)
     try:
+        capture_source = FILTER
+        capture_format, capture_rate = 's16le', PCM_RATE
+        if route is ProfileRoute.ORIGINAL:
+            physical_source = choose(items, config.get('source', ''), pactl('get-default-source'))
+            check_port(physical_source, config.get('port'))
+            if config.get('muted') or physical_source.get('mute'):
+                raise ValueError('Enciende el micrófono antes de usar Solo mi voz.')
+            audio = personal_audio_module()
+            normal = next(source for source in items if source['name'] == FILTER)
+            processor = audio.PersonalAudio(profile.get('recognition_gain'),
+                                            audio.linear_source_volume(normal))
+            capture_source = physical_source['name']
+            capture_format, capture_rate = 'float32le', audio.NATIVE_RATE
         pactl('set-source-mute', SOURCE, '1' if config.get('muted') else '0')
         capture = subprocess.Popen(['parec', '--client-name=dotfiles-microphone',
-            '--stream-name=Solo-mi-voz', '--device=' + FILTER,
-            '--format=s16le', '--rate=16000', '--channels=1',
+            '--stream-name=Solo-mi-voz', '--device=' + capture_source,
+            '--format=' + capture_format, '--rate=' + str(capture_rate), '--channels=1',
             '--latency-msec=20', '--process-time-msec=10'], stdout=subprocess.PIPE, bufsize=0)
         playback = subprocess.Popen(['pacat', '--playback', '--device=' + BUS,
             '--format=s16le', '--rate=16000', '--channels=1', '--latency-msec=20', '--process-time-msec=10'], stdin=subprocess.PIPE, bufsize=0)
+        if processor is not None:
+            capture_pcm = PcmInput(capture.stdout, audio.NATIVE_FRAME_BYTES,
+                                   processor.process, processor.delay_seconds)
+        else:
+            capture_pcm = PcmInput(capture.stdout)
+        playback_pcm = PcmOutput(playback.stdin)
         gate = VoiceGate()
-        set_status(source=FILTER, description='Reconocimiento cargado; esperando el primer bloque de audio.',
+        set_status(source=capture_source, recognition_route=route,
+                   description='Reconocimiento cargado; esperando el primer bloque de audio.',
                    noise=True, personal=True, state='starting', profile=active_profile, updated=time.time())
-        slow = 0
         last_status = 0
+        window_scores = []
+        window_passing = 0
         while True:
-            raw = read_exact(capture.stdout, 5120)
-            if len(raw) != 5120:
-                raise RuntimeError('La prueba dejó de recibir audio. Aislamiento de voz sigue siendo la entrada normal.')
+            if playback_pcm.error is not None:
+                raise playback_pcm.error
+            sequence, captured, raw = capture_pcm.read_block()
             begin = time.monotonic()
             if selected_profile() != active_profile:
-                session.set_enrollment_emb(np.load(profile_path(), allow_pickle=False))
-                active_profile = selected_profile()
-                gate = VoiceGate()
-            samples = np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768
+                # A route/gain change requires a fresh capture, model and RNNoise state.
+                # The supervisor restarts for the new profile, without counting a failure.
+                return
+            if route is ProfileRoute.ORIGINAL:
+                pair = np.frombuffer(raw, dtype='<f4').reshape(-1, 2)
+                samples = pair[:, 0].copy()
+                clean = np.clip(pair[:, 1], -1, 32767 / 32768)
+                output_raw = (clean * 32768).astype('<i2').tobytes()
+            else:
+                samples = np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768
+                output_raw = raw
             probability = float(session.process_chunk(samples))
-            raw = gate.process(array.array('h', raw), probability)
+            if not math.isfinite(probability) or not 0 <= probability <= 1:
+                raise RuntimeError('El reconocimiento devolvió una puntuación inválida; se detuvo la prueba.')
+            raw = gate.process(array.array('h', output_raw), probability)
             processing_ms = (time.monotonic() - begin) * 1000
+            if capture_pcm.error is not None:
+                raise capture_pcm.error
+            window_scores.append(probability)
+            window_passing += int(gate.previous > 0)
             if time.monotonic() - last_status >= 1:
                 set_status(state='active', profile=active_profile, probability=probability,
+                           recognition_route=route, source=capture_source,
+                           noise_output='local-rnnoise' if processor is not None else FILTER,
+                           noise_delay_ms=round(processor.delay_seconds * 1000) if processor is not None else None,
                            passing=gate.previous > 0, processing_ms=round(processing_ms, 1),
-                           chunk_ms=160, capture_buffer_ms=20, playback_buffer_ms=20, updated=time.time())
+                           chunk_ms=160, capture_buffer_ms=20, playback_buffer_ms=20,
+                           capture_queue_ms=capture_pcm.frames.qsize() * PCM_FRAME_MS,
+                           playback_queue_ms=playback_pcm.frames.qsize() * PCM_FRAME_MS,
+                           block_age_ms=round((time.monotonic() - captured) * 1000, 1),
+                           window_blocks=len(window_scores), window_passing_blocks=window_passing,
+                           window_probability_min=min(window_scores), window_probability_max=max(window_scores),
+                           sequence=sequence, pipeline_version=4, updated=time.time())
                 last_status = time.monotonic()
-            slow = slow + 1 if time.monotonic() - begin > 0.16 else 0
-            if slow >= 32:
-                raise RuntimeError('La prueba no alcanza tiempo real. Usa Aislamiento de voz.')
-            write_exact(playback.stdin, raw)
+                window_scores.clear()
+                window_passing = 0
+            playback_pcm.write_block(captured, raw)
     finally:
+        for pcm in (capture_pcm, playback_pcm):
+            if pcm is not None:
+                pcm.stopped.set()
         for process in (capture, playback):
             if process is not None:
                 with suppress(ProcessLookupError):
@@ -598,6 +816,11 @@ def process_voice():
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=1)
+        for pcm in (capture_pcm, playback_pcm):
+            if pcm is not None:
+                pcm.thread.join(timeout=1)
+        if processor is not None and (capture_pcm is None or not capture_pcm.thread.is_alive()):
+            processor.close()
 
 
 
@@ -893,14 +1116,7 @@ def gui(compact=False):
             content.pack_start(Gtk.Label(label='Al iniciar tendrás 3 segundos para prepararte. Lee con voz normal,\nsin otras personas hablando. Sigue leyendo hasta que termine la grabación de 15 segundos;\nno necesitas terminar todo el texto. El perfil se guarda y selecciona al terminar.',
                                         xalign=0, wrap=True), False, False, 0)
             content.pack_start(Gtk.Label(label='Texto para leer en voz alta', xalign=0), False, False, 0)
-            text = Gtk.Label(label='Hoy estoy configurando mi perfil de voz para que el micrófono reconozca '
-                'mi manera de hablar. Quiero conversar con claridad, a un volumen natural y sin gritar. '
-                'Esta es mi voz cuando trabajo, explico mis ideas y hablo con otras personas cada día. '
-                'Por la mañana reviso mis pendientes, organizo mis tareas y preparo lo que necesito para empezar. '
-                'A veces hago preguntas, comparto una noticia o cuento algo que me ocurrió durante la semana. '
-                'Me gusta hablar con tranquilidad y pronunciar cada palabra de forma natural. '
-                'Ahora sigo leyendo este texto mientras el sistema aprende a reconocer las características de mi voz, '
-                'con mis pausas habituales y mi tono de conversación.',
+            text = Gtk.Label(label=ENROLLMENT_TEXT,
                 xalign=0, wrap=True, selectable=True)
             text.set_max_width_chars(65)
             content.pack_start(text, True, True, 0)
@@ -966,7 +1182,10 @@ def gui(compact=False):
                         feedback = ' · voz reconocida' if state.get('passing') else ' · esperando la voz del perfil'
                 if state.get('state') == 'error':
                     feedback = ' · ' + state.get('error', 'Error al procesar audio')
-                self.profile_status.set_text(('Guardado: ' + profile['name'] if profile else 'Crea un perfil para reconocer tu voz') + feedback)
+                route_label = ''
+                if profile:
+                    route_label = ' · audio original' if profile_route(profile) is ProfileRoute.ORIGINAL else ' · perfil anterior, audio filtrado'
+                self.profile_status.set_text(('Guardado: ' + profile['name'] if profile else 'Crea un perfil para reconocer tu voz') + route_label + feedback)
                 self.info.set_text(('Entrada normal: Aislamiento de voz' if normal else 'Entrada normal: micrófono físico')
                     + (' · Solo mi voz listo para usar' if experiment else ' · Solo mi voz apagado'))
             except (OSError, ValueError, KeyError, subprocess.SubprocessError):
@@ -1049,7 +1268,7 @@ def gui(compact=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'bar-watch', 'on', 'off', 'toggle', 'app', 'serve', 'worker', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'configure-profile', 'profile', 'delete-profile', 'model-check', 'cleanup-legacy'])
+    parser.add_argument('command', nargs='?', default='gui', choices=['gui', 'compact', 'bar', 'bar-watch', 'on', 'off', 'toggle', 'app', 'serve', 'worker', 'status', 'list', 'source', 'noise', 'personal', 'volume', 'enroll', 'configure-profile', 'profile', 'delete-profile', 'model-check', 'cleanup-legacy', 'compare-voice'])
     parser.add_argument('value', nargs='?')
     parser.add_argument('port', nargs='?')
     args = parser.parse_args()
@@ -1064,6 +1283,12 @@ def main():
             pactl('set-source-output-mute', str(int(index)), '0' if args.port == 'on' else '1')
     elif args.command == 'serve': serve()
     elif args.command == 'worker': process_voice()
+    elif args.command == 'compare-voice':
+        script = Path(__file__).resolve().parents[1] / 'libexec/dotfiles-voice-compare'
+        python = DATA / 'venv/bin/python'
+        if not model_ready():
+            raise ValueError('Prepara primero el reconocimiento de voz.')
+        os.execv(str(python), [str(python), str(script)])
     elif args.command == 'cleanup-legacy': cleanup_legacy_endpoint()
     elif args.command == 'status':
         print(STATE.read_text() if STATE.exists() else 'No hay procesamiento activo.')

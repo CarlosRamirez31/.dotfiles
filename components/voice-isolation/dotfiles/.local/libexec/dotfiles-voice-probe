@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""Direct personal-output probe. Audio is measured and discarded, never saved."""
+import array
+import datetime
+import json
+import math
+import os
+from pathlib import Path
+import subprocess
+import threading
+import time
+
+# Keep the measurement code separate from its guided terminal display.
+if __name__ == '__main__':
+    import runpy
+    runpy.run_path(str(Path(__file__).resolve().with_name('dotfiles-voice-probe-ui.py')), run_name='__main__')
+    raise SystemExit
+
+runtime = Path('/run/user') / str(os.getuid())
+report = Path('/tmp/solo-mi-voz-prueba.jsonl')
+stop = threading.Event()
+lock = threading.Lock()
+energy = [0, 0]
+config_path = Path(os.getenv('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'voice-isolation/microphone.json'
+config = json.loads(config_path.read_text())
+expected_profile = config.get('profile')
+expected_route = config.get('profiles', {}).get(expected_profile, {}).get('recognition_route', 'filtered')
+started = time.time()
+
+def status():
+    try:
+        return json.loads((runtime / 'dotfiles-microphone.json').read_text())
+    except (OSError, ValueError):
+        return {}
+
+def routing():
+    result = subprocess.run(['pactl', '-f', 'json', 'list', 'source-outputs'],
+                            capture_output=True, text=True, timeout=5)
+    if result.returncode:
+        return {'error': result.stderr.strip()}
+    return [{key: stream.get(key) for key in ('index', 'source', 'corked', 'mute')} |
+            {'app': stream.get('properties', {}).get('application.name'),
+             'node': stream.get('properties', {}).get('node.name')}
+            for stream in json.loads(result.stdout)]
+
+process = subprocess.Popen(['parec', '--client-name=Prueba-directa-Solo-mi-voz',
+    '--device=dotfiles_personal_voice', '--format=s16le', '--rate=16000',
+    '--channels=1', '--latency-msec=20'], stdout=subprocess.PIPE, bufsize=0)
+
+def drain():
+    pending = b''
+    while not stop.is_set():
+        block = process.stdout.read(4096)
+        if not block:
+            break
+        pending += block
+        even = len(pending) // 2 * 2
+        samples = array.array('h', pending[:even])
+        pending = pending[even:]
+        with lock:
+            energy[0] += sum(int(sample) ** 2 for sample in samples)
+            energy[1] += len(samples)
+
+reader = threading.Thread(target=drain, daemon=True)
+reader.start()
+try:
+    with report.open('w') as output:
+        deadline = time.monotonic() + 20
+        while True:
+            current = status()
+            if (current.get('state') == 'active' and current.get('profile') == expected_profile
+                    and current.get('recognition_route') == expected_route
+                    and current.get('pipeline_version') == 4
+                    and current.get('updated', 0) >= started):
+                break
+            if process.poll() is not None:
+                raise RuntimeError('No se pudo abrir la entrada Solo mi voz.')
+            if time.monotonic() >= deadline:
+                output.write(json.dumps({'startup_failed': True, 'model': status(), 'routing': routing()}) + '\n')
+                raise RuntimeError('El modelo no se activó en 20 segundos; se guardó el diagnóstico.')
+            time.sleep(0.2)
+        for phase, seconds, instruction, passage in (
+            ('tu_voz', 10, 'AHORA: habla SOLO TÚ durante 10 segundos.',
+             'Esta mañana abrí la ventana y miré las nubes mientras preparaba un café. Después busqué mi cuaderno '
+             'y organicé las cosas sobre la mesa. Estoy leyendo a mi ritmo normal, sin gritar ni cambiar mi voz, '
+             'como cuando converso con alguien de confianza. Sigo leyendo tranquilamente hasta que termine el contador.'),
+            ('otra_voz', 10, 'AHORA: tú CALLADO; que hable OTRA PERSONA durante 10 segundos.',
+             'Ayer salí a caminar por una calle tranquila y encontré una pequeña librería. Me detuve frente a la '
+             'ventana para mirar las fotografías y los libros de viajes. Al regresar compré pan y saludé a un vecino. '
+             'Continúo leyendo con mi propia voz, sin imitar a nadie, hasta que termine el contador.'),
+            ('silencio', 5, 'AHORA: silencio durante 5 segundos.', None),
+        ):
+            screen.prepare(instruction.replace('AHORA: ', ''), passage, seconds)
+            for second in range(seconds):
+                with lock:
+                    energy[:] = [0, 0]
+                time.sleep(1)
+                with lock:
+                    total, count = energy
+                model = status()
+                record = {'time': datetime.datetime.now().isoformat(), 'phase': phase,
+                          'second': second + 1, 'output_rms': math.sqrt(total / max(1, count)) / 32768,
+                          'model': model}
+                if second == 0:
+                    record['routing'] = routing()
+                output.write(json.dumps(record) + '\n')
+                output.flush()
+                screen.progress(second + 1, record['output_rms'])
+finally:
+    stop.set()
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=3)
+    reader.join(timeout=2)

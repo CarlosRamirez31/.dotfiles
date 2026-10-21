@@ -143,7 +143,7 @@ class Microphone(unittest.TestCase):
             data = Path(directory)
             (data / 'my-voice.npy').touch()
             capture = Mock(stdout=io.BytesIO(b''))
-            playback = Mock()
+            playback = Mock(stdin=io.BytesIO())
             with patch.object(m, 'settings', return_value={'personal': True, 'noise': True}), patch.object(m, 'DATA', data), patch.object(m, 'model_ready', return_value=True), patch.object(m.sys, 'prefix', str(data / 'venv')), patch.object(m, 'sources', return_value=[{'name': m.FILTER}]), patch.dict(m.sys.modules, {'numpy': SimpleNamespace(load=lambda *a, **k: [])}), patch.object(m, 'load_model', return_value=(Mock(), Mock())), patch.object(m, 'ensure_endpoint'), patch.object(m, 'cleanup_endpoint') as cleanup, patch.object(m, 'set_status'), patch.object(m.signal, 'signal'), patch.object(m.subprocess, 'Popen', side_effect=[capture, playback]) as popen, patch.object(m, 'pactl') as ctl, patch.object(m, 'run') as run:
                 with self.assertRaises(RuntimeError):
                     m.process_voice()
@@ -318,12 +318,33 @@ class Microphone(unittest.TestCase):
         gate = m.VoiceGate()
         self.assertEqual(gate.process(samples, 0.55), bytes(5120))
         self.assertTrue(any(gate.process(samples, 0.65)))
-        self.assertTrue(any(gate.process(samples, 0.55)))
-        self.assertTrue(any(gate.process(samples, 0.50)))
+        for probability in (0.55, 0.50, 0.45):
+            self.assertTrue(any(gate.process(samples, probability)))
+        self.assertEqual(gate.process(samples, 0.50), bytes(5120))
         self.assertEqual(gate.process(samples, 0.55), bytes(5120))
-        self.assertTrue(any(gate.process(samples, 0.65)))
+        self.assertTrue(any(gate.process(samples, 0.60)))
         self.assertEqual(gate.process(samples, 0.2), bytes(5120))
-        self.assertEqual(gate.process(samples, 0.55), bytes(5120))
+        self.assertEqual(gate.process(samples, 0.50), bytes(5120))
+
+    def test_gate_recognition_refreshes_tolerance_and_invalid_confidence_closes_it(self):
+        samples = array.array('h', [10000] * 2560)
+        gate = m.VoiceGate()
+        for _ in range(3):
+            self.assertTrue(any(gate.process(samples, 0.60)))
+            for _ in range(3):
+                self.assertTrue(any(gate.process(samples, 0.50)))
+        for probability in (float('nan'), float('inf'), -float('inf'), 0.44):
+            self.assertTrue(any(gate.process(samples, 0.60)))
+            self.assertEqual(gate.process(samples, probability), bytes(5120))
+            self.assertEqual(gate.process(samples, 0.55), bytes(5120))
+
+    def test_rejected_speaker_closes_gate_even_immediately_after_recognition(self):
+        samples = array.array('h', [10000] * 2560)
+        gate = m.VoiceGate()
+        self.assertTrue(any(gate.process(samples, 0.90)))
+        for probability in (0.40, 0.35, 0.42, 0.55, 0.50):
+            self.assertEqual(gate.process(samples, probability), bytes(5120))
+        self.assertTrue(any(gate.process(samples, 0.65)))
 
     def test_unbuffered_audio_writer_handles_partial_writes(self):
         blocks = []

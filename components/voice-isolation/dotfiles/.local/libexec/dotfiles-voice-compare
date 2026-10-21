@@ -1,0 +1,339 @@
+#!/usr/bin/env python3
+"""Compare physical and RNNoise speaker recognition; keep all PCM in RAM."""
+from enum import Enum
+import array
+import importlib.machinery
+import importlib.util
+import json
+import math
+from pathlib import Path
+import subprocess
+import tempfile
+import threading
+import time
+
+
+class Route(str, Enum):
+    ORIGINAL = 'original'
+    FILTERED = 'filtered'
+
+
+class Phase(str, Enum):
+    ENROLL = 'enroll'
+    OWNER = 'owner'
+    OTHER = 'other'
+
+
+class ReportState(str, Enum):
+    RUNNING = 'running'
+    COMPLETE = 'complete'
+    ERROR = 'error'
+
+
+class Quality(str, Enum):
+    OK = 'ok'
+    QUIET = 'too_quiet'
+    CLIPPED = 'clipped'
+    INVALID = 'invalid'
+
+
+CAPTURE_SAMPLE_BYTES = 4
+CAPTURE_SECOND_BYTES = 16000 * CAPTURE_SAMPLE_BYTES
+
+READING_TEXT = {
+    Phase.ENROLL: (
+        'Esta mañana abrí la ventana y sentí el aire fresco. En la calle pasaban algunas '
+        'personas mientras una bicicleta avanzaba despacio. Preparé un café, busqué mi '
+        'cuaderno y me senté cerca de la mesa. Hoy quiero hablar con tranquilidad, usando '
+        'mi voz normal y dejando que las palabras salgan sin esfuerzo. Después seguiré '
+        'leyendo hasta que termine el contador, sin correr ni cambiar mi manera de hablar.'
+    ),
+    Phase.OWNER: (
+        'Por la tarde salí a caminar por un parque lleno de árboles. Escuché el viento '
+        'entre las hojas y vi un perro jugando cerca de una fuente. Al regresar compré '
+        'pan y conversé un momento con un vecino. Ahora continúo esta lectura a un ritmo '
+        'natural, como cuando hablo con alguien de confianza, manteniendo la misma '
+        'distancia del micrófono hasta que se acabe el tiempo.'
+    ),
+    Phase.OTHER: (
+        'Durante un viaje corto encontré una pequeña librería junto a una plaza. Había '
+        'libros de aventuras, fotografías antiguas y una lámpara sobre el mostrador. '
+        'Elegí una historia para leer el fin de semana y luego continué mi camino. '
+        'Mientras cuento esto hablo con mi propia voz, sin imitar a nadie y sin gritar, '
+        'hasta que el contador indique que terminó esta parte de la prueba.'
+    ),
+}
+
+
+def pcm_levels(raw):
+    samples = array.array('f', raw)
+    if not samples or not all(math.isfinite(value) for value in samples):
+        return {'rms': 0.0, 'peak': 0.0, 'over_range_fraction': 0.0,
+                'flat_peak_fraction': 0.0, 'invalid': bool(samples)}
+    peak = max(abs(value) for value in samples)
+    return {
+        'rms': math.sqrt(sum(value ** 2 for value in samples) / len(samples)),
+        'peak': peak,
+        'over_range_fraction': sum(abs(value) >= 0.999 for value in samples) / len(samples),
+        'flat_peak_fraction': (sum(abs(value) >= peak * 0.999999 for value in samples) / len(samples)
+                               if peak > 0.05 else 0.0),
+        'invalid': False,
+    }
+
+
+def enrollment_quality(np, samples):
+    if not len(samples) or not np.isfinite(samples).all():
+        return {'quality': Quality.INVALID}
+    rms = float(np.sqrt(np.mean(samples ** 2)))
+    peak = float(np.max(np.abs(samples)))
+    clipped = float(np.mean(np.abs(samples) >= 0.999))
+    quality = Quality.OK
+    if rms < 0.002:
+        quality = Quality.QUIET
+    elif clipped > 0.01:
+        quality = Quality.CLIPPED
+    return {'quality': quality, 'rms': rms, 'peak': peak, 'clipped_fraction': clipped}
+
+
+def quality_message(route, metrics):
+    prefix = 'Ruta ' + route.value + ': '
+    quality = Quality(metrics['quality'])
+    if quality is Quality.QUIET:
+        return prefix + f"llegó muy poco audio (RMS {metrics['rms']:.5f}, pico {metrics['peak']:.5f})."
+    if quality is Quality.CLIPPED:
+        return prefix + f"posible saturación previa ({metrics['clipped_fraction'] * 100:.1f}% de picos repetidos)."
+    if quality is Quality.INVALID:
+        return prefix + 'no se recibió una muestra válida.'
+    return prefix + f"registro válido (RMS {metrics['rms']:.5f}, pico {metrics['peak']:.5f})."
+
+
+def prepare_enrollment(np, samples):
+    """Preserve floating-point headroom; never mistake scaling for repairing clipping."""
+    if not len(samples) or not np.isfinite(samples).all():
+        return samples, {'quality': Quality.INVALID, 'gain': 1.0}
+    values = np.asarray(samples, dtype=np.float64)
+    absolute = np.abs(values)
+    peak = float(np.max(absolute))
+    gain = min(1.0, 0.9 / peak) if peak > 0 else 1.0
+    normalized = samples * gain
+    metrics = enrollment_quality(np, normalized)
+    flat = float(np.mean(absolute >= peak * 0.999999)) if peak > 0.05 else 0.0
+    metrics.update(gain=gain, input_peak=peak,
+                   input_rms=float(np.sqrt(np.mean(values ** 2))),
+                   input_over_range_fraction=float(np.mean(absolute >= 0.999)),
+                   flat_peak_fraction=flat)
+    if metrics['quality'] is Quality.OK and flat > 0.01:
+        metrics.update(quality=Quality.CLIPPED, clipped_fraction=flat)
+    return normalized, metrics
+
+
+def microphone_module():
+    path = Path(__file__).resolve().parents[1] / 'bin/dotfiles-microphone'
+    loader = importlib.machinery.SourceFileLoader('microphone', str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def capture_pair(microphone, devices, seconds, instruction, passage=None):
+    """Capture the same spoken phase from both routes; never change device settings."""
+    processes, threads, captured, errors = {}, [], {}, []
+    levels = {route: [] for route in devices}
+    progress = threading.Condition()
+    def read(route, process):
+        try:
+            blocks = []
+            for _ in range(seconds):
+                raw = microphone.read_exact(process.stdout, CAPTURE_SECOND_BYTES)
+                if len(raw) != CAPTURE_SECOND_BYTES:
+                    raise RuntimeError('La ruta ' + route.value + ' dejó de recibir audio durante la comparación.')
+                blocks.append(raw)
+                metrics = pcm_levels(raw)
+                with progress:
+                    levels[route].append(metrics)
+                    progress.notify_all()
+            captured[route] = b''.join(blocks)
+        except Exception as error:
+            with progress:
+                errors.append(error)
+                progress.notify_all()
+    try:
+        for route, device in devices.items():
+            process = subprocess.Popen(['parec', '--client-name=dotfiles-microphone',
+                '--stream-name=Comparar-voz-' + route.value, '--device=' + device,
+                '--format=float32le', '--rate=16000', '--channels=1',
+                '--latency-msec=20', '--process-time-msec=10'],
+                stdout=subprocess.PIPE, bufsize=0)
+            processes[route] = process
+            thread = threading.Thread(target=read, args=(route, process), daemon=True)
+            threads.append(thread)
+            thread.start()
+        print(instruction + f' ({seconds} segundos)', flush=True)
+        if passage:
+            print('\nLEE A TU RITMO HASTA QUE TERMINE EL CONTADOR:\n' + passage + '\n', flush=True)
+        print(f'Grabando · 00/{seconds} s', flush=True)
+        deadline = time.monotonic() + seconds + 10
+        for second in range(seconds):
+            with progress:
+                ready = progress.wait_for(
+                    lambda: bool(errors) or all(len(values) > second for values in levels.values()),
+                    timeout=max(0, min(3, deadline - time.monotonic())),
+                )
+            if errors:
+                raise errors[0]
+            if not ready:
+                raise RuntimeError('Una ruta no entregó el segundo de audio esperado; se detuvo la prueba.')
+            descriptions = []
+            for route in devices:
+                metrics = levels[route][second]
+                label = 'SEÑAL' if metrics['rms'] >= 0.002 else 'BAJA'
+                if metrics['over_range_fraction'] > 0.01:
+                    label = 'ALTA'
+                if metrics['flat_peak_fraction'] > 0.01:
+                    label = 'POSIBLES PICOS RECORTADOS'
+                if metrics['invalid']:
+                    label = 'INVÁLIDA'
+                descriptions.append(f"{route.value}: {label} · RMS {metrics['rms']:.4f}")
+            print(f'{second + 1:02}/{seconds} s · Audio captado → ' + ' | '.join(descriptions), flush=True)
+        for thread in threads:
+            thread.join(timeout=max(0, deadline - time.monotonic()))
+        if any(thread.is_alive() for thread in threads):
+            raise RuntimeError('La captura de comparación agotó su tiempo de espera.')
+        if errors:
+            raise errors[0]
+        return captured
+    finally:
+        for process in processes.values():
+            microphone.stop_process(process)
+        for thread in threads:
+            thread.join(timeout=1)
+        for process in processes.values():
+            process.stdout.close()
+
+
+def decode(np, raw, gain=1.0):
+    # Exclude device start and the RNNoise look-ahead at phase boundaries.
+    samples = np.frombuffer(raw, dtype='<f4').copy()
+    return samples[16000:-5120] * gain
+
+
+def score(microphone, np, session, samples):
+    gate = microphone.VoiceGate()
+    probabilities, elapsed, passing = [], [], []
+    probe = __import__('array').array('h', [1] * 2560)
+    for start in range(0, len(samples) - 2559, 2560):
+        begin = time.monotonic()
+        probability = float(session.process_chunk(samples[start:start + 2560]))
+        elapsed.append((time.monotonic() - begin) * 1000)
+        if not math.isfinite(probability) or not 0 <= probability <= 1:
+            raise RuntimeError('El modelo devolvió una puntuación inválida.')
+        gate.process(probe, probability)
+        probabilities.append(probability)
+        passing.append(gate.previous > 0)
+    # Report both startup and steady-state; 2.4 s is the model's context window.
+    warm = min(15, len(probabilities))
+    steady = probabilities[warm:]
+    if not steady:
+        raise RuntimeError('La muestra de comparación resultó demasiado corta.')
+    return {
+        'blocks': len(probabilities), 'steady_blocks': len(steady),
+        'opening_threshold': microphone.VOICE_THRESHOLD,
+        'continue_threshold': microphone.VOICE_CONTINUE_THRESHOLD,
+        'startup_pass_fraction': sum(passing[:warm]) / max(1, warm),
+        'steady_pass_fraction': sum(passing[warm:]) / len(steady),
+        'score_mean': float(np.mean(steady)), 'score_max': max(steady),
+        'processing_ms_p50': float(np.median(elapsed)),
+        'processing_ms_p95': float(np.percentile(elapsed, 95)),
+        'scores': probabilities,
+    }
+
+
+def write_report(path, values):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False) as output:
+        json.dump(values, output, allow_nan=False, indent=2)
+    Path(output.name).replace(path)
+
+
+def main():
+    microphone = microphone_module()
+    report_path = microphone.CONFIG / 'voice-comparison.json'
+    report = {'state': ReportState.RUNNING, 'started': time.time(), 'results': {},
+              'capture_format': 'float32le'}
+    write_report(report_path, report)
+    try:
+        import numpy as np
+        config = microphone.settings()
+        items = microphone.sources()
+        physical = microphone.choose(items, config.get('source', ''),
+                                     microphone.pactl('get-default-source'))
+        microphone.check_port(physical, config.get('port'))
+        filtered = next((source for source in items if source['name'] == microphone.FILTER), None)
+        if config.get('muted') or physical.get('mute') or not filtered or filtered.get('mute'):
+            raise RuntimeError('Enciende el micrófono y el aislamiento de ruido antes de comparar.')
+        print('Preparando el modelo. El audio permanecerá en RAM; se guardan solo puntuaciones.', flush=True)
+        model, base_session = microphone.load_model()
+        devices = {Route.ORIGINAL: physical['name'], Route.FILTERED: microphone.FILTER}
+        recordings = {}
+        for phase, seconds, instruction in (
+            (Phase.ENROLL, 15, 'REGISTRO: habla SOLO TÚ, sin otras voces.'),
+            (Phase.OWNER, 12, 'PRUEBA TUYA: sigue hablando SOLO TÚ.'),
+            (Phase.OTHER, 12, 'PRUEBA AJENA: tú CALLADO; habla la OTRA PERSONA.'),
+        ):
+            print('Preparando siguiente etapa: ' + instruction, flush=True)
+            for remaining in (3, 2, 1):
+                print(str(remaining) + '…', flush=True)
+                time.sleep(1)
+            report['phase'] = phase
+            write_report(report_path, report)
+            recordings[phase] = capture_pair(microphone, devices, seconds, 'AHORA: ' + instruction,
+                                             READING_TEXT[phase])
+            if phase is Phase.ENROLL:
+                report['enrollment_levels'] = {}
+                failures = []
+                for route in Route:
+                    _, metrics = prepare_enrollment(np, decode(np, recordings[phase][route]))
+                    report['enrollment_levels'][route] = metrics
+                    print(quality_message(route, metrics), flush=True)
+                    if metrics.get('gain', 1.0) < 1:
+                        print(f"   Margen de la prueba {route.value}: factor {metrics['gain']:.4f} en RAM; ganancia física sin cambios.", flush=True)
+                    if metrics['quality'] is not Quality.OK:
+                        failures.append(quality_message(route, metrics))
+                write_report(report_path, report)
+                if failures:
+                    raise RuntimeError('Registro incompleto. ' + ' '.join(failures) +
+                                       ' No se iniciaron las pruebas restantes; los perfiles guardados no cambiaron.')
+        print('Captura terminada. Comparando las dos rutas; puedes dejar de hablar.', flush=True)
+        for route in Route:
+            gain = report['enrollment_levels'][route]['gain']
+            enrollment = decode(np, recordings[Phase.ENROLL][route], gain)
+            embedding = model.extract_emb(enrollment).cpu().numpy()
+            if embedding.size != 192 or not np.isfinite(embedding).all():
+                raise RuntimeError('El registro de comparación produjo un perfil inválido.')
+            results = {}
+            for phase in (Phase.OWNER, Phase.OTHER):
+                session = type(base_session)(model)
+                session.set_enrollment_emb(embedding)
+                samples = decode(np, recordings[phase][route], gain)
+                results[phase] = score(microphone, np, session, samples)
+            report['results'][route] = results
+            print(route.value + ': paso de tu voz=' +
+                  str(round(results[Phase.OWNER]['steady_pass_fraction'] * 100)) +
+                  '%; paso de voz ajena=' +
+                  str(round(results[Phase.OTHER]['steady_pass_fraction'] * 100)) + '%', flush=True)
+        report.update(state=ReportState.COMPLETE, finished=time.time(),
+                      note='Comparación experimental con etapas indicadas por el usuario; audio descartado. No mide el retraso completo ni crea perfiles guardados.')
+    except Exception as error:
+        report.update(state=ReportState.ERROR, error=str(error), finished=time.time())
+        raise
+    finally:
+        write_report(report_path, report)
+        print('Informe: ' + str(report_path), flush=True)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (RuntimeError, ValueError, OSError) as error:
+        raise SystemExit('No se completó la comparación: ' + str(error))

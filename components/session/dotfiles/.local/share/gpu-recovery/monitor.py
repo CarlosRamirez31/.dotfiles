@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Recover the verified LOQ 15AHP9 GPE10 loop after external-monitor unplug."""
+"""Watch for and recover the verified LOQ 15AHP9 GPE10 wake loop."""
 import argparse
+from collections import deque
 import logging
 import os
 from pathlib import Path
@@ -86,20 +87,39 @@ class Hardware:
 
 
 class Detector:
-    """One assessment per disconnect/start, with a 10s grace and 20s window."""
+    """Repeat observations while unplugged; limit recovery to three per hour."""
+    RECHECK = 30
+    COOLDOWN = 60
+    ATTEMPT_WINDOW = 3600
+    MAX_ATTEMPTS = 3
+
     def __init__(self):
         self.connected = None
         self.due = None
         self.baseline = None
         self.last_attempt = float('-inf')
+        self.attempts = deque()
+
+    def schedule(self, now, delay):
+        self.due = max(now + delay, self.last_attempt + self.COOLDOWN)
+        if len(self.attempts) >= self.MAX_ATTEMPTS:
+            self.due = max(self.due, self.attempts[0] + self.ATTEMPT_WINDOW)
 
     def update(self, now, sample):
+        while self.attempts and now - self.attempts[0] >= self.ATTEMPT_WINDOW:
+            self.attempts.popleft()
         if sample['connected'] != self.connected:
             self.connected = sample['connected']
             self.baseline = None
-            self.due = None if self.connected else max(now + 10, self.last_attempt + 60)
+            self.due = None
+            if not self.connected:
+                self.schedule(now, 10)
             LOG.info('Monitores externos: %s.', 'conectados' if self.connected else 'desconectados')
-        if self.due is None or now < self.due or not sample['ready']:
+        if not sample['ready']:
+            # Never combine time with an enabled output with an unplugged window.
+            self.baseline = None
+            return False
+        if self.due is None or now < self.due:
             return False
         if self.baseline is None:
             self.baseline = (now, sample.copy())
@@ -107,15 +127,24 @@ class Detector:
         then, before = self.baseline
         if now - then < 20:
             return False
-        self.due = None
         active = sample['active'] - before['active']
         suspended = sample['suspended'] - before['suspended']
         events = sample['gpe'] - before['gpe']
+        if min(active, suspended, events) < 0:
+            # Device/counter reset: start a fresh observation instead of inferring a cycle.
+            self.baseline = (now, sample.copy())
+            return False
+        self.baseline = None
         cycle = active > 0 and suspended > 0 and events >= 2 and active > suspended
         LOG.info('Comprobación: activa=%d ms, suspendida=%d ms, GPE10 nuevos=%d; ciclo=%s.',
                  active, suspended, events, cycle)
         if cycle:
             self.last_attempt = now
+            self.attempts.append(now)
+            if len(self.attempts) >= self.MAX_ATTEMPTS:
+                LOG.warning('Límite de tres recuperaciones por hora alcanzado; '
+                            'se posponen nuevos intentos hasta renovar el cupo.')
+        self.schedule(now, self.RECHECK)
         return cycle
 
 

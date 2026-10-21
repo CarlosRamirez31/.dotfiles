@@ -15,7 +15,7 @@ def sample(connected=False, ready=True, active=0, suspended=0, gpe=0):
 
 
 class DetectorTest(unittest.TestCase):
-    def test_disconnect_allows_grace_then_recovers_one_verified_cycle(self):
+    def test_disconnect_allows_grace_then_recovers_verified_cycle(self):
         detector = recovery.Detector()
         self.assertFalse(detector.update(0, sample(connected=True)))
         self.assertFalse(detector.update(1, sample()))
@@ -58,6 +58,56 @@ class DetectorTest(unittest.TestCase):
         self.assertIsNone(detector.baseline)
         detector.update(90, sample())
         self.assertTrue(detector.update(110, sample(active=16000, suspended=4000, gpe=2)))
+
+    def test_healthy_start_still_detects_later_cycle_without_replug(self):
+        detector = recovery.Detector()
+        detector.update(0, sample())
+        detector.update(10, sample())
+        self.assertFalse(detector.update(30, sample(suspended=20000)))
+        self.assertFalse(detector.update(59, sample(suspended=49000)))
+        detector.update(60, sample(suspended=50000))
+        self.assertTrue(detector.update(80, sample(active=16000, suspended=54000, gpe=2)))
+
+    def test_recurrence_after_recovery_gets_a_new_observation(self):
+        detector = recovery.Detector()
+        for now in (0, 10, 30, 89, 90, 109, 110):
+            result = detector.update(now, sample(active=now * 800, suspended=now * 200,
+                                                 gpe=now // 10))
+            self.assertEqual(result, now in (30, 110))
+
+    def test_hourly_budget_survives_replug_and_expires(self):
+        detector = recovery.Detector()
+
+        def cycle(now, connected=False):
+            return detector.update(now, sample(connected=connected, active=now * 800,
+                                               suspended=now * 200, gpe=now // 10))
+
+        for now in (0, 10, 30, 90, 110, 170, 190):
+            self.assertEqual(cycle(now), now in (30, 110, 190))
+        self.assertFalse(cycle(191, connected=True))
+        self.assertFalse(cycle(192))
+        for now in (250, 270, 3600, 3629):
+            self.assertFalse(cycle(now))
+            self.assertIsNone(detector.baseline)
+        self.assertFalse(cycle(3630))
+        self.assertTrue(cycle(3650))
+        self.assertEqual(list(detector.attempts), [110, 190, 3650])
+
+    def test_enabled_output_discards_partial_observation(self):
+        detector = recovery.Detector()
+        detector.update(0, sample())
+        detector.update(10, sample())
+        detector.update(20, sample(ready=False, active=16000, suspended=4000, gpe=2))
+        self.assertIsNone(detector.baseline)
+        self.assertFalse(detector.update(40, sample(active=32000, suspended=8000, gpe=4)))
+        self.assertTrue(detector.update(60, sample(active=48000, suspended=12000, gpe=6)))
+
+    def test_counter_reset_requires_a_fresh_window(self):
+        detector = recovery.Detector()
+        detector.update(0, sample(active=100000, suspended=10000, gpe=20))
+        detector.update(10, sample(active=100000, suspended=10000, gpe=20))
+        self.assertFalse(detector.update(30, sample()))
+        self.assertTrue(detector.update(50, sample(active=16000, suspended=4000, gpe=2)))
 
 
 class Event:

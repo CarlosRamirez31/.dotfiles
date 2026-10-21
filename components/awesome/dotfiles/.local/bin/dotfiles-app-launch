@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# X11 has no general per-output application DPI setting. Pass each toolkit the
+# scale saved for the monitor under the pointer when launching an application.
+scale=$($HOME/.local/bin/dotfiles-display --scale-at-pointer 2>/dev/null) || scale=1
+[[ $scale =~ ^[0-9]+([.][0-9]+)?$ ]] || scale=1
+font_size=$($HOME/.local/bin/dotfiles-display --font-size-at-pointer 2>/dev/null) || font_size=10
+[[ $font_size =~ ^[0-9]+([.][0-9]+)?$ ]] || font_size=10
+font_factor=$(awk -v font="$font_size" 'BEGIN { printf "%.3f", font / 10 }')
+gtk_font_scale=$(awk -v app="$scale" -v font="$font_factor" 'BEGIN { printf "%.3f", app * font }')
+qt_font_dpi=$(awk -v font="$font_factor" 'BEGIN { printf "%d", 96 * font }')
+export GDK_SCALE=1
+export GDK_DPI_SCALE="$gtk_font_scale"
+export QT_SCALE_FACTOR="$scale"
+export QT_SCALE_FACTOR_ROUNDING_POLICY=PassThrough
+export QT_FONT_DPI="$qt_font_dpi"
+export DOTFILES_APP_SCALE="$scale"
+export DOTFILES_FONT_SIZE="$font_size"
+
+if [[ ${1:-} == --shell ]]; then
+    shift
+    command=${1:?missing command string}
+    exec bash -c "$command"
+fi
+if [[ ${1:-} == -- ]]; then shift; fi
+exec "$@"

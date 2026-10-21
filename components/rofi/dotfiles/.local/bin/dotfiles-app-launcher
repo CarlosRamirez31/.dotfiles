@@ -10,7 +10,7 @@ case ":${PATH:-}:" in
 esac
 
 # Rofi parses Desktop Entries in native code and keeps an on-disk cache.
-exec rofi \
+exec "$HOME/.local/bin/dotfiles-app-launch" -- rofi \
     -show drun \
     -show-icons \
     -drun-use-desktop-cache \

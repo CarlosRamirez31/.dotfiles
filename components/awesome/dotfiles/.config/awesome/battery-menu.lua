@@ -72,7 +72,7 @@ local function apply(profile)
     busy = true
     local token = generation
     render(current, "Aplicando «" .. profile.title .. "»…")
-    awful.spawn.easy_async({ helper, "apply", profile.id, "--tsv" }, function(stdout, stderr, _, code)
+    awful.spawn.easy_async(profile.command or { helper, "apply", profile.id, "--tsv" }, function(stdout, stderr, _, code)
         busy = false
         if token ~= generation or not popup or not popup.visible then return end
         local data = code == 0 and parse(stdout) or nil
@@ -154,9 +154,21 @@ render = function(data, notice, failed)
     local overview = wibox.widget({ summary, progress, spacing = 12, layout = wibox.layout.fixed.vertical })
     content:add(wibox.widget({ margin(overview, 14, 12), bg = colors.surface,
         shape = gears.shape.rounded_rect, widget = wibox.container.background }))
+    local toggle_title = saving and "Desactivar modo ahorro de batería" or "Activar modo ahorro de batería"
+    local toggle = wibox.widget({
+        margin(text(toggle_title, "Lexend Bold 10", saving and colors.blue or colors.green), 14, 11),
+        bg = colors.raised, shape = gears.shape.rounded_rect,
+        widget = wibox.container.background,
+    })
+    toggle.opacity = busy and 0.5 or 1
+    toggle:buttons(gears.table.join(awful.button({}, 1, function()
+        apply({ available = true, title = toggle_title,
+            command = { helper, saving and "saving-off" or "saving-on", "--tsv" } })
+    end)))
+    content:add(toggle)
     content:add(margin(text("MAYOR CONSUMO  ↓  MAYOR AUTONOMÍA", "Lexend Bold 8", colors.muted), 2, 5))
     for _, profile in ipairs(data.profiles) do content:add(profile_card(profile, data)) end
-    content:add(margin(text("Referencias medidas con la laptop sin monitores externos.\nEl consumo cambia según las aplicaciones y el uso.",
+    content:add(margin(text("Los Hz de estos perfiles son los de la laptop.\nReferencias medidas sin monitores externos.",
         "Lexend 8", colors.muted), 2, 4))
     if notice and notice ~= "" then
         message = text(notice, "Lexend 8", failed and colors.red or colors.green)

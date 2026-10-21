@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec alacritty "$@"
+font_size=${DOTFILES_FONT_SIZE:-}
+if [[ -z "$font_size" ]] && command -v dotfiles-display >/dev/null 2>&1; then
+    font_size=$(dotfiles-display --font-size-at-pointer 2>/dev/null) || font_size=
+fi
+font_size=${font_size:-10}
+if ! [[ "$font_size" =~ ^[0-9]+([.][0-9]+)?$ ]] || ! awk -v value="$font_size" 'BEGIN { exit !(value >= 8 && value <= 32) }'; then
+    font_size=10
+fi
+
+# Alacritty does not use GTK/Qt scaling for its terminal text. Its configured
+# 10 pt base font therefore needs an explicit per-window override.
+exec alacritty --option "font.size=$font_size" "$@"

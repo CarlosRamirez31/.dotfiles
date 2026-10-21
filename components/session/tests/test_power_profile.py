@@ -28,6 +28,28 @@ class PowerProfileTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Activa la pantalla'):
             power.panel('eDP-2 connected\n  1920x1080 144.00+\n')
 
+    def test_energy_switch_does_not_change_brightness_or_refresh(self):
+        for enabled, target in [(True, 'power-saver'), (False, 'balanced')]:
+            with self.subTest(enabled=enabled), patch.object(power, 'run', return_value='balanced') as run, \
+                    patch.object(power, 'status', return_value={'energy': target}), \
+                    patch.object(power, 'set_rate') as rate, patch.object(power, 'set_brightness') as brightness:
+                power.set_saving(enabled)
+                self.assertIn(('powerprofilesctl', 'set', target), [call.args for call in run.call_args_list])
+                rate.assert_not_called()
+                brightness.assert_not_called()
+
+    def test_status_still_works_with_internal_panel_off(self):
+        with tempfile.TemporaryDirectory() as directory:
+            light = Path(directory)
+            (light / 'brightness').write_text('50')
+            (light / 'max_brightness').write_text('100')
+            with patch.object(power, 'SYS', light), patch.object(power, 'backlight', return_value=light), \
+                    patch.object(power, 'run', side_effect=['eDP-2 connected\n', 'power-saver']):
+                actual = power.status()
+            self.assertEqual(actual['energy'], 'power-saver')
+            self.assertIsNone(actual['hz'])
+            self.assertFalse(any(p['available'] for p in actual['profiles']))
+
     def test_unsupported_refresh_is_rejected_before_changes(self):
         with patch.object(power, 'run', return_value='eDP-2 connected 1920x1080+0+0\n  1920x1080 60.00*\n') as run:
             with self.assertRaisesRegex(RuntimeError, '144 Hz'):

@@ -98,9 +98,16 @@ fi
 
 export WLAN_IFACE BATTERY ADAPTER
 
+pid_dir="${XDG_RUNTIME_DIR:-/tmp/dotfiles-display-$UID}/dotfiles-polybar-pids"
+mkdir -p "$pid_dir"
+rm -f -- "$pid_dir"/*
 pkill -x polybar 2>/dev/null || true
 
 for monitor in "${monitors[@]}"; do
+    while IFS='=' read -r key value; do
+        export "$key=$value"
+    done < <("$HOME/.local/bin/dotfiles-polybar-style" "$monitor")
     MONITOR=$monitor polybar "$([[ $monitor == "${monitors[0]}" ]] && printf top || printf secondary)" >>"${XDG_RUNTIME_DIR:-/tmp}/polybar.log" 2>&1 &
+    printf '%s\n' "$!" >"$pid_dir/$monitor"
 done
 wait

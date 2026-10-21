@@ -71,6 +71,10 @@ externas. Si no está activo o no ofrece la frecuencia, se rechaza el cambio.
 `dotfiles-power-profile` usa XRandR, power-profiles-daemon y la API de brillo de
 la sesión activa de logind, sin reglas sudo adicionales. Confirma los ajustes
 después de aplicarlos e intenta restaurar los anteriores si falla un paso.
+El botón **Activar/Desactivar modo ahorro de batería** cambia únicamente la
+política entre `power-saver` y `balanced`, sin cambiar brillo ni Hz, incluso
+con la tapa cerrada y el panel interno apagado. También está disponible por
+CLI: `dotfiles-power-profile saving-on` / `saving-off`.
 Los cambios se aplican al seleccionar una opción; el menú no fuerza perfiles
 en segundo plano ni al conectar o desconectar el cargador.
 
@@ -82,13 +86,17 @@ La limpieza de salidas desconectadas corresponde a `dotfiles-display`.
 El servicio opcional de recuperación espera 10 segundos después de desconectar
 el último monitor, observa 20 segundos y actúa únicamente si detecta al menos
 dos eventos GPE10, actividad predominante y entradas breves en suspensión.
-También hace una comprobación al iniciar sin monitores externos.
+También hace una comprobación al iniciar sin monitores externos. Después de
+cada observación espera 30 segundos y toma otra ventana de 20 segundos, de modo
+que puede detectar recaídas sin reconectar monitores ni reiniciar el servicio.
 
 Lee estados de sysfs cada dos segundos sin consultar XRandR ni abrir la GPU.
 Solo actúa cuando las salidas externas están desconectadas y apagadas.
 Deshabilita GPE10 durante un máximo de 15 segundos y lo vuelve a habilitar;
-si detecta una reconexión termina antes. Hace como máximo un intento por
-desconexión y deja al menos 60 segundos entre intentos. El estado se restaura
+si detecta una reconexión termina antes. Deja al menos 60 segundos entre intentos
+y permite como máximo tres por hora mientras el servicio sigue ejecutándose;
+al agotar el cupo pospone la siguiente comprobación hasta que venza el intento
+más antiguo. Reconectar monitores no reinicia esos límites. El estado se restaura
 al detenerse y mediante `ExecStopPost` si el proceso termina abruptamente.
 No incluye todavía un tratamiento especial de suspensión/reanudación del equipo.
 

@@ -1,5 +1,5 @@
 [Unit]
-Description=Recover Lenovo LOQ NVIDIA GPE10 wake loop after monitor unplug
+Description=Watch and recover Lenovo LOQ NVIDIA GPE10 wake loop
 After=systemd-udev-trigger.service
 ConditionPathExists=/sys/firmware/acpi/interrupts/gpe10
 StartLimitIntervalSec=120

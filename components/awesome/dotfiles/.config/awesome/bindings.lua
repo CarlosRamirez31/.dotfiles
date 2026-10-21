@@ -8,7 +8,9 @@ local function spawn(command)
             'unset WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE MOZ_ENABLE_WAYLAND; ' ..
                 'export XDG_SESSION_TYPE=x11 XDG_CURRENT_DESKTOP=awesome ' ..
                 'XDG_SESSION_DESKTOP=awesome XCURSOR_THEME=Bibata-Modern-Classic ' ..
-                'XCURSOR_SIZE=24 GTK_CSD=0 PATH="$HOME/.local/bin:$PATH"; exec ' .. command
+                'XCURSOR_SIZE=24 GTK_CSD=0 PATH="$HOME/.local/bin:$PATH"; ' ..
+                'exec "$HOME/.local/bin/dotfiles-app-launch" --shell ' ..
+                string.format("%q", command)
         )
     end
 end

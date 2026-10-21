@@ -76,3 +76,36 @@ El comando solicita la contraseña de sudo para escribir
 sesión. La política recomendada suspende sin monitores y permite trabajar con
 ellos aunque la tapa esté cerrada. La opción de Super+P controla las pantallas;
 la política de logind controla suspensión, bloqueo o apagado.
+
+Las resoluciones y frecuencias se consultan por salida con XRandR. Cada fila
+incluye un selector de Hz para la resolución elegida; se conserva la frecuencia
+seleccionada al aplicar y guardar. «Máxima» indica la mayor resolución ofrecida
+por esa conexión y «Preferida» el modo recomendado por el monitor/controlador.
+Los perfiles incluyen la identidad EDID para no reutilizar los ajustes de otro
+monitor conectado al mismo puerto. Al cambiar la conexión se vuelve a consultar
+el hardware; las comprobaciones periódicas sin cambios no sondean la GPU.
+`dotfiles-display --status` muestra los modos, Hz e identidad detectados en JSON.
+
+Windows + P muestra «Activo ahora» con la resolución y frecuencia que está
+usando cada salida, separado de los selectores de cambios pendientes. Se
+actualiza al enfocar la ventana, con «Actualizar estado real» y después de
+aplicar. Antes de conservar el cambio se verifican los modos activos; si el
+controlador mantiene otra resolución o frecuencia, se restaura el estado anterior.
+
+En **Windows + P**, selecciona una pantalla desde el dibujo o la lista para
+editar su resolución, frecuencia, escala de aplicaciones (100–200 %), tamaño
+de fuentes (8–32 pt con deslizador) y tamaño de Polybar (75–200 %) por separado. La resolución
+y la organización del escritorio permanecen iguales al cambiar estos valores.
+Las aplicaciones abiertas desde Awesome reciben ambos ajustes según el monitor
+bajo el puntero; vuelve a abrirlas para que los tomen. El deslizador acepta
+tamaños de fuente en décimas de punto. El primer nivel de escala
+de aplicaciones, 110 %, aplica un aumento efectivo del 20 % para que el cambio
+sea visible. El tamaño de fuente adicional ajusta las fuentes de las aplicaciones
+compatibles y Alacritty. Polybar usa su selector propio. Algunas aplicaciones
+pueden ignorar los ajustes de fuente de X11. Las preferencias se guardan por
+EDID en `display-appearance.json`.
+Hay 20 segundos para conservar o restaurar la prueba.
+
+La visibilidad de Polybar se controla por proceso y monitor. Una ventana a
+pantalla completa solo oculta la barra de su pantalla; las demás siguen visibles.
+Acerca el cursor al borde superior durante un momento para mostrarla temporalmente.

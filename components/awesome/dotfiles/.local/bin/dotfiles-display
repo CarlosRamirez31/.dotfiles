@@ -2,7 +2,9 @@
 """Configure any number of RandR outputs; restore layouts on hotplug."""
 import copy
 import fcntl
+import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -14,6 +16,29 @@ import threading
 
 CONFIG = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'dotfiles/displays.json'
 OPTIONS = CONFIG.with_name('display-options.json')
+
+
+def read_json(path):
+    try:
+        value = json.loads(path.read_text())
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def appearance_key(output):
+    return output.get('identity') or output['name']
+
+
+def bar_state_path():
+    return Path(os.environ.get('XDG_RUNTIME_DIR', f'/tmp/dotfiles-display-{os.getuid()}')) / 'dotfiles-display-appearance.json'
+
+
+def write_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix('.tmp')
+    temporary.write_text(json.dumps(value, indent=2) + '\n')
+    temporary.replace(path)
 
 
 def lid_closed():
@@ -84,38 +109,115 @@ def configure_lid(actions, password=None):
 def query(current=False):
     # Periodic checks must not probe connectors: probing can resume a sleeping
     # discrete GPU. Explicit panel/recovery requests still refresh the hardware.
-    result = subprocess.run(['xrandr', '--current' if current else '--query'],
+    result = subprocess.run(['xrandr', '--current' if current else '--query', '--verbose'],
                             capture_output=True, text=True, check=True, timeout=10)
     outputs = []
     current = None
+    edid = False
+    transform_rows = 0
+    verbose_mode = None
     for line in result.stdout.splitlines():
         match = re.match(r'^(\S+) connected\b(.*)', line)
         if match:
+            edid = False
+            transform_rows = 0
+            verbose_mode = None
             name, details = match.groups()
             geometry = re.search(r'(\d+)x(\d+)\+(-?\d+)\+(-?\d+)', details)
             current = dict(name=name, primary=' primary ' in ' ' + details + ' ', enabled=bool(geometry),
                            x=int(geometry[3]) if geometry else 0, y=int(geometry[4]) if geometry else 0,
-                           mode=f'{geometry[1]}x{geometry[2]}' if geometry else '', modes=[])
+                           mode=f'{geometry[1]}x{geometry[2]}' if geometry else '', modes=[],
+                           rates={}, edid='', preferred=None, scale=100)
             outputs.append(current)
         elif line and not line[0].isspace():
             current = None
         elif current is not None:
-            mode = re.match(r'^\s+(\d+x\d+)\s', line)
-            if mode and mode[1] not in current['modes']:
-                current['modes'].append(mode[1])
-            if mode and '*' in line:
-                rate = re.search(r'(\d+(?:\.\d+)?)\*', line)
-                if rate:
-                    current['rate'] = rate[1]
+            if line.strip().startswith('Transform:'):
+                current['transform'] = [float(v) for v in line.split(':', 1)[1].split()]
+                transform_rows = 2
+                continue
+            if transform_rows:
+                current['transform'].extend(float(v) for v in line.split())
+                transform_rows -= 1
+                continue
+            verbose = re.match(r'^\s+(\d+x\d+)\s+\(0x[0-9a-f]+\)\s+.*MHz(.*)', line)
+            if verbose:
+                verbose_mode = (verbose[1], verbose[2])
+                if verbose[1] not in current['modes']:
+                    current['modes'].append(verbose[1])
+                if '+preferred' in verbose[2] and current['preferred'] is None:
+                    current['preferred'] = verbose[1]
+                if '*current' in verbose[2]:
+                    current['mode'] = verbose[1]
+                continue
+            vertical = re.search(r'^\s+v:.*clock\s+([0-9.]+)Hz', line)
+            if vertical and verbose_mode:
+                mode_name, flags = verbose_mode
+                rate = vertical[1]
+                rates = current['rates'].setdefault(mode_name, [])
+                if rate not in rates:
+                    rates.append(rate)
+                if '*current' in flags:
+                    current['rate'] = rate
+                verbose_mode = None
+                continue
+            if line.strip() == 'EDID:':
+                edid = True
+                continue
+            if edid and re.fullmatch(r'\s+[0-9a-fA-F]{32}\s*', line):
+                current['edid'] += line.strip().lower()
+                continue
+            edid = False
+            mode = re.match(r'^\s+(\d+x\d+)\s+(.+)', line)
+            if mode:
+                if mode[1] not in current['modes']:
+                    current['modes'].append(mode[1])
+                rates = current['rates'].setdefault(mode[1], [])
+                # RandR can separate a preferred marker from its rate by spaces.
+                tokens = re.findall(r'(\d+(?:\.\d+)?)([*+]*(?:\s+\+)?)', mode[2])
+                for rate, flags in tokens:
+                    if rate not in rates:
+                        rates.append(rate)
+                    if '*' in flags:
+                        current.update(mode=mode[1], rate=rate)
+                    if '+' in flags and current['preferred'] is None:
+                        current['preferred'] = mode[1]
+    preferences = read_json(CONFIG.with_name('display-appearance.json'))
+    bar_state = read_json(bar_state_path())
     for output in outputs:
         output['modes'].sort(key=mode_size, reverse=True)
+        for rates in output['rates'].values():
+            rates.sort(key=float, reverse=True)
+        transform = output.pop('transform', [1, 0, 0, 0, 1, 0, 0, 0, 1])
+        if len(transform) == 9 and transform[0] > 0 and transform[4] > 0:
+            output['transform_scale'] = round(100 / transform[0], 2)
+        if output['edid']:
+            raw = bytes.fromhex(output.pop('edid'))
+            output['identity'] = hashlib.sha256(raw).hexdigest()
+            for offset in (54, 72, 90, 108):
+                block = raw[offset:offset+18]
+                if block.startswith(b'\x00\x00\x00\xfc\x00'):
+                    output['model'] = block[5:].decode('ascii', errors='replace').strip()
+                    break
+        else:
+            output.pop('edid')
+        saved = preferences.get(appearance_key(output), {})
+        active = bar_state.get(output['name'], {})
+        if active.get('identity') != output.get('identity'):
+            active = {}
+        output['scale'] = active.get('scale', saved.get('scale', 100))
+        old_font_scale = active.get('font_scale', saved.get('font_scale', 100))
+        output['font_size'] = active.get('font_size', saved.get('font_size', old_font_scale / 10))
+        output['polybar_scale'] = active.get('polybar_scale', saved.get('polybar_scale', 100))
     return outputs
 
 
 def hardware_topology():
     """Read cached kernel connector state without asking Xorg to probe GPUs."""
     try:
-        states = [(str(path), path.read_text().strip())
+        states = [(str(path), path.read_text().strip(),
+                   hashlib.sha256(path.with_name('edid').read_bytes()).hexdigest()
+                   if path.with_name('edid').exists() else '')
                   for path in sorted(Path('/sys/class/drm').glob('card*-*/status'))]
         if states:
             return json.dumps([states, lid_closed()])
@@ -150,7 +252,26 @@ def mode_size(mode):
 
 
 def size(output):
-    return tuple(map(int, (output['mode'] or output['modes'][0]).split('x')))
+    mode = output['mode'] or output['modes'][0]
+    return tuple(map(int, mode.split('x')))
+
+
+def reflow(outputs, output, old_size):
+    """Keep neighboring screens attached when logical dimensions change."""
+    if not output['enabled']:
+        return
+    width, height = size(output)
+    for other in outputs:
+        if other is output or not other['enabled']:
+            continue
+        if other['x'] >= output['x'] + old_size[0]:
+            other['x'] += width - old_size[0]
+        if other['y'] >= output['y'] + old_size[1]:
+            other['y'] += height - old_size[1]
+
+
+def display_name(output):
+    return output.get('model') or ('Pantalla de la laptop' if internal(output) else output['name'])
 
 
 def normalize(outputs):
@@ -172,8 +293,16 @@ def validate_layout(outputs):
     if not enabled:
         raise ValueError('Activa al menos una pantalla.')
     for o in enabled:
+        if not 75 <= o.get('polybar_scale', 100) <= 200:
+            raise ValueError('Selecciona un tamaño de Polybar entre 75 % y 200 %.')
+        if not 100 <= o.get('scale', 100) <= 200:
+            raise ValueError('Selecciona una escala entre 100 % y 200 %.')
+        if not 8 <= o.get('font_size', 10) <= 32:
+            raise ValueError('Selecciona un tamaño de fuente entre 8 y 32 puntos.')
         if o['mode'] not in o['modes']:
             raise ValueError('Selecciona una resolución disponible para ' + o['name'])
+        if o.get('rate') and o.get('rates') and o['rate'] not in o['rates'].get(o['mode'], []):
+            raise ValueError('Selecciona una frecuencia disponible para ' + o['name'])
     neighbors = {o['name']: set() for o in enabled}
     for i, a in enumerate(enabled):
         aw, ah = size(a)
@@ -237,13 +366,76 @@ def layout_args(outputs):
         args += ['--output', output['name']]
         if output['enabled']:
             args += ['--mode', output['mode'], '--pos', f"{output['x']}x{output['y']}"]
+            # Keep the output mapped 1:1 to its native framebuffer rectangle.
+            # Application UI scaling is passed to launched apps separately.
+            args += ['--transform', 'none']
             if output.get('rate'):
                 args += ['--rate', output['rate']]
             if output['primary']:
                 args += ['--primary']
         else:
             args += ['--off']
-    return args
+    return args + ['--dpi', '96']
+
+
+def active_description(output):
+    if not output or not output['enabled']:
+        return 'Activo ahora: pantalla apagada'
+    rate = output.get('rate')
+    return 'Activo ahora: ' + output['mode'] + (' · ' + rate + ' Hz' if rate else ' · Hz no disponibles') + f" · aplicaciones {output.get('scale', 100):g} %"
+
+
+def output_at_pointer():
+    outputs = query(current=True)
+    result = subprocess.run(['xdotool', 'getmouselocation', '--shell'],
+                            capture_output=True, text=True, check=True, timeout=3)
+    position = dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
+    x, y = int(position['X']), int(position['Y'])
+    for output in outputs:
+        if not output['enabled']:
+            continue
+        width, height = size(output)
+        if output['x'] <= x < output['x'] + width and output['y'] <= y < output['y'] + height:
+            return output
+    return None
+
+
+def scale_at_pointer():
+    """Return the application UI factor saved for the output under the pointer."""
+    output = output_at_pointer()
+    if output is None:
+        return 1
+    factor = output.get('scale', 100) / 100
+    # A 10% increase is barely visible for small UI fonts. Give the first
+    # step above 100% a perceptible 20% effective increase.
+    return 1.2 if 1 < factor < 1.2 else factor
+
+
+def font_size_at_pointer():
+    """Return the independent font size in points for the output under pointer."""
+    output = output_at_pointer()
+    return output.get('font_size', 10) if output else 10
+
+
+def verify_applied(requested, actual):
+    """Check the running modes before offering to keep or save a layout."""
+    live = {o['name']: o for o in actual}
+    for output in requested:
+        screen = live.get(output['name'])
+        if screen is None or (output.get('identity') and output['identity'] != screen.get('identity')):
+            raise ValueError('Las pantallas conectadas cambiaron durante la prueba.')
+        if output['enabled'] != screen['enabled']:
+            raise ValueError('No se confirmó el estado de ' + output['name'])
+        if output['enabled']:
+            if abs(screen.get('transform_scale', 100) - 100) > .2:
+                raise ValueError('No se eliminó el zoom de imagen de ' + output['name'])
+            if abs(output.get('scale', 100) - screen.get('scale', 100)) > .2:
+                raise ValueError('No se confirmó la escala de aplicaciones de ' + output['name'])
+            if output['mode'] != screen['mode']:
+                raise ValueError('No se confirmó la resolución de ' + output['name'])
+            if output.get('rate') and (not screen.get('rate') or
+                    abs(float(output['rate']) - float(screen['rate'])) > .05):
+                raise ValueError('No se confirmó la frecuencia de ' + output['name'])
 
 
 def desktop_state(restore=False):
@@ -312,9 +504,10 @@ def desktop_state(restore=False):
 
 def run_layout(outputs, rebuild=False):
     if rebuild:
-        # Keep the laptop panel as an anchor while BOTH external outputs are
-        # off. Shrinking the framebuffer releases stale Reverse PRIME images.
-        anchor = next(o for o in outputs if internal(o) and o['modes'])
+        # Keep one target output as an anchor while the others are off.
+        # Shrinking the framebuffer releases stale images before scaling the
+        # combined layout, including systems with external screens only.
+        anchor = next(o for o in outputs if o['enabled'] and o['modes'])
         interim = copy.deepcopy(outputs)
         for output in interim:
             output.update(enabled=output['name'] == anchor['name'], primary=output['name'] == anchor['name'])
@@ -332,27 +525,34 @@ def run_layout(outputs, rebuild=False):
 def apply(outputs, force_reset=False):
     validate_layout(outputs)
     target = normalize(copy.deepcopy(outputs))
-    for output in target:
-        output.pop('rate', None)
-    subprocess.run(layout_args(target) + ['--dryrun'], check=True,
-                   capture_output=True, text=True, timeout=15)
     before = query()
-    # Preserve refresh rates only when keeping the same resolution.
     previous = {o['name']: o for o in before}
     for output in target:
-        old = previous.get(output['name'], {})
-        if output['mode'] == old.get('mode') and old.get('rate'):
-            output['rate'] = old['rate']
-        else:
-            output.pop('rate', None)
-    rebuild = (any(internal(o) and o['modes'] for o in target)
-               and (force_reset or max(sum(not internal(o) and o['enabled'] for o in items)
-                                       for items in (before, target)) >= 2))
+        live = previous.get(output['name'])
+        if live is None or (output.get('identity') and output.get('identity') != live.get('identity')):
+            raise ValueError('Las pantallas conectadas cambiaron. Vuelve a abrir el panel.')
+        if output['enabled']:
+            if output['mode'] not in live['modes']:
+                raise ValueError('La resolución ya no está disponible para ' + output['name'])
+            rates = live.get('rates', {}).get(output['mode'], [])
+            requested = output.get('rate')
+            if rates and requested and requested not in rates:
+                raise ValueError('La frecuencia ya no está disponible para ' + output['name'])
+            if not requested and output['mode'] == live.get('mode') and live.get('rate'):
+                output['rate'] = live['rate']
+    subprocess.run(layout_args(target) + ['--dryrun'], check=True,
+                   capture_output=True, text=True, timeout=15)
+    multiple_external_outputs = max(sum(not internal(o) and o['enabled'] for o in items)
+                                    for items in (before, target)) >= 2
+    rebuild = (force_reset or
+               (multiple_external_outputs and any(internal(o) and o['modes'] for o in target)))
     if rebuild:
         desktop_state()
+    applied = target
     try:
         run_layout(target, rebuild=rebuild)
     except (OSError, subprocess.SubprocessError) as error:
+        applied = before
         try:
             run_layout(before, rebuild=rebuild and any(internal(o) and o['modes'] for o in before))
         except (OSError, ValueError, StopIteration, subprocess.SubprocessError) as rollback:
@@ -361,10 +561,15 @@ def apply(outputs, force_reset=False):
     finally:
         if rebuild:
             desktop_state(restore=True)
-        refresh_bar()
+        refresh_bar(applied)
 
 
-def refresh_bar():
+def refresh_bar(outputs=None):
+    if outputs is not None:
+        write_json(bar_state_path(), {o['name']: {
+            'identity': o.get('identity'), 'scale': o.get('scale', 100),
+            'font_size': o.get('font_size', 10),
+            'polybar_scale': o.get('polybar_scale', 100)} for o in outputs})
     wallpaper = Path.home() / '.local/bin/dotfiles-wallpaper'
     if wallpaper.is_file():
         subprocess.Popen([str(wallpaper), 'restore'], stdout=subprocess.DEVNULL,
@@ -376,7 +581,7 @@ def refresh_bar():
 
 
 def key(outputs):
-    return '|'.join(sorted(o['name'] for o in outputs)) + ('|lid-closed' if docked(outputs) else '')
+    return '|'.join(sorted(o['name'] + (':' + o['identity'] if o.get('identity') else '') for o in outputs)) + ('|lid-closed' if docked(outputs) else '')
 
 
 def load():
@@ -387,6 +592,13 @@ def load():
 
 
 def save(outputs):
+    path = CONFIG.with_name('display-appearance.json')
+    appearance = read_json(path)
+    for output in outputs:
+        appearance[appearance_key(output)] = {'scale': output.get('scale', 100),
+                                              'font_size': output.get('font_size', 10),
+                                              'polybar_scale': output.get('polybar_scale', 100)}
+    write_json(path, appearance)
     profiles = load()
     profiles[key(outputs)] = normalize(copy.deepcopy(outputs))
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
@@ -406,6 +618,11 @@ def automatic(outputs):
             previous = by_name.get(output['name'], {})
             if previous.get('mode') in output['modes']:
                 output.update({k: previous[k] for k in ('enabled', 'primary', 'mode', 'x', 'y')})
+                rate = previous.get('rate')
+                if rate in output.get('rates', {}).get(output['mode'], []):
+                    output['rate'] = rate
+                else:
+                    output.pop('rate', None)
     else:
         right = max((o['x'] + size(o)[0] for o in outputs if o['enabled']), default=0)
         for output in outputs:
@@ -414,6 +631,12 @@ def automatic(outputs):
             if not output['enabled'] and output['modes']:
                 output.update(enabled=True, mode=output['modes'][0], x=right, y=0)
                 right += size(output)[0]
+            # A newly seen external monitor may already be running at the
+            # EDID preferred 60 Hz even though it also offers 144 Hz.
+            if not internal(output) and output['enabled']:
+                rates = output.get('rates', {}).get(output['mode'], [])
+                if rates:
+                    output['rate'] = max(rates, key=float)
     if external_only:
         for output in outputs:
             if internal(output):
@@ -448,7 +671,10 @@ def gui(outputs):
             self.set_role('dotfiles-displays')
             self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
             self.set_position(Gtk.WindowPosition.CENTER)
-            self.set_default_size(900, 660)
+            pointer = Gdk.Display.get_default().get_default_seat().get_pointer()
+            _, px, py = pointer.get_position()
+            area = Gdk.Display.get_default().get_monitor_at_point(px, py).get_workarea()
+            self.set_default_size(min(900, area.width - 24), min(820, max(380, area.height - 90)))
             self.set_name('display-panel')
             self.css = Gtk.CssProvider()
             self.css.load_from_data(b'''
@@ -474,18 +700,23 @@ def gui(outputs):
             self.pending = None
             self.preview_timer = None
             self.output_widgets = []
+            self.live_labels = {}
             self.connect('delete-event', self.close)
-            root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin=22)
-            self.add(root)
+            root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=16)
+            viewport = Gtk.ScrolledWindow()
+            viewport.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+            viewport.add(root)
+            self.add(viewport)
             heading = Gtk.Label(label='Organiza tus monitores', xalign=0)
             heading.get_style_context().add_class('section-title')
             root.pack_start(heading, False, False, 0)
-            hint = Gtk.Label(label='Arrastra cada pantalla para que coincida con su posición en tu escritorio.', xalign=0, wrap=True)
+            hint = Gtk.Label(label='Arrastra las pantallas para ordenarlas. Los selectores se activan al pulsar Aplicar.', xalign=0, wrap=True)
             hint.get_style_context().add_class('muted')
             root.pack_start(hint, False, False, 0)
             scroll = Gtk.ScrolledWindow()
             self.canvas = Gtk.DrawingArea()
-            self.canvas.set_size_request(760, 240)
+            self.canvas.set_size_request(760, 180)
+            scroll.set_min_content_height(190)
             self.canvas.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
             self.canvas.connect('draw', self.draw)
             self.canvas.connect('button-press-event', self.press)
@@ -493,41 +724,93 @@ def gui(outputs):
             self.canvas.connect('button-release-event', self.release)
             scroll.add_with_viewport(self.canvas)
             root.pack_start(scroll, True, True, 0)
-            controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-            list_scroll = Gtk.ScrolledWindow()
-            list_scroll.set_min_content_height(120)
-            list_scroll.add(controls)
-            root.pack_start(list_scroll, True, True, 0)
+            controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            self.selector = Gtk.ComboBoxText()
+            self.pages = Gtk.Stack()
+            self.pages.set_homogeneous(False)
+            self.selected_output = None
+            self.scale_widgets = {}
+            self.font_size_widgets = {}
+            self.bar_widgets = {}
+            self.syncing = False
+            controls.pack_start(Gtk.Label(label='Selecciona una pantalla para configurarla', xalign=0), False, False, 0)
+            controls.pack_start(self.selector, False, False, 0)
+            controls.pack_start(self.pages, True, True, 0)
+            root.pack_start(controls, True, True, 0)
             self.primary_buttons = []
             group = None
             right = max((o['x'] + size(o)[0] for o in outputs if o['enabled']), default=0)
-            for output in outputs:
+            for number, output in enumerate(outputs, 1):
                 if not output['mode'] and output['modes']:
                     output.update(mode=output['modes'][0], x=right)
                     right += size(output)[0]
-                row = Gtk.Box(spacing=12)
-                row.get_style_context().add_class('monitor-row')
-                enabled = Gtk.CheckButton(label=output['name'])
+                self.selector.append(output['name'], f"{number}. {display_name(output)} · {output['name']}")
+                page = Gtk.Grid(column_spacing=22, row_spacing=6)
+                page.get_style_context().add_class('monitor-row')
+                live = Gtk.Label(label=active_description(output), xalign=0)
+                live.get_style_context().add_class('muted')
+                page.attach(live, 0, 0, 3, 1)
+                self.live_labels[output['name']] = live
+                enabled = Gtk.CheckButton(label='Usar esta pantalla')
                 enabled.set_active(output['enabled'])
                 enabled.connect('toggled', self.enable, output)
-                row.pack_start(enabled, True, True, 0)
-                primary = Gtk.RadioButton.new_with_label_from_widget(group, 'Principal')
+                page.attach(enabled, 0, 1, 1, 1)
+                primary = Gtk.RadioButton.new_with_label_from_widget(group, 'Pantalla principal')
                 group = primary
                 self.primary_buttons.append((primary, output))
-                row.pack_start(primary, False, False, 0)
+                page.attach(primary, 1, 1, 2, 1)
                 modes = Gtk.ComboBoxText()
                 for index, mode in enumerate(output['modes']):
-                    modes.append_text(mode + (' · Máxima' if index == 0 else ''))
+                    modes.append_text(mode + (' · Máxima' if index == 0 else '') +
+                                      (' · Preferida' if mode == output.get('preferred') else ''))
                 if output['mode'] in output['modes']:
                     modes.set_active(output['modes'].index(output['mode']))
-                modes.connect('changed', self.mode, output)
-                row.pack_start(modes, False, False, 0)
+                rates = Gtk.ComboBoxText()
+                self.fill_rates(rates, output)
+                modes.connect('changed', self.mode, output, rates)
+                rates.connect('changed', self.rate, output)
+                page.attach(Gtk.Label(label='Resolución', xalign=0), 0, 2, 1, 1)
+                page.attach(modes, 1, 2, 1, 1)
                 maximum = Gtk.Button(label='Máxima')
                 maximum.set_sensitive(bool(output['modes']))
-                maximum.connect('clicked', lambda _, combo=modes: combo.set_active(0))
-                row.pack_start(maximum, False, False, 0)
-                controls.pack_start(row, False, False, 0)
-                self.output_widgets.append((output, enabled, primary, modes))
+                maximum.connect('clicked', self.maximum, output, modes, rates)
+                page.attach(maximum, 2, 2, 1, 1)
+                page.attach(Gtk.Label(label='Frecuencia', xalign=0), 0, 3, 1, 1)
+                page.attach(rates, 1, 3, 2, 1)
+                scale = Gtk.ComboBoxText()
+                values = sorted(set([100, 110, 125, 150, 175, 200, output.get('scale', 100)]))
+                for value in values:
+                    scale.append(f'{value:g}', f'{value:g} %' + (' · Tamaño original' if value == 100 else ''))
+                scale.set_active_id(f"{output.get('scale', 100):g}")
+                scale.connect('changed', self.scaling, output)
+                self.scale_widgets[output['name']] = scale
+                page.attach(Gtk.Label(label='Escala de aplicaciones', xalign=0), 0, 4, 1, 1)
+                page.attach(scale, 1, 4, 2, 1)
+                font_size = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 8, 32, 0.1)
+                font_size.set_digits(1)
+                font_size.set_draw_value(True)
+                font_size.set_value_pos(Gtk.PositionType.RIGHT)
+                font_size.set_value(output.get('font_size', 10))
+                font_size.connect('value-changed', self.font_sizing, output)
+                self.font_size_widgets[output['name']] = font_size
+                page.attach(Gtk.Label(label='Tamaño de fuente (pt)', xalign=0), 0, 5, 1, 1)
+                page.attach(font_size, 1, 5, 2, 1)
+                bar = Gtk.ComboBoxText()
+                for value in (75, 90, 100, 110, 125, 150, 175, 200):
+                    bar.append(str(value), str(value) + ' %')
+                bar.set_active_id(str(output.get('polybar_scale', 100)))
+                bar.connect('changed', self.bar_scaling, output)
+                self.bar_widgets[output['name']] = bar
+                page.attach(Gtk.Label(label='Tamaño de Polybar', xalign=0), 0, 6, 1, 1)
+                page.attach(bar, 1, 6, 2, 1)
+                note = Gtk.Label(label='La escala y el tamaño de fuente se aplican al abrir aplicaciones desde Awesome, según el monitor del puntero. Cierra y vuelve a abrirlas para aplicar cambios. Polybar usa su ajuste propio.', xalign=0, wrap=True)
+                note.get_style_context().add_class('muted')
+                page.attach(note, 0, 7, 3, 1)
+                self.pages.add_named(page, output['name'])
+                self.output_widgets.append((output, enabled, primary, modes, rates))
+            self.selector.connect('changed', self.select_monitor)
+            if outputs:
+                self.selector.set_active(0)
             chosen = next((button for button, o in self.primary_buttons if o['primary']), group)
             if chosen:
                 chosen.set_active(True)
@@ -535,6 +818,10 @@ def gui(outputs):
                 button.connect('toggled', self.primary, output)
             self.message = Gtk.Label(xalign=0, wrap=True)
             root.pack_start(self.message, False, False, 0)
+            refresh = Gtk.Button(label='Actualizar estado real')
+            refresh.connect('clicked', self.refresh_live)
+            header.pack_end(refresh)
+            self.connect('focus-in-event', self.refresh_live)
             actions = Gtk.Box(spacing=10)
             lid = Gtk.Button(label='Tapa y energía…')
             lid.connect('clicked', self.lid_settings)
@@ -570,6 +857,45 @@ def gui(outputs):
             self.connect('destroy', Gtk.main_quit)
             self.connect('destroy', lambda *_: Gtk.StyleContext.remove_provider_for_screen(self.get_screen(), self.css))
             self.show_all()
+
+        def select_monitor(self, combo):
+            name = combo.get_active_id()
+            if name:
+                self.selected_output = name
+                self.pages.set_visible_child_name(name)
+                self.changed()
+
+        def scaling(self, combo, output):
+            if self.syncing or not combo.get_active_id():
+                return
+            old_size = size(output)
+            output['scale'] = float(combo.get_active_id())
+            reflow(self.outputs, output, old_size)
+            self.changed()
+
+        def font_sizing(self, slider, output):
+            if self.syncing:
+                return
+            output['font_size'] = round(slider.get_value() * 10) / 10
+            self.changed()
+
+        def bar_scaling(self, combo, output):
+            if not self.syncing and combo.get_active_id():
+                output['polybar_scale'] = int(combo.get_active_id())
+
+        def update_live(self, outputs):
+            actual = {o['name']: o for o in outputs}
+            for name, label in self.live_labels.items():
+                label.set_text(active_description(actual.get(name)))
+
+        def refresh_live(self, *_):
+            try:
+                self.update_live(query(current=True))
+            except (OSError, subprocess.SubprocessError) as error:
+                for label in self.live_labels.values():
+                    label.set_text('No se pudo comprobar el estado actual')
+                self.message.set_text('No se pudo leer la configuración activa: ' + str(error))
+            return False
 
         def changed(self):
             self.canvas.queue_draw()
@@ -708,10 +1034,44 @@ def gui(outputs):
                     item['primary'] = item is output
                 self.changed()
 
-        def mode(self, combo, output):
+        def maximum(self, _, output, modes, rates):
+            modes.set_active(0)
+            available = output.get('rates', {}).get(output['mode'], [])
+            if available:
+                rates.set_active_id(max(available, key=float))
+
+        def fill_rates(self, combo, output):
+            values = output.get('rates', {}).get(output['mode'], [])
+            selected = output.get('rate')
+            if selected not in values:
+                selected = values[0] if values else None
+            output.pop('rate', None)
+            if selected:
+                output['rate'] = selected
+            combo.remove_all()
+            for value in values:
+                combo.append(value, value + ' Hz')
+            if selected:
+                combo.set_active_id(selected)
+            combo.set_sensitive(bool(values))
+
+        def rate(self, combo, output):
+            value = combo.get_active_id()
+            if value:
+                output['rate'] = value
+            self.changed()
+
+        def mode(self, combo, output, rates):
             index = combo.get_active()
             if index >= 0:
-                output['mode'] = output['modes'][index]
+                old_size = size(output)
+                mode = output['modes'][index]
+                if mode != output['mode']:
+                    output.pop('rate', None)
+                output['mode'] = mode
+                self.fill_rates(rates, output)
+                if not self.syncing:
+                    reflow(self.outputs, output, old_size)
             self.changed()
 
         def rectangles(self):
@@ -751,13 +1111,13 @@ def gui(outputs):
                 cr.close_path()
                 cr.set_source_rgb(*((.26, .23, .37) if o['primary'] else (.19, .20, .28)))
                 cr.fill_preserve()
-                cr.set_source_rgb(*((.80, .65, .97) if o['primary'] else (.38, .41, .53)))
+                cr.set_source_rgb(*((.80, .65, .97) if o['name'] == self.selected_output else (.38, .41, .53)))
                 cr.set_line_width(2)
                 cr.stroke_preserve()
                 cr.clip()
                 for text, font_size, baseline, color in [
                         (str(index), 30, y+h/2-6, (.80, .65, .97)),
-                        (o['name'] + (' · Principal' if o['primary'] else ''), 12, y+h/2+18, (.90, .90, .96)),
+                        (display_name(o) + (' · Principal' if o['primary'] else ''), 12, y+h/2+18, (.90, .90, .96)),
                         (o['mode'], 11, y+h/2+38, (.65, .68, .78))]:
                     cr.set_source_rgb(*color)
                     cr.set_font_size(font_size)
@@ -771,6 +1131,7 @@ def gui(outputs):
                 return
             for o, x, y, w, h in reversed(list(self.rectangles())):
                 if x <= event.x <= x+w and y <= event.y <= y+h:
+                    self.selector.set_active_id(o['name'])
                     self.drag = (o, event.x, event.y, o['x'], o['y'])
                     break
 
@@ -803,7 +1164,13 @@ def gui(outputs):
                 return
             mode = max(common, key=lambda value: int(value.split('x')[0])*int(value.split('x')[1]))
             for output in enabled:
-                output.update(mode=mode, x=0, y=0)
+                if output['mode'] != mode:
+                    output.pop('rate', None)
+                output.update(mode=mode, scale=100, x=0, y=0)
+                self.scale_widgets[output['name']].set_active_id('100')
+            for output, _, _, modes, rates in self.output_widgets:
+                modes.set_active(output['modes'].index(output['mode']))
+                self.fill_rates(rates, output)
             self.changed()
 
         def commit(self, *_):
@@ -813,7 +1180,10 @@ def gui(outputs):
                 validate_layout(self.outputs)
                 before = query()
                 apply(self.outputs)
-            except (ValueError, subprocess.SubprocessError) as error:
+                actual = query(current=True)
+                verify_applied(self.outputs, actual)
+                self.update_live(actual)
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
                 if 'before' in locals():
                     self.restore(before)
                     self.sync_outputs()
@@ -859,6 +1229,7 @@ def gui(outputs):
                     actual = query()
                     if {o['name'] for o in actual} != {o['name'] for o in before}:
                         raise ValueError('Las pantallas conectadas cambiaron durante la prueba.')
+                    verify_applied(self.outputs, actual)
                     save(actual)
                     self.message.set_text('Configuración guardada para este conjunto de pantallas.')
                 except (OSError, ValueError, subprocess.SubprocessError) as error:
@@ -875,8 +1246,10 @@ def gui(outputs):
 
         def sync_outputs(self):
             try:
+                self.syncing = True
                 actual = {o['name']: o for o in query()}
-                for output, enabled, primary, modes in self.output_widgets:
+                self.update_live(actual.values())
+                for output, enabled, primary, modes, rates in self.output_widgets:
                     if output['name'] not in actual:
                         continue
                     output.update(actual[output['name']])
@@ -884,11 +1257,18 @@ def gui(outputs):
                     primary.set_active(output['primary'])
                     modes.remove_all()
                     for index, mode in enumerate(output['modes']):
-                        modes.append_text(mode + (' · Máxima' if index == 0 else ''))
+                        modes.append_text(mode + (' · Máxima' if index == 0 else '') +
+                                      (' · Preferida' if mode == output.get('preferred') else ''))
                     if output['mode'] in output['modes']:
                         modes.set_active(output['modes'].index(output['mode']))
+                    self.fill_rates(rates, output)
+                    self.scale_widgets[output['name']].set_active_id(f"{output.get('scale', 100):g}")
+                    self.font_size_widgets[output['name']].set_value(output.get('font_size', 10))
+                    self.bar_widgets[output['name']].set_active_id(str(output.get('polybar_scale', 100)))
+                self.syncing = False
                 self.changed()
             except (OSError, subprocess.SubprocessError) as error:
+                self.syncing = False
                 self.message.set_text('No se pudo actualizar el panel: ' + str(error))
 
         def restore(self, before):
@@ -914,6 +1294,12 @@ def main():
     if '--lid-policy' in sys.argv:
         configure_lid(sys.argv[sys.argv.index('--lid-policy') + 1:])
         return
+    if '--scale-at-pointer' in sys.argv:
+        print(f'{scale_at_pointer():g}')
+        return
+    if '--font-size-at-pointer' in sys.argv:
+        print(f'{font_size_at_pointer():g}')
+        return
     runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/tmp/dotfiles-display-{os.getuid()}'))
     runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (runtime / 'dotfiles-display.lock').open('w') as lock:
@@ -925,12 +1311,14 @@ def main():
         hardware_stamp = runtime / 'dotfiles-display-hardware-topology'
         hardware = hardware_topology() if auto else None
         if hardware is not None:
-            hardware = 'cleanup-v1:' + hardware
+            hardware = 'apps-scale-v6:' + hardware
         if hardware is not None and hardware_stamp.exists() and hardware_stamp.read_text() == hardware:
             return
         cleaned = disable_disconnected_outputs() if auto else False
-        outputs = query(current=auto)
-        if '--recover' in sys.argv:
+        outputs = query(current=auto and hardware is None)
+        if '--status' in sys.argv:
+            print(json.dumps(outputs, ensure_ascii=False, indent=2))
+        elif '--recover' in sys.argv:
             report = []
             for args in [['xrandr', '--query'], ['xrandr', '--listproviders'], ['xrandr', '--listmonitors']]:
                 result = subprocess.run(args, capture_output=True, text=True, timeout=15)

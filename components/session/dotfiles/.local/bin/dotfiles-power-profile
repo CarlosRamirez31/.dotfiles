@@ -11,15 +11,15 @@ import sys
 
 PROFILES = [
     dict(id='bright', title='Brillo máximo', brightness=100, hz=144, energy='balanced',
-         detail='144 Hz · brillo 100 % · equilibrado', measured='16–18 W'),
+         detail='Laptop: 144 Hz · brillo 100 % · equilibrado', measured='16–18 W'),
     dict(id='balanced', title='Equilibrado fluido', brightness=50, hz=144, energy='balanced',
-         detail='144 Hz · brillo 50 % · equilibrado', measured='≈16,1 W'),
+         detail='Laptop: 144 Hz · brillo 50 % · equilibrado', measured='≈16,1 W'),
     dict(id='balanced-60', title='Equilibrado a 60 Hz', brightness=50, hz=60, energy='balanced',
-         detail='60 Hz · brillo 50 % · equilibrado', measured='≈15,3 W'),
+         detail='Laptop: 60 Hz · brillo 50 % · equilibrado', measured='≈15,3 W'),
     dict(id='save-fluid', title='Ahorro fluido', brightness=50, hz=144, energy='power-saver',
-         detail='144 Hz · brillo 50 % · ahorro', measured='13,1–14 W'),
+         detail='Laptop: 144 Hz · brillo 50 % · ahorro', measured='13,1–14 W'),
     dict(id='save-max', title='Máxima autonomía', brightness=50, hz=60, energy='power-saver',
-         detail='60 Hz · brillo 50 % · ahorro', measured='≈12,5 W'),
+         detail='Laptop: 60 Hz · brillo 50 % · ahorro', measured='≈12,5 W'),
 ]
 SYS = Path('/sys')
 
@@ -69,7 +69,10 @@ def read_number(path):
 
 def status():
     light = backlight()
-    screen = panel(run('xrandr', '--current'))
+    try:
+        screen = panel(run('xrandr', '--current'))
+    except RuntimeError:
+        screen = dict(rate=None, rates=[])
     energy = run('powerprofilesctl', 'get')
     brightness = round(100 * read_number(light / 'brightness') / read_number(light / 'max_brightness'))
     batteries = sorted((SYS / 'class/power_supply').glob('BAT*'))
@@ -85,7 +88,7 @@ def status():
             if power > 0 and (battery / 'energy_now').exists():
                 values['minutes'] = round(60 * read_number(battery / 'energy_now') / power)
     for profile in PROFILES:
-        if (abs(brightness - profile['brightness']) <= 1 and abs(screen['rate'] - profile['hz']) < 1
+        if (abs(brightness - profile['brightness']) <= 1 and screen['rate'] is not None and abs(screen['rate'] - profile['hz']) < 1
                 and energy == profile['energy']):
             values['active'] = profile['id']
             break
@@ -136,6 +139,21 @@ def apply(profile_id):
         raise RuntimeError(f'{error} Se restauraron los ajustes anteriores.') from error
 
 
+def set_saving(enabled):
+    """Switch only the energy policy, even with the laptop panel disabled."""
+    previous = run('powerprofilesctl', 'get')
+    target = 'power-saver' if enabled else 'balanced'
+    try:
+        run('powerprofilesctl', 'set', target)
+        actual = status()
+        if actual['energy'] != target:
+            raise RuntimeError('No se pudo confirmar el modo de energía.')
+        return actual
+    except (OSError, RuntimeError, subprocess.SubprocessError):
+        run('powerprofilesctl', 'set', previous)
+        raise
+
+
 def tsv(values):
     def value(key):
         return str(values[key]) if values[key] is not None else '-'
@@ -148,7 +166,7 @@ def tsv(values):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['status', 'apply'])
+    parser.add_argument('action', choices=['status', 'apply', 'saving-on', 'saving-off'])
     parser.add_argument('profile', nargs='?', choices=[p['id'] for p in PROFILES])
     parser.add_argument('--tsv', action='store_true')
     args = parser.parse_args()
@@ -158,7 +176,10 @@ def main():
     runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (runtime / 'dotfiles-power-profile.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        values = apply(args.profile) if args.action == 'apply' else status()
+        if args.action.startswith('saving-'):
+            values = set_saving(args.action == 'saving-on')
+        else:
+            values = apply(args.profile) if args.action == 'apply' else status()
     if args.tsv:
         tsv(values)
     else:

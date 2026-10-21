@@ -64,4 +64,9 @@ elif [[ $state == Charging ]]; then
     color='#a0e8a2'
 fi
 
-printf '%%{F%s}%s %s%%{F-}\n' "$color" "$icon" "$capacity%"
+saving=''
+if [[ -r /sys/firmware/acpi/platform_profile ]] &&
+    [[ $(</sys/firmware/acpi/platform_profile) == low-power ]]; then
+    saving='%{F#a6e3a1}%{F-} '
+fi
+printf '%s%%{F%s}%s %s%%{F-}\n' "$saving" "$color" "$icon" "$capacity%"

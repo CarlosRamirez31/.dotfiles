@@ -48,6 +48,32 @@ ss -Htn state established '( sport = :ssh )'
 
 Este componente usa Xss-lock, Xsecurelock y XSet.
 
+## Perfiles de batería
+
+Pulsar la batería de Polybar abre un menú Awesome con cinco configuraciones,
+ordenadas de mayor consumo a mayor autonomía según mediciones en el LOQ:
+
+| Perfil | Brillo | Pantalla | Energía | Referencia medida |
+| --- | --- | --- | --- | --- |
+| Brillo máximo | 100 % | 144 Hz | Equilibrado | 16–18 W |
+| Equilibrado fluido | 50 % | 144 Hz | Equilibrado | 16,1 W |
+| Equilibrado a 60 Hz | 50 % | 60 Hz | Equilibrado | 15,3 W |
+| Ahorro fluido | 50 % | 144 Hz | Ahorro | 13,1–14 W |
+| Máxima autonomía | 50 % | 60 Hz | Ahorro | 12,5 W |
+
+Son referencias de la sesión medida sin monitores externos, no límites ni
+consumos garantizados. El menú muestra el consumo actual, marca el perfil que
+coincide con los ajustes reales y muestra «Personalizado» si se cambian.
+La hoja junto al icono de batería indica que el firmware está en `low-power`.
+La frecuencia afecta solamente al panel interno, conservando las pantallas
+externas. Si no está activo o no ofrece la frecuencia, se rechaza el cambio.
+
+`dotfiles-power-profile` usa XRandR, power-profiles-daemon y la API de brillo de
+la sesión activa de logind, sin reglas sudo adicionales. Confirma los ajustes
+después de aplicarlos e intenta restaurar los anteriores si falla un paso.
+Los cambios se aplican al seleccionar una opción; el menú no fuerza perfiles
+en segundo plano ni al conectar o desconectar el cargador.
+
 ## Recuperación de la NVIDIA en LOQ 15AHP9
 
 En el LOQ 15AHP9 con RTX 4050 (`10de:28e1`) se verificó un ciclo de

@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""Apply the measured LOQ desktop energy presets from the active X11 session."""
+import argparse
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+PROFILES = [
+    dict(id='bright', title='Brillo máximo', brightness=100, hz=144, energy='balanced',
+         detail='144 Hz · brillo 100 % · equilibrado', measured='16–18 W'),
+    dict(id='balanced', title='Equilibrado fluido', brightness=50, hz=144, energy='balanced',
+         detail='144 Hz · brillo 50 % · equilibrado', measured='≈16,1 W'),
+    dict(id='balanced-60', title='Equilibrado a 60 Hz', brightness=50, hz=60, energy='balanced',
+         detail='60 Hz · brillo 50 % · equilibrado', measured='≈15,3 W'),
+    dict(id='save-fluid', title='Ahorro fluido', brightness=50, hz=144, energy='power-saver',
+         detail='144 Hz · brillo 50 % · ahorro', measured='13,1–14 W'),
+    dict(id='save-max', title='Máxima autonomía', brightness=50, hz=60, energy='power-saver',
+         detail='60 Hz · brillo 50 % · ahorro', measured='≈12,5 W'),
+]
+SYS = Path('/sys')
+
+
+def run(*args):
+    result = subprocess.run(args, capture_output=True, text=True, timeout=20)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or f'No se pudo ejecutar {args[0]}.')
+    return result.stdout.strip()
+
+
+def panel(listing):
+    found = None
+    section = False
+    for line in listing.splitlines():
+        header = re.match(r'^(\S+) (connected|disconnected)\b(.*)', line)
+        if header:
+            section = header[1].startswith(('eDP', 'LVDS', 'DSI')) and header[2] == 'connected'
+            geometry = re.search(r'(\d+x\d+)\+-?\d+\+-?\d+', header[3])
+            section = section and bool(geometry)
+            if section:
+                found = dict(name=header[1], mode=geometry[1], rate=None, rates=[])
+        elif section and found and line[:1].isspace():
+            mode = re.match(r'^\s+(\d+x\d+)\s+(.+)', line)
+            if mode and mode[1] == found['mode']:
+                for token in mode[2].split():
+                    match = re.match(r'^(\d+(?:\.\d+)?)([*+]*)$', token)
+                    if match:
+                        found['rates'].append(float(match[1]))
+                        if '*' in match[2]:
+                            found['rate'] = float(match[1])
+    if not found or found['rate'] is None:
+        raise RuntimeError('Activa la pantalla de la laptop para cambiar estos perfiles.')
+    return found
+
+
+def backlight():
+    paths = sorted((SYS / 'class/backlight').glob('*'))
+    if not paths:
+        raise RuntimeError('No se encontró el control de brillo de la laptop.')
+    return next((p for p in paths if p.name == 'nvidia_wmi_ec_backlight'), paths[0])
+
+
+def read_number(path):
+    return int(path.read_text().strip())
+
+
+def status():
+    light = backlight()
+    screen = panel(run('xrandr', '--current'))
+    energy = run('powerprofilesctl', 'get')
+    brightness = round(100 * read_number(light / 'brightness') / read_number(light / 'max_brightness'))
+    batteries = sorted((SYS / 'class/power_supply').glob('BAT*'))
+    battery = batteries[0] if batteries else None
+    values = dict(brightness=brightness, hz=screen['rate'], energy=energy,
+                  active='custom', capacity=None, watts=None, battery_state='Unknown', minutes=None)
+    if battery:
+        values['capacity'] = read_number(battery / 'capacity')
+        values['battery_state'] = (battery / 'status').read_text().strip()
+        if values['battery_state'] == 'Discharging' and (battery / 'power_now').exists():
+            power = read_number(battery / 'power_now')
+            values['watts'] = round(power / 1e6, 1)
+            if power > 0 and (battery / 'energy_now').exists():
+                values['minutes'] = round(60 * read_number(battery / 'energy_now') / power)
+    for profile in PROFILES:
+        if (abs(brightness - profile['brightness']) <= 1 and abs(screen['rate'] - profile['hz']) < 1
+                and energy == profile['energy']):
+            values['active'] = profile['id']
+            break
+    values['profiles'] = [dict(p, available=any(abs(r - p['hz']) < 1 for r in screen['rates']))
+                          for p in PROFILES]
+    return values
+
+
+def set_brightness(light, value):
+    # logind authorizes the active local session; no sudo rule is installed.
+    run('busctl', '--system', 'call', 'org.freedesktop.login1',
+        '/org/freedesktop/login1/session/auto', 'org.freedesktop.login1.Session',
+        'SetBrightness', 'ssu', 'backlight', light.name, str(value))
+
+
+def set_rate(screen, value):
+    run('xrandr', '--current', '--output', screen['name'], '--mode', screen['mode'], '--rate', str(value))
+
+
+def apply(profile_id):
+    profile = next(p for p in PROFILES if p['id'] == profile_id)
+    screen = panel(run('xrandr', '--current'))
+    if not any(abs(rate - profile['hz']) < 1 for rate in screen['rates']):
+        raise RuntimeError(f'La pantalla no ofrece {profile["hz"]} Hz en la resolución actual.')
+    light = backlight()
+    previous_light = read_number(light / 'brightness')
+    target = round(read_number(light / 'max_brightness') * profile['brightness'] / 100)
+    previous_energy = run('powerprofilesctl', 'get')
+    try:
+        run('powerprofilesctl', 'set', profile['energy'])
+        set_rate(screen, profile['hz'])
+        set_brightness(light, target)
+        actual = status()
+        if actual['active'] != profile_id:
+            raise RuntimeError('No se pudieron confirmar todos los ajustes del perfil.')
+        return actual
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        failures = []
+        for name, action in [('energía', lambda: run('powerprofilesctl', 'set', previous_energy)),
+                             ('frecuencia', lambda: set_rate(screen, screen['rate'])),
+                             ('brillo', lambda: set_brightness(light, previous_light))]:
+            try:
+                action()
+            except (OSError, RuntimeError, subprocess.SubprocessError):
+                failures.append(name)
+        if failures:
+            raise RuntimeError(f'{error} Revisa la restauración de: {", ".join(failures)}.') from error
+        raise RuntimeError(f'{error} Se restauraron los ajustes anteriores.') from error
+
+
+def tsv(values):
+    def value(key):
+        return str(values[key]) if values[key] is not None else '-'
+    print('\t'.join(['STATUS'] + [value(key) for key in
+          ('capacity', 'watts', 'battery_state', 'brightness', 'hz', 'active', 'energy', 'minutes')]))
+    for p in values['profiles']:
+        print('\t'.join(['PROFILE', p['id'], p['title'], p['detail'], p['measured'],
+                         '1' if p['available'] else '0']))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['status', 'apply'])
+    parser.add_argument('profile', nargs='?', choices=[p['id'] for p in PROFILES])
+    parser.add_argument('--tsv', action='store_true')
+    args = parser.parse_args()
+    if args.action == 'apply' and not args.profile:
+        parser.error('Indica un perfil.')
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/tmp/dotfiles-power-{os.getuid()}'))
+    runtime.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (runtime / 'dotfiles-power-profile.lock').open('w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        values = apply(args.profile) if args.action == 'apply' else status()
+    if args.tsv:
+        tsv(values)
+    else:
+        print(json.dumps(values, ensure_ascii=False))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

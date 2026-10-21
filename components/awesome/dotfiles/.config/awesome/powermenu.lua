@@ -89,6 +89,10 @@ local function build(screen)
     local session = wibox.layout.fixed.horizontal()
     session.spacing = 8
     session:add(button("󰌾", "Bloquear", "#89dceb", spawn("$HOME/.local/bin/dotfiles-lock")))
+    session:add(button("󰒲", "Suspender", "#cba6f7", function()
+        dashboard.visible = false
+        awful.spawn.with_shell("$HOME/.local/bin/dotfiles-sleep")
+    end))
     session:add(button("󰍃", "Salir", "#f9e2af", function() awesome.quit() end))
     session:add(button("󰜉", "Reiniciar", "#fab387", spawn("systemctl reboot")))
     session:add(button("󰐥", "Apagar", "#f38ba8", spawn("systemctl poweroff")))

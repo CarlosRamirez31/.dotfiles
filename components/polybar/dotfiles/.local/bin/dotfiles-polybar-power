@@ -7,7 +7,7 @@ choice=$(printf 'Lock\nLogout\nSuspend\nReboot\nShutdown' | rofi -m -1 -dmenu -p
 case "$choice" in
     Lock) exec "$HOME/.local/bin/dotfiles-lock" ;;
     Logout) exec awesome-client 'awesome.quit()' ;;
-    Suspend) systemctl suspend ;;
+    Suspend) exec "$HOME/.local/bin/dotfiles-sleep" ;;
     Reboot) systemctl reboot ;;
     Shutdown) systemctl poweroff ;;
 esac

@@ -117,3 +117,5 @@ async fn device_http_uses_injected_catalog_and_preserves_errors() {
 }
 
 mod pipeline;
+
+mod operation_faults;

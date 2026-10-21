@@ -17,7 +17,19 @@ function run(command, args) {
   if (result.error || result.status !== 0) process.exit(result.status || 1);
 }
 const suite = process.argv[2] ?? 'all';
-if (!['all', 'frontend', 'rust', 'python', 'models', 'lifecycle', 'audio-hardware'].includes(suite))
+if (
+  ![
+    'all',
+    'frontend',
+    'rust',
+    'python',
+    'models',
+    'lifecycle',
+    'audio-hardware',
+    'audio-consumers',
+    'driver-spike',
+  ].includes(suite)
+)
   throw new Error('unknown_suite');
 if (suite === 'all' || suite === 'frontend') {
   const files = find(resolve(root, 'src'));
@@ -50,5 +62,19 @@ if (suite === 'audio-hardware')
   run(process.env.MIC_TEST_PYTHON ?? resolve(root, '.runtime/personal-voice/venv/bin/python'), [
     '-I',
     'src-tauri/src/modules/audio/test/blackhole_meter.py',
+    ...process.argv.slice(3),
+  ]);
+
+if (suite === 'audio-consumers')
+  run(process.env.MIC_TEST_PYTHON ?? resolve(root, '.runtime/personal-voice/venv/bin/python'), [
+    '-I',
+    'src-tauri/src/modules/audio/test/probes/consumer_matrix.py',
+    ...process.argv.slice(3),
+  ]);
+
+if (suite === 'driver-spike')
+  run(process.env.MIC_TEST_PYTHON ?? resolve(root, '.runtime/personal-voice/venv/bin/python'), [
+    '-I',
+    'runtime/driver/test/run.py',
     ...process.argv.slice(3),
   ]);

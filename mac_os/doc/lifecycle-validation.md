@@ -80,3 +80,9 @@ La salida durante captura e inferencia personal liberó host, servicio, worker y
 Quedan el cierre durante registro y la caída del servicio con captura activa/recuperación visible.
 Los resultados automatizados anteriores son históricos; la revisión posterior tiene 30 pruebas Rust
 y 10 frontend aprobadas, con el ensayo de modelo privado omitido en la suite normal.
+
+## Cierre de T002 en este Mac
+
+La salida durante registro y caída del servicio con captura activa/recuperación visible se verificaron
+en esta entrega. La evidencia posterior y los identificadores están en [S01](s01-validation.md).
+La app liberó sus procesos/IO; una captura ajena de Brave permaneció intacta.

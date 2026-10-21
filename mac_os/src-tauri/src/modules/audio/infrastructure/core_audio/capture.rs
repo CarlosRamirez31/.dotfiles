@@ -68,23 +68,35 @@ impl Capture {
         })
     }
     pub(super) fn next(&mut self, stop: &Arc<AtomicBool>) -> Result<Option<PcmFrame>> {
-        let deadline = Instant::now() + Duration::from_secs(3);
-        loop {
-            if cancelled(stop) {
-                return Ok(None);
-            }
-            if self.fault.load(Ordering::Acquire) {
-                return Err(Error::Audio(AudioErrorCode::AudioOverrunOrDeviceLost));
-            }
-            if let Ok(frame) = self.frames.pop() {
-                return Ok(Some(frame));
-            }
-            if Instant::now() > deadline {
-                return Err(Error::Audio(
-                    AudioErrorCode::MicrophoneTimeoutOrPermissionDenied,
-                ));
-            }
-            std::thread::sleep(Duration::from_millis(2));
-        }
+        next_frame(&mut self.frames, &self.fault, stop)
     }
 }
+
+fn next_frame(
+    frames: &mut rtrb::Consumer<PcmFrame>,
+    fault: &AtomicBool,
+    stop: &Arc<AtomicBool>,
+) -> Result<Option<PcmFrame>> {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        if cancelled(stop) {
+            return Ok(None);
+        }
+        if fault.load(Ordering::Acquire) {
+            return Err(Error::Audio(AudioErrorCode::AudioOverrunOrDeviceLost));
+        }
+        if let Ok(frame) = frames.pop() {
+            return Ok(Some(frame));
+        }
+        if Instant::now() > deadline {
+            return Err(Error::Audio(
+                AudioErrorCode::MicrophoneTimeoutOrPermissionDenied,
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+}
+
+#[cfg(test)]
+#[path = "../../test/capture_fault.rs"]
+mod test;

@@ -36,3 +36,5 @@ Contrato implementado: [HTTP/SSE y operaciones](control.md).
 [Voces con nombre](voice-profiles.md): predeterminada, reemplazo, eliminación y migración cifrada.
 
 [Revisión SOLID y ACL](solid-acl-review.md): hallazgos, separación aplicada, controles automáticos y límites.
+
+- [Validación S01: ciclo de vida, fallos, consumidores y empaquetado](s01-validation.md).

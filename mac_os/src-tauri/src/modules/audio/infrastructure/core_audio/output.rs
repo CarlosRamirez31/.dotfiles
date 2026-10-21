@@ -64,14 +64,25 @@ impl Output {
         })
     }
     pub(super) fn check(&self) -> Result<()> {
-        if self.fault.load(Ordering::Acquire) {
-            return Err(Error::Audio(AudioErrorCode::BlackholeOutputFailed));
-        }
-        Ok(())
+        check_fault(&self.fault)
     }
     pub(super) fn push(&mut self, frame: PcmFrame) -> Result<()> {
-        self.frames
-            .push(frame)
-            .map_err(|_| Error::Audio(AudioErrorCode::AudioOutputBackpressure))
+        push_frame(&mut self.frames, frame)
     }
 }
+
+fn check_fault(fault: &AtomicBool) -> Result<()> {
+    if fault.load(Ordering::Acquire) {
+        return Err(Error::Audio(AudioErrorCode::BlackholeOutputFailed));
+    }
+    Ok(())
+}
+fn push_frame(frames: &mut rtrb::Producer<PcmFrame>, frame: PcmFrame) -> Result<()> {
+    frames
+        .push(frame)
+        .map_err(|_| Error::Audio(AudioErrorCode::AudioOutputBackpressure))
+}
+
+#[cfg(test)]
+#[path = "../../test/output_fault.rs"]
+mod test;

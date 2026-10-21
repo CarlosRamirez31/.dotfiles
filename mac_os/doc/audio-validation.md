@@ -35,6 +35,7 @@ el recorrido visual completo sobre el bundle final de esta entrega.
 Con sesión activa, `pnpm test audio-hardware --seconds 12 --speak --expect signal` mide señal controlada.
 El comando requiere FFmpeg y BlackHole de desarrollo; no forma parte de CI automático.
 
-Pendientes: salir durante registro de voz, caída del servicio con captura activa y recuperación visible;
-formato no soportado, pérdida de entrada y error de salida. T002/T003 siguen abiertos.
+Actualización: salida durante registro y caída del servicio con captura/recuperación verificadas.
+Formato incompatible y fallos controlados de entrada/salida se detallan en [S01](s01-validation.md).
+T002 verificado en este Mac; T003 mantiene pendiente la desconexión física.
 T004 debe distinguir productor de consumidores; el indicador agregado de CoreAudio no demuestra eso.

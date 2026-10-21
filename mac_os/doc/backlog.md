@@ -10,33 +10,33 @@ completan su aceptación física juntos al verificar la liberación durante audi
 
 ## Tablero
 
-| Ticket        | Entrega                                                      | Función            | Sprint | Prioridad | Estado                                  | Depende de                   |
-| ------------- | ------------------------------------------------------------ | ------------------ | ------ | --------- | --------------------------------------- | ---------------------------- |
-| [T000](#t000) | Base técnica existente                                       | Transversal        | Base   | P0        | Verificado técnicamente                 | —                            |
-| [T001](#t001) | Inyección de registro y filtro de voz                        | F07                | Base   | P0        | Implementado; commit a39537e            | T000                         |
-| [T002](#t002) | Ciclo de vida del servicio y sus workers                     | F02, F12           | S01    | P0        | Parcial; salida con captura verificada  | T000                         |
-| [T003](#t003) | Primer recorrido real micrófono → BlackHole                  | F04, F05           | S01    | P0        | Parcial; señal y parada verificadas     | T002                         |
-| [T004](#t004) | Spike de detección de consumidores y distribución del driver | F12, F14           | S01    | P0        | Pendiente                               | T003                         |
-| [T005](#t005) | Estándares visuales y estados de producto                    | F01, F10           | S02    | P1        | Especificado; revisión visual pendiente | T000                         |
-| [T006](#t006) | Barra de menús y panel compacto                              | F01                | S02    | P1        | Pendiente                               | T005, T002                   |
-| [T007](#t007) | Perfiles de ajustes cifrados                                 | F03, F09           | S02    | P1        | Pendiente                               | T000                         |
-| [T008](#t008) | Mute/reanudación del flujo controlado                        | F04                | S03    | P0        | Pendiente                               | T003                         |
-| [T009](#t009) | Capacidades y cambio de dispositivo                          | F04                | S03    | P1        | Pendiente                               | T003, T008                   |
-| [T010](#t010) | Matriz de llamadas reales                                    | F05, F11           | S03    | P0        | Pendiente                               | T003, T008                   |
-| [T011](#t011) | Control de ruido y comparación A/B                           | F06                | S03    | P1        | Pendiente                               | T003                         |
-| [T012](#t012) | Consentimiento y gestión del perfil personal                 | F07                | S05    | P1        | Implementado parcialmente; QA pendiente | T001, T007                   |
-| [T013](#t013) | Benchmark de voz personal                                    | F07, F13           | S05    | P0        | Pendiente                               | T003, T001                   |
-| [T014](#t014) | Gestor de modelos dentro de la app                           | F08                | S04    | P0        | Pendiente                               | T020, T000                   |
-| [T015](#t015) | Keychain y recuperación de datos en Mac                      | F09                | S02    | P0        | Pendiente                               | T007                         |
-| [T016](#t016) | Diagnóstico integral y métricas                              | F10                | S04    | P1        | Pendiente                               | T003, T000                   |
-| [T017](#t017) | Predeterminado del sistema y restauración                    | F11                | S04    | P1        | Pendiente                               | T010                         |
-| [T018](#t018) | Activación automática por consumidor                         | F12                | S04    | P0        | Pendiente                               | T004, T010                   |
-| [T019](#t019) | Continuidad de voz y estabilidad                             | F13                | S05    | P0        | Pendiente                               | T013, T009                   |
-| [T020](#t020) | Spike de empaquetado y licencias                             | F08, F14           | S01    | P0        | Pendiente                               | T000                         |
-| [T021](#t021) | CI y artefactos reproducibles                                | F14                | S04    | P0        | Pendiente                               | T020                         |
-| [T022](#t022) | Instalador firmado y notarizado                              | F14                | S06    | P0        | Pendiente                               | T014, T020, T021, T024       |
-| [T023](#t023) | QA de UI y accesibilidad                                     | F01, F04, F07, F10 | S06    | P1        | Pendiente                               | T006, T008, T012, T014, T016 |
-| [T024](#t024) | Desinstalación y recuperación                                | F15                | S06    | P0        | Pendiente                               | T020, T007, T015             |
+| Ticket        | Entrega                                                      | Función            | Sprint | Prioridad | Estado                                   | Depende de                   |
+| ------------- | ------------------------------------------------------------ | ------------------ | ------ | --------- | ---------------------------------------- | ---------------------------- |
+| [T000](#t000) | Base técnica existente                                       | Transversal        | Base   | P0        | Verificado técnicamente                  | —                            |
+| [T001](#t001) | Inyección de registro y filtro de voz                        | F07                | Base   | P0        | Implementado; commit a39537e             | T000                         |
+| [T002](#t002) | Ciclo de vida del servicio y sus workers                     | F02, F12           | S01    | P0        | Verificado en este Mac                   | T000                         |
+| [T003](#t003) | Primer recorrido real micrófono → BlackHole                  | F04, F05           | S01    | P0        | Parcial; fallos controlados y audio real | T002                         |
+| [T004](#t004) | Spike de detección de consumidores y distribución del driver | F12, F14           | S01    | P0        | Investigado; fiabilidad pendiente        | T003                         |
+| [T005](#t005) | Estándares visuales y estados de producto                    | F01, F10           | S02    | P1        | Especificado; revisión visual pendiente  | T000                         |
+| [T006](#t006) | Barra de menús y panel compacto                              | F01                | S02    | P1        | Pendiente                                | T005, T002                   |
+| [T007](#t007) | Perfiles de ajustes cifrados                                 | F03, F09           | S02    | P1        | Pendiente                                | T000                         |
+| [T008](#t008) | Mute/reanudación del flujo controlado                        | F04                | S03    | P0        | Pendiente                                | T003                         |
+| [T009](#t009) | Capacidades y cambio de dispositivo                          | F04                | S03    | P1        | Pendiente                                | T003, T008                   |
+| [T010](#t010) | Matriz de llamadas reales                                    | F05, F11           | S03    | P0        | Pendiente                                | T003, T008                   |
+| [T011](#t011) | Control de ruido y comparación A/B                           | F06                | S03    | P1        | Pendiente                                | T003                         |
+| [T012](#t012) | Consentimiento y gestión del perfil personal                 | F07                | S05    | P1        | Implementado parcialmente; QA pendiente  | T001, T007                   |
+| [T013](#t013) | Benchmark de voz personal                                    | F07, F13           | S05    | P0        | Pendiente                                | T003, T001                   |
+| [T014](#t014) | Gestor de modelos dentro de la app                           | F08                | S04    | P0        | Pendiente                                | T020, T000                   |
+| [T015](#t015) | Keychain y recuperación de datos en Mac                      | F09                | S02    | P0        | Pendiente                                | T007                         |
+| [T016](#t016) | Diagnóstico integral y métricas                              | F10                | S04    | P1        | Pendiente                                | T003, T000                   |
+| [T017](#t017) | Predeterminado del sistema y restauración                    | F11                | S04    | P1        | Pendiente                                | T010                         |
+| [T018](#t018) | Activación automática por consumidor                         | F12                | S04    | P0        | Pendiente                                | T004, T010                   |
+| [T019](#t019) | Continuidad de voz y estabilidad                             | F13                | S05    | P0        | Pendiente                                | T013, T009                   |
+| [T020](#t020) | Spike de empaquetado y licencias                             | F08, F14           | S01    | P0        | Prototipo autónomo; release pendiente    | T000                         |
+| [T021](#t021) | CI y artefactos reproducibles                                | F14                | S04    | P0        | Pendiente                                | T020                         |
+| [T022](#t022) | Instalador firmado y notarizado                              | F14                | S06    | P0        | Pendiente                                | T014, T020, T021, T024       |
+| [T023](#t023) | QA de UI y accesibilidad                                     | F01, F04, F07, F10 | S06    | P1        | Pendiente                                | T006, T008, T012, T014, T016 |
+| [T024](#t024) | Desinstalación y recuperación                                | F15                | S06    | P0        | Pendiente                                | T020, T007, T015             |
 
 ## Criterio común de cierre
 
@@ -82,11 +82,11 @@ Función: F02, F12. Sprint: S01. Prioridad: P0. Dependencias: T000.
 - [x] **T002.01** — Probar cerrar, ocultar, salida explícita, crash del host y arranque duplicado.
 - [x] **T002.02** — Registrar procesos antes/después, stdin/EOF y duración de cierre.
 - [x] **T002.03** — Corregir huérfanos y probar reinicio sin reanudar captura.
-- [ ] **T002.04** — Validar con T003 la liberación del micrófono y workers al salir durante captura real.
+- [x] **T002.04** — Validar con T003 la liberación del micrófono y workers al salir durante captura real.
 
 **Aceptación:** No queda servicio ni Python capturando tras salir o perder el host; evidencia en Mac.
 
-**Evidencia:** [pruebas y límites](lifecycle-validation.md). Implementado el cierre cooperativo, plazo de seguridad y cancelación sin carreras. T002.01–03 comprobados inicialmente sin captura. La salida con captura/inferencia ya está verificada; T002.04 sigue abierto por registro y caída del servicio con captura activa.
+**Evidencia:** [pruebas y límites](lifecycle-validation.md). Implementado el cierre cooperativo, plazo de seguridad y cancelación sin carreras. T002.01–03 comprobados inicialmente sin captura. La salida con captura/inferencia, salida durante registro y caída del servicio con recuperación están verificadas en este Mac: [evidencia S01](s01-validation.md). No equivale a F12 ni a QA de otros equipos.
 
 <a id="t003"></a>
 
@@ -97,10 +97,11 @@ Función: F04, F05. Sprint: S01. Prioridad: P0. Dependencias: T002.
 - [x] **T003.01** — Preparar BlackHole externo de desarrollo y permisos con consentimiento.
 - [x] **T003.02** — Capturar señal controlada y verificar salida en un grabador sin bucle.
 - [ ] **T003.03** — Probar parada, formato no soportado, pérdida de entrada y error de salida.
+- [ ] **T003.04** — Investigar el fallo recurrente de captura observado, distinguir cola llena de error del callback y repetir una sesión estable sin compilación simultánea antes de aceptar la matriz de consumidores.
 
 **Aceptación:** Archivo de medición autorizado y registro de dispositivos/formatos prueban audio recibido; sin grabaciones privadas en Git.
 
-**Evidencia:** [medición real](audio-validation.md). T003.03 sigue abierto: parada comprobada, fallos de dispositivo/formato pendientes.
+**Evidencia:** [medición real](audio-validation.md). T003.03: parada y fallo real de sobrecarga observados; pruebas de formato y señales de fallo controladas añadidas. Desconexión física pendiente por falta de dispositivo externo, según decisión del usuario. Ver [S01](s01-validation.md).
 
 <a id="t004"></a>
 
@@ -108,13 +109,13 @@ Función: F04, F05. Sprint: S01. Prioridad: P0. Dependencias: T002.
 
 Función: F12, F14. Sprint: S01. Prioridad: P0. Dependencias: T003.
 
-- [ ] **T004.01** — Investigar señal observable del driver y distinguir productor de consumidor.
+- [x] **T004.01** — Investigar señal observable del driver y distinguir productor de consumidor.
 - [ ] **T004.02** — Probar cero, uno y dos consumidores, pestañas y cierres inesperados.
-- [ ] **T004.03** — Documentar viabilidad, licencia/distribución y alternativas con costes.
+- [x] **T004.03** — Documentar viabilidad, licencia/distribución y alternativas con costes.
 
 **Aceptación:** Decisión técnica con evidencia. Si no hay señal fiable, F12 bloqueado; no sustituirlo silenciosamente por activación manual.
 
-**Evidencia:** pendiente; adjuntar resultados al cerrar.
+**Evidencia:** [S01](s01-validation.md): dos receptores reales, limitación de CoreAudio y contadores globales del driver. Investigación de driver propio GPLv3 autorizada; dispositivos separados probados solo en proceso. F12 sigue bloqueado hasta validar el driver y pestañas/clientes reales.
 
 <a id="t005"></a>
 
@@ -332,13 +333,13 @@ Función: F13. Sprint: S05. Prioridad: P0. Dependencias: T013, T009.
 
 Función: F08, F14. Sprint: S01. Prioridad: P0. Dependencias: T000.
 
-- [ ] **T020.01** — Inventariar runtime Python, pesos, RNNoise y driver con versiones/licencias.
-- [ ] **T020.02** — Probar runtime redistribuible sin Python/globales del desarrollador.
+- [x] **T020.01** — Inventariar runtime Python, pesos, RNNoise y driver con versiones/licencias.
+- [x] **T020.02** — Probar runtime redistribuible sin Python/globales del desarrollador.
 - [ ] **T020.03** — Determinar tamaño, firma, permisos/auxiliar y suministro de pesos.
 
 **Aceptación:** Ruta de distribución documentada y viable; no tratar el venv de desarrollo como runtime instalable.
 
-**Evidencia:** pendiente; adjuntar resultados al cerrar.
+**Evidencia:** [S01](s01-validation.md): inventario y Python standalone con modelo real bajo denegación de red/Homebrew/SDK/entorno original. T020.02 acredita un prototipo trasladado, no un instalador. Faltan staging reproducible con avisos completos, validación de driver propio y firma; T020.03 permanece abierto.
 
 <a id="t021"></a>
 

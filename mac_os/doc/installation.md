@@ -1,6 +1,6 @@
 # Instalación, integración y desinstalación
 
-Estado: especificación para implementar en la edición Local de macOS. Todavía no existe instalador completo, servicio, runtime de IA ni desinstalador. El build actual solo genera el scaffold `.app`.
+Estado: la app, servicio local supervisado y adaptadores de IA funcionan en desarrollo. El bundle actual no incluye runtime Python, pesos ni driver, y no existe instalador completo ni desinstalador. El spike de distribución y sus límites están en [s01-validation.md](s01-validation.md).
 
 ## Compilar no instala en el equipo
 
@@ -10,7 +10,7 @@ El build prepara los ejecutables, runtimes, recursos y artefactos distribuibles;
 
 Se propone un `.pkg` firmado y notarizado para la experiencia completa en macOS, construido con `pkgbuild`/`productbuild` después de generar el bundle Tauri. Tauri genera `.app` y puede generar `.dmg`; un DMG por sí solo no instala un driver de audio ni resuelve la desinstalación. La creación del PKG será una etapa propia del pipeline.
 
-El paquete contendrá la aplicación de barra de menús, el servicio supervisor de IA como sidecar, las bibliotecas/runtime privados requeridos, los modelos seleccionados cuya redistribución esté aprobada, los avisos de licencia y un auxiliar de mantenimiento/desinstalación firmado. No se instalarán todos los candidatos: RNNoise y DeepFilterNet son alternativas hasta que el benchmark decida.
+El paquete contendrá la aplicación, su único ejecutable con modos UI/servicio, las bibliotecas/runtime privados requeridos, los modelos seleccionados cuya redistribución esté aprobada, los avisos de licencia y un auxiliar de mantenimiento/desinstalación firmado. RNNoise está integrado mediante nnnoiseless; DeepFilterNet sigue siendo alternativa de evaluación.
 
 Objetivo del instalador completo: funcionamiento de las funciones incluidas sin red después de instalar. Para ello también se debe empaquetar el modelo de registro ERes2NetV2 si se distribuye nomo-pvad; su descarga automática original deberá sustituirse por resolución de un recurso local verificado. Si un peso no puede redistribuirse, esa función requerirá descarga explícita en el asistente inicial y no se anunciará como disponible offline desde el instalador.
 
@@ -37,12 +37,12 @@ Instalar o eliminar componentes en `/Library/Audio/Plug-Ins/HAL` requiere el mec
 
 La UI llama casos de uso mediante HTTP al BFF local; el servicio recibe la sesión y compone procesadores por DI. Cada módulo implementa el puerto de procesamiento, mantiene su estado por sesión y publica eventos de estado/fallo. El audio usa buffers acotados, no JSON ni eventos de negocio por muestra.
 
-- **RNNoise:** biblioteca nativa C integrada en el módulo Rust mediante un adaptador FFI revisado; preparar/resamplear al formato requerido por la versión elegida, mantener estado por stream y liberar al detener. No lanzar un comando externo por cada bloque.
+- **RNNoise:** implementación Rust nnnoiseless 0.5.2 detrás del puerto NoiseReducer; formato float32 a 48 kHz, estado por sesión y liberación al detener. No se lanza un comando externo por bloque.
 - **DeepFilterNet:** alternativa a evaluar mediante su implementación Rust o un worker privado. Verificar formato, estado de streaming, modelo, coste y latencia. La herramienta de procesar WAV no prueba por sí sola integración en tiempo real.
 - **nomo-pvad:** worker privado inicialmente candidato, con los pesos principales y ERes2NetV2 disponibles localmente. Registro de voz → embedding cifrado; stream a 16 kHz → probabilidad cada 160 ms → política de paso/silencio del módulo `personal-voice`. El servicio mantiene el audio alineado con esa decisión. No separa voces superpuestas.
 - **Gestor de modelos:** carga diferida, verificación, selección de versión, actualización explícita y eliminación. Cada worker termina con el servicio y nunca sobrevive al host.
 
-El spike fijará los motores, bindings, versiones y hashes antes de implementar el instalador. No se han añadido estas dependencias al proyecto todavía.
+Las dependencias nativas y de desarrollo están fijadas en los lockfiles y los pesos en `runtime/personal-voice/artifacts.json`. Falta convertir ese entorno en un suministro reproducible de release con licencias completas, firma y validación en otro Mac.
 
 ## Desinstalar desde la aplicación
 

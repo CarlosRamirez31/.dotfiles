@@ -1,0 +1,16 @@
+{
+  "purpose": "Validated relocation spike; not a release installer",
+  "architecture": "aarch64-apple-darwin",
+  "version": "3.14.7",
+  "release": "20260924",
+  "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.14.7%2B20260924-aarch64-apple-darwin-install_only.tar.gz",
+  "bytes": 26781712,
+  "sha256": "d3da099bb2bdd57e2f5ff8496cb9827f7d92eee332b09f8dc93706dabfc51a96",
+  "documentation": "https://docs.astral.sh/python-build-standalone/",
+  "releaseRequirements": [
+    "Install verified wheels from the lockfile into staging",
+    "Retain interpreter and bundled-library license notices",
+    "Remove development tools after validating runtime requirements",
+    "Sign nested native code and validate on a clean Mac"
+  ]
+}

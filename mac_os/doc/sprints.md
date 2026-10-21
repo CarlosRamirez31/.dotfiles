@@ -13,7 +13,7 @@ No se añaden bus genérico ni sagas vacías: solo coordinación que un flujo re
 | Paquete                                | Situación                             | Trabajo restante / tickets         | Puerta de salida                                                                                   |
 | -------------------------------------- | ------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Base                                   | Verificada técnicamente               | T000; T001 implementado localmente | No equivale a beta; mantener pruebas y T001 incluido en `a39537e`.                                 |
-| S01 — Viabilidad física y distribución | Parcial                               | T002, T003, T004, T020             | Audio virtual real, ciclo de vida correcto y decisiones viables de consumidores/runtime/licencias. |
+| S01 — Viabilidad física y distribución | Parcial                               | T003, T004, T020                   | Audio virtual real, ciclo de vida correcto y decisiones viables de consumidores/runtime/licencias. |
 | S02 — Experiencia mínima y datos       | Parcial; T005 especificado            | T005, T006, T007, T015             | Panel accesible, perfiles persistidos, recuperación y Keychain probados.                           |
 | S03 — Audio controlable y llamadas     | Parcial                               | T008, T009, T010, T011             | Mute real, cambios de dispositivo, comparación y matriz de llamadas aprobados.                     |
 | S04 — Modelos, diagnóstico y demanda   | Parcial de infraestructura            | T014, T016, T017, T018, T021       | Gestor offline, diagnóstico, predeterminado/restauración, consumidores y CI real.                  |
@@ -64,3 +64,12 @@ Cloud y Windows no tienen fecha ni tickets de implementación en este backlog. L
 [ui-ux.md](ui-ux.md); su diseño no acredita implementación ni aprobación visual del usuario.
 
 Avance T002: [supervisión, procesos y UI verificados](lifecycle-validation.md). Salida durante captura/inferencia verificada en [T003](audio-validation.md). Faltan registro, caída del servicio con captura, fallos de dispositivos, T004 y T020; S01 continúa abierto.
+
+## Revisión de cierre S01
+
+T002 verificado en este Mac. T003 tiene fallos controlados y una sobrecarga real; la prueba
+física de desconexión queda pendiente por falta de micrófono externo. T004 tiene una limitación
+demostrada y una dirección de driver GPLv3 propio autorizada, todavía sin validación instalado.
+T020 demostró autonomía del prototipo Python/modelos bajo aislamiento; faltan preparación
+reproducible, avisos y distribución del driver. El ensayo de IA bajo carga no aprobó tiempo real.
+**S01 sigue abierto**; no se declara cerrado ni se fija fecha beta. Ver [evidencia S01](s01-validation.md).

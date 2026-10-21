@@ -79,3 +79,15 @@ visibilidad sobre estados preparados siguen siendo JSX declarativo. `main.tsx` e
 La suite central incluye pruebas puras del pipeline, registro con captura inyectada, ACL de conexión/eventos,
 selección de perfiles y transporte Python con streams controlados. Esas pruebas no abren micrófonos y no
 sustituyen T003 ni el benchmark de voz. Ver [revisión SOLID/ACL](solid-acl-review.md).
+
+## Spikes opt-in S01
+
+- `pnpm test audio-consumers --producer-pid <pid> --device-id <id>`: compila el sondeo CoreAudio,
+  exige productor activo y abre/cierra dos receptores FFmpeg de BlackHole sin guardar PCM.
+  Falla ante estado desconocido o productor detenido. No demuestra equivalencia entre PID y pestaña.
+- `pnpm test driver-spike --source <BlackHole.c>`: exige hash de la fuente 0.7.1 y prueba
+  contadores de dispositivos separados dentro de un proceso. No instala un driver.
+- La suite Rust incluye rechazo de formatos, señales de fallo de captura/salida, backpressure
+  y persistencia de errores. Son pruebas controladas; no equivalen a desconexión física.
+
+Resultados reales, limitaciones y autonomía del runtime: [s01-validation.md](s01-validation.md).

@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ ${CONTAINER_ID:-} != dev ]]; then
-    # shellcheck disable=SC2016 # Arguments expand inside dev.
-    exec distrobox enter --name dev -- sh -c \
-        'cd -- "$1" && shift && exec "$@"' dbeaver "$PWD" "${BASH_SOURCE[0]}" "$@"
+    exec dotfiles-dev-exec dbeaver "$@"
 fi
 log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dbeaver-dev"
 mkdir -p -- "$log_dir"

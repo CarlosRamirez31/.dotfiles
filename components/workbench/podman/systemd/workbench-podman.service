@@ -1,0 +1,8 @@
+[Unit]
+Description=Forward the dev workbench to the existing rootless Podman engine
+Requires=podman.socket
+After=podman.socket
+
+[Service]
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd %t/podman/podman.sock
+NoNewPrivileges=yes

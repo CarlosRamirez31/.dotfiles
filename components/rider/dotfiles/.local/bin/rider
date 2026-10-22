@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ ${CONTAINER_ID:-} != dev ]]; then
-    # Keep relative paths intact and detach inside dev, so no host-side
-    # distrobox process has to stay attached to the calling terminal.
-    # shellcheck disable=SC2016 # Arguments expand in the container.
-    exec distrobox enter --name dev -- sh -c \
-        'cd -- "$1" && shift && exec "$@"' \
-        rider "$PWD" "${BASH_SOURCE[0]}" "$@"
+    exec dotfiles-dev-exec rider "$@"
 fi
 
 if [[ ! -x /opt/rider/current/bin/rider ]]; then

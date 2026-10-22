@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ ${PODMAN_WORKBENCH:-} == dev-podman ]]; then exec /usr/local/bin/presentacion "$@"; fi
+exec dotfiles-dev-exec presentacion "$@"

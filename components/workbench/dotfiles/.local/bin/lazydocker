@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ ${CONTAINER_ID:-} != dev ]]; then exec dotfiles-dev-exec lazydocker "$@"; fi
 source "$HOME/.local/libexec/dotfiles-container-env"
 dotfiles_container_env "$@"
 export PATH="$HOME/.local/libexec/lazydocker:$PATH"

@@ -60,12 +60,12 @@ while stop and not pathlib.Path(stop).exists():
         launcher = root / 'rider'
         launcher.write_text((COMPONENT / 'dotfiles/.local/bin/rider').read_text().replace('/opt/rider/current/bin/rider', str(binary)))
         launcher.chmod(0o755)
-        distrobox = root / 'distrobox'
+        distrobox = root / 'dotfiles-dev-exec'
         distrobox.write_text('''#!/bin/sh
-[ "$1" = enter ] && [ "$2" = --name ] && [ "$3" = dev ] && [ "$4" = -- ] || exit 99
-shift 4
+[ "$1" = rider ] || exit 99
+shift
 export CONTAINER_ID=dev
-exec "$@"
+exec "$(dirname -- "$0")/rider" "$@"
 ''')
         distrobox.chmod(0o755)
         return launcher

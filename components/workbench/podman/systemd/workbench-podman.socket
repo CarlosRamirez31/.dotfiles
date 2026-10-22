@@ -1,0 +1,11 @@
+[Unit]
+Description=Podman connection for the dev workbench
+
+[Socket]
+ListenStream=%h/.local/state/podman-workbench/docker.sock
+SocketMode=0600
+DirectoryMode=0700
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+manifest=${XDG_CONFIG_HOME:-$HOME/.config}/distrobox/distrobox.ini
+bootstrap=$HOME/.local/libexec/dotfiles-distrobox-bootstrap
+[[ -r $manifest && -x $bootstrap ]] || {
+    printf 'Faltan los archivos de workbench: %s o %s\n' "$manifest" "$bootstrap" >&2
+    exit 1
+}
+
+# Fail before changing anything when the host container runtime is unavailable.
+podman info >/dev/null
+if podman container exists parrotos; then
+    printf 'Preparando el contenedor parrotos existente.\n'
+else
+    status=$?
+    [[ $status == 1 ]] || exit "$status"
+    distrobox assemble create --file "$manifest" --name parrotos
+fi
+
+# Read the same package list used for new containers, without evaluating hooks
+# or duplicating the list. Existing containers need an explicit package install.
+packages=()
+section=''
+while IFS= read -r line || [[ -n $line ]]; do
+    if [[ $line == \[*\] ]]; then
+        section=$line
+    elif [[ $section == '[parrotos]' && $line == additional_packages=\"*\" ]]; then
+        value=${line#additional_packages=\"}
+        value=${value%\"}
+        read -r -a batch <<< "$value"
+        packages+=("${batch[@]}")
+    fi
+done < "$manifest"
+(( ${#packages[@]} > 0 )) || {
+    printf 'No hay paquetes declarados para parrotos.\n' >&2
+    exit 1
+}
+
+distrobox enter parrotos -- bash -s -- "$bootstrap" "${packages[@]}" <<'CONTAINER'
+set -euo pipefail
+source /etc/os-release
+[[ ${ID:-} == parrot ]] || {
+    printf 'El contenedor parrotos no contiene ParrotOS; no se modifica.\n' >&2
+    exit 1
+}
+bootstrap=$1
+shift
+sudo apt-get update
+sudo apt-get install -y "$@"
+for pair in fd:fdfind bat:batcat; do
+    name=${pair%:*}
+    target=${pair#*:}
+    if ! command -v "$name" >/dev/null; then
+        sudo ln -s -- "$(command -v "$target")" "/usr/local/bin/$name"
+    fi
+done
+# Yazi is not available in every Parrot repository snapshot. Never install
+# packages from a different distribution to supply it.
+if apt-cache policy yazi | awk '/Candidate:/ { found = ($2 != "(none)") } END { exit !found }'; then
+    sudo apt-get install -y yazi
+elif ! command -v yazi >/dev/null; then
+    printf 'Pendiente: Yazi no está disponible en los repositorios actuales.\n' >&2
+fi
+sudo usermod --shell "$(command -v zsh)" "$(id -un)"
+nvim -u NONE -i NONE -n --headless '+lua if vim.fn.has("nvim-0.11") ~= 1 then vim.api.nvim_err_writeln("LazyVim necesita Neovim >= 0.11"); vim.cmd("cquit 1") end' +qa
+CONTAINER_ID=parrotos "$bootstrap"
+DOTFILES_FASTFETCH=0 zsh -ic 'exit'
+nvim --headless +qa
+for tool in nvim zsh starship fastfetch eza fzf zoxide vivid bat rg fd git lazygit node npm python tree-sitter; do
+    command -v "$tool"
+done
+printf 'Base de trabajo instalada y verificada en parrotos.\n'
+CONTAINER

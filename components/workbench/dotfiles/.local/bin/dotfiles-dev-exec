@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+command_name=${1:?Falta el programa que se abrirá en dev-podman}
+shift
+host_home=${HOME%/}
+case $PWD in
+    "$host_home") directory=/host-home ;;
+    "$host_home"/*) directory="/host-home/${PWD#"$host_home"/}" ;;
+    *) printf 'Abre el proyecto desde tu home compartido: %s\n' "$host_home" >&2; exit 1 ;;
+esac
+arguments=()
+for argument in "$@"; do
+    case $command_name:$argument in
+        rider:"$host_home"/*|dbeaver:"$host_home"/*)
+            argument="/host-home/${argument#"$host_home"/}" ;;
+    esac
+    arguments+=("$argument")
+done
+exec "$HOME/.local/bin/dotfiles-podman" exec dev -- sh -c \
+    'cd -- "$1" && shift && exec "$@"' dev-podman "$directory" "$command_name" "${arguments[@]}"

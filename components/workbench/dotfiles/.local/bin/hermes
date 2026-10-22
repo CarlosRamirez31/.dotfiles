@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ ${PODMAN_WORKBENCH:-} == dev-podman ]]; then exec /usr/local/bin/hermes "$@"; fi
+exec dotfiles-dev-exec hermes "$@"

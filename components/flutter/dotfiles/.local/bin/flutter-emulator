@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 set -eu
 if [[ ${CONTAINER_ID:-} != dev ]]; then
-    exec distrobox enter --name dev -- zsh "$0" "$@"
+    exec dotfiles-dev-exec flutter-emulator "$@"
 fi
 source "${XDG_CONFIG_HOME:-$HOME/.config}/flutter/env.zsh"
 emulator_name="${1:-${FLUTTER_AVD_NAME:-Beambollow}}"

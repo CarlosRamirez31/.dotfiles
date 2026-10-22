@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ ${CONTAINER_ID:-} != dev ]]; then
-    # shellcheck disable=SC2016 # Expand paths/arguments inside dev.
-    exec distrobox enter --name dev -- env DOCKER_HOST="${DOCKER_HOST:-}" DOCKER_CONTEXT="${DOCKER_CONTEXT:-}" \
-        sh -c 'cd -- "$1" && shift && exec "$@"' docker "$PWD" "${BASH_SOURCE[0]}" "$@"
+    exec dotfiles-dev-exec docker "$@"
 fi
 source "$HOME/.local/libexec/dotfiles-container-env"
 dotfiles_container_env "$@"

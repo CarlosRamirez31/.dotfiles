@@ -26,6 +26,12 @@ el indicador de micrófono siguen eventos; CPU, batería, volumen y red se consu
 según el intervalo declarado. El micrófono personal requiere `voice-isolation`;
 sin ese módulo se mantiene el control básico de mute disponible.
 
+Las cápsulas de escritorios y hora combinan un fondo rectangular con los
+semicírculos `` y ``. Los extremos usan Iosevka Regular a 17 pt con
+desplazamiento vertical 4 para una barra de 30 px a 96 DPI. El script de estilo
+escala esas medidas por monitor. Cambiar solamente la fuente o su desplazamiento
+puede dejar el fondo sobresaliendo como un cuadrado o recortar la curva.
+
 Clic en red, Bluetooth, batería o encendido abre los menús correspondientes.
 Las acciones de audio y brillo cambian el estado real al usarlas. La barra se
 reinicia desde el arranque de Awesome y desde el panel de pantallas cuando procede.

@@ -131,7 +131,7 @@ dev-podman restart
 | [`system`](docs/system.md) | red, audio, portal GTK/X11, OpenVPN, SDDM y soporte de VM |
 | [`sddm`](docs/sddm.md) | tema SilentSDDM con Catppuccin Mocha y teclado virtual en la pantalla de inicio |
 | [`themes`](docs/themes.md) | cursor Bibata e iconos Oranchelo |
-| [`fonts`](docs/fonts.md) | JetBrainsMono Nerd Font y Lexend |
+| [`fonts`](docs/fonts.md) | JetBrainsMono, Iosevka Nerd Font, Lexend e iconos/emoji |
 | [`shell`](docs/shell.md) | Zsh, Starship, historial, navegación y herramientas de red |
 | [`fastfetch`](docs/fastfetch.md) | resumen visual del sistema al abrir terminal |
 | [`maintenance`](docs/maintenance.md) | revisión segura, caché de Pacman y TRIM |

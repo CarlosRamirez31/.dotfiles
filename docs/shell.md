@@ -31,7 +31,8 @@ Instala Zsh, Starship, eza, bat, FZF, fd, ripgrep, zoxide, vivid, plugins de sug
 | `cat` / `catp` | Bat legible / `cat` POSIX real. |
 | `z RUTA`, `zi` | Saltar a rutas aprendidas / selector interactivo. |
 | `mkcd DIRECTORIO` | Crear directorio y entrar. |
-| `nv`, `lg`, `py` | Neovim, Lazygit y Python. |
+| `nv`, `lg`, `ld`, `py` | `nvim`, `lazygit`, `lazydocker` y `python`, respectivamente. |
+| `less`, `grep`, `rg` | `less -R`, `grep --color=auto` y `rg --smart-case`. |
 | `serve [PUERTO] [IP]` | HTTP del directorio actual; por defecto `8000` en `127.0.0.1`. |
 | `cheat COMANDO` | Página resumida de tldr. |
 | `pathlist` | PATH, una entrada por línea. |
@@ -51,6 +52,12 @@ La edición de la línea sigue los atajos habituales de un editor gráfico: `Ctr
 | `pacinfo PAQUETE` | Información de repositorio (`pacman -Si`). |
 | `sysinfo` | Fastfetch. |
 | `reload` | Reemplazar el shell actual por un Zsh nuevo. |
+
+En Kali/Parrot y otros entornos con APT, `update` ejecuta
+`sudo apt update && sudo apt full-upgrade`, `pacsearch TEXTO` ejecuta
+`apt search TEXTO` y `pacinfo PAQUETE` ejecuta `apt show PAQUETE`.
+Estos tres alias se definen según el gestor disponible; la tabla anterior
+describe el host Arch.
 
 Los comandos interactivos de los dotfiles tienen nombres cortos, mientras los scripts internos conservan el prefijo `dotfiles-` para evitar conflictos:
 
@@ -107,3 +114,6 @@ command -v zsh starship fzf zoxide
 Instalador: [`setup/modules/shell.sh`](../setup/modules/shell.sh). Los archivos y destinos administrados
 se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
 `.config/` y `.local/` de esta guía se refieren al home instalado.
+Las definiciones exactas de tus comandos están en
+[`aliases.zsh`](../config/zsh/aliases.zsh) y
+[`functions.zsh`](../config/zsh/functions.zsh).

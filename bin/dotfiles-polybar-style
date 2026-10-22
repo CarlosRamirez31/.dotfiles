@@ -21,7 +21,9 @@ def style(appearance):
     for index, (family, size, offset) in enumerate([
             ('JetBrainsMono Nerd Font:style=Bold', 12.5, 3),
             ('JetBrainsMono Nerd Font', 19, 5),
-            ('JetBrainsMono Nerd Font:style=Bold', 13, 3),
+            # Iosevka's Powerline caps fill the 30 px module background at 17 pt/96 DPI.
+            # Center the caps on the background; offset 5 clips their lower edge.
+            ('Iosevka Nerd Font:style=Regular', 17, 4),
             ('Iosevka Nerd Font:antialias=true', 13, 0),
             ('JetBrainsMono Nerd Font:style=Bold', 9, 2),
             ('JetBrainsMono Nerd Font:style=Bold', 15, 3)]):

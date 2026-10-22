@@ -27,8 +27,8 @@ def share_documents(home, shared):
 
 
 if __name__ == '__main__':
-    if os.environ.get('PODMAN_WORKBENCH') != 'dev-podman' or not Path('/run/.containerenv').exists():
-        raise SystemExit('Ejecuta este script dentro de dev-podman.')
+    if os.environ.get('PODMAN_WORKBENCH') not in ('dev-podman', 'parrotos-podman', 'kali-podman') or not Path('/run/.containerenv').exists():
+        raise SystemExit('Ejecuta este script dentro de un contenedor Podman workbench.')
     backup = share_documents(Path.home(), Path('/host-home/Documents'))
     print('~/Documents enlazado completo a /host-home/Documents.')
     if backup:

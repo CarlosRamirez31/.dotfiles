@@ -233,6 +233,29 @@ def integrate_dev():
     execute(name, 'rm', '-rf', '/tmp/workbench-icons')
 
 
+def integrate_security(key):
+    if key not in ('parrotos', 'kali'):
+        raise ValueError('Se requiere un perfil de seguridad.')
+    name = PROFILES[key]['name']
+    start(name)
+    helpers = HOME / '.local/libexec/podman-workbench'
+    execute(name, 'mkdir', '-p', str(helpers), '/tmp/workbench-icons')
+    pipe_tar(name, ['configure_security.py', 'share_documents.py'], helpers, ROOT)
+    source = Path('/usr/share/icons')
+    themes = [theme for theme in ('Bibata-Modern-Classic', 'Oranchelo')
+              if (source / theme).is_dir()]
+    pipe_tar(name, themes, '/tmp/workbench-icons', source, dereference=False)
+    palette = ''
+    if shutil.which('vivid'):
+        result = subprocess.run(['vivid', 'generate', 'tokyonight-night'], capture_output=True, text=True)
+        if result.returncode == 0:
+            palette = result.stdout.strip()
+    shared_repo = Path('/host-home') / REPO.relative_to(HOME)
+    execute(name, 'env', 'WORKBENCH_LS_COLORS=' + palette,
+            'python3', str(helpers / 'configure_security.py'), '--repo', str(shared_repo))
+    execute(name, 'rm', '-rf', '/tmp/workbench-icons')
+
+
 def setup(key, fresh=False):
     profile = PROFILES[key]
     name = profile['name']
@@ -292,6 +315,8 @@ def setup(key, fresh=False):
         execute(name, 'bash', '-s', '--', key, 'copy', data=(ROOT / 'finish.sh').read_text())
     if key == 'dev':
         integrate_dev()
+    else:
+        integrate_security(key)
     verify(key)
     mark(name, 'ready')
     print(f'{name} preparado. Home interno: {HOME}; home compartido: /host-home')
@@ -318,15 +343,33 @@ def verify(key):
     execute(name, 'bash', '-s', '--', key, data=(ROOT / 'verify.sh').read_text())
 
 
+def lifecycle(action, key, options=()):
+    """Operate on exactly one managed container; never expand to all/latest."""
+    name = PROFILES[key]['name']
+    info = managed(name)
+    if action == 'rm':
+        if any(option not in ('--force', '-f', '--volumes', '-v') for option in options):
+            raise RuntimeError('rm admite únicamente --force/-f y --volumes/-v.')
+    elif options:
+        raise RuntimeError(f'{action} no admite argumentos adicionales.')
+    if action == 'start':
+        start(name)
+    elif action == 'ps':
+        pod('ps', '-a', '--filter', 'name=^' + name + '$')
+    else:
+        pod(action, *options, info['Id'])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['setup', 'enter', 'exec', 'verify', 'status', 'integrate'])
+    parser.add_argument('action', choices=['setup', 'enter', 'exec', 'verify', 'status', 'integrate',
+                                         'start', 'stop', 'restart', 'rm', 'ps', 'inspect', 'logs'])
     parser.add_argument('profile', choices=[*PROFILES, 'all'])
     parser.add_argument('--fresh', action='store_true', help='Reconstruir dev desde paquetes e instaladores, sin snapshot.')
     args, command = parser.parse_known_args()
     if command[:1] == ['--']:
         command = command[1:]
-    if command and args.action != 'exec':
+    if command and args.action not in ('exec', 'rm'):
         parser.error('Argumentos no reconocidos: ' + shlex.join(command))
     if args.fresh and args.action != 'setup':
         parser.error('--fresh solo se usa con setup')
@@ -336,8 +379,6 @@ def main():
         parser.error('--fresh requiere una terminal interactiva para revisar las licencias de Android.')
     if args.profile == 'all' and args.action not in ('setup', 'verify', 'status'):
         parser.error('Usa un perfil concreto para enter o exec')
-    if args.action == 'integrate' and args.profile != 'dev':
-        parser.error('integrate solo se aplica a dev')
     # The client may explicitly select Podman's supported remote API.
     # Never fall back to sudo, a different engine, or Distrobox creation.
     pod('info', stdout=subprocess.DEVNULL)
@@ -356,7 +397,13 @@ def main():
             info = inspect(name)
             print(f'{name}: {info["State"]["Status"] if info else "no creado"}')
         elif args.action == 'integrate':
-            integrate_dev()
+            if key == 'dev':
+                integrate_dev()
+            else:
+                integrate_security(key)
+                verify(key)
+        elif args.action in ('start', 'stop', 'restart', 'rm', 'ps', 'inspect', 'logs'):
+            lifecycle(args.action, key, command)
         else:
             start(name)
             refresh_authority(name)

@@ -3,6 +3,7 @@ set -euo pipefail
 profile=$1
 [[ $HOME != /host-home && -d /host-home && -w $HOME ]]
 [[ $XDG_CONFIG_HOME == "$HOME/.config" && $XDG_DATA_HOME == "$HOME/.local/share" ]]
+[[ -L $HOME/Documents && $(readlink -f "$HOME/Documents") == /host-home/Documents ]]
 # Inspect the new home only. Do not write a test file to the real/shared home.
 for path in "$HOME/.zshrc" "$HOME/.zshenv" "$HOME/.config/nvim" "$HOME/.config/nvim/init.lua"; do
     [[ ! -L $path ]]
@@ -12,6 +13,7 @@ for tool in nvim zsh starship fastfetch eza bat fd fzf rg zoxide git lazygit nod
     command -v "$tool"
 done
 DOTFILES_FASTFETCH=0 zsh -lic 'exit'
+fastfetch --logo none --structure title:os:shell
 nvim --headless +qa
 if [[ $profile == dev ]]; then
     zsh -lc 'command -v flutter; command -v adb; command -v dotnet; command -v rider; command -v dbeaver; command -v hermes'

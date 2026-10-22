@@ -82,6 +82,24 @@ El aislamiento de voz con RNNoise es opcional y funciona en el host para OBS y o
 
 Detecta el micrófono de cada equipo y mantiene sus ajustes locales fuera de Git. Consulta [Aislamiento de voz](components/voice-isolation/README.md).
 
+## Contenedores de trabajo
+
+Los comandos de acceso son `dev-podman`, `parrotos-podman` y `kali-podman`. Sin argumentos entran al entorno correspondiente; también aceptan acciones:
+
+```bash
+dev-podman enter
+parrotos-podman enter
+kali-podman enter
+
+# Cambia el nombre para administrar cualquiera de los tres entornos.
+dev-podman start
+dev-podman ps
+dev-podman stop
+dev-podman restart
+```
+
+`rm` elimina el contenedor detenido; admite `--force` y `--volumes`. Los documentos enlazados permanecen en el host. La [guía de Podman](components/workbench/podman/README.md) explica, en orden, cómo crear, configurar, entrar, consultar todos los servicios, detener, borrar y reconstruir los tres perfiles, con sus comandos nativos equivalentes.
+
 ## Módulos
 
 | Módulo | Para qué existe |

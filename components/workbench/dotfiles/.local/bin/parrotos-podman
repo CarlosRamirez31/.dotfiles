@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+action=${1:-enter}
+if (( $# )); then shift; fi
+exec "$HOME/.local/bin/dotfiles-podman" "$action" parrotos "$@"

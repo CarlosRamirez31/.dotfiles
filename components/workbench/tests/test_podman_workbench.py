@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -15,6 +16,77 @@ spec.loader.exec_module(w)
 
 
 class WorkbenchTests(unittest.TestCase):
+    def test_removal_targets_only_verified_container_id_with_explicit_flags(self):
+        for profile in w.PROFILES:
+            name = w.PROFILES[profile]['name']
+            info = {'Id': 'verified-id-' + profile}
+            with patch.object(w, 'managed', return_value=info) as managed, patch.object(w, 'pod') as pod:
+                w.lifecycle('rm', profile)
+                managed.assert_called_once_with(name)
+                pod.assert_called_once_with('rm', info['Id'])
+            with patch.object(w, 'managed', return_value=info), patch.object(w, 'pod') as pod:
+                w.lifecycle('rm', profile, ['--force', '--volumes'])
+                pod.assert_called_once_with('rm', '--force', '--volumes', info['Id'])
+
+    def test_lifecycle_refuses_other_containers_and_unmanaged_targets(self):
+        for options in (['--all'], ['--latest'], ['parrotos-podman'], ['--force', 'dev']):
+            with patch.object(w, 'managed', return_value={'Id': 'verified'}), patch.object(w, 'pod') as pod:
+                with self.assertRaises(RuntimeError):
+                    w.lifecycle('rm', 'dev', options)
+                pod.assert_not_called()
+        with patch.object(w, 'managed', side_effect=RuntimeError('wrong manager')), patch.object(w, 'pod') as pod:
+            with self.assertRaises(RuntimeError):
+                w.lifecycle('rm', 'dev', ['--force'])
+            pod.assert_not_called()
+
+    def security_module(self):
+        name = 'security_preferences'
+        spec = importlib.util.spec_from_file_location(name, MODULE.parent / 'configure_security.py')
+        module = importlib.util.module_from_spec(spec)
+        with patch.object(sys, 'path', [str(MODULE.parent), *sys.path]):
+            spec.loader.exec_module(module)
+        return module
+
+    def test_security_preferences_keep_colors_share_documents_and_preserve_private_data(self):
+        module = self.security_module()
+        with tempfile.TemporaryDirectory() as directory:
+            host = Path(directory) / 'host'
+            (host / 'Documents/Programacion').mkdir(parents=True)
+            (host / 'Pictures/Wallpapers').mkdir(parents=True)
+            for profile in ('parrotos', 'kali'):
+                home = Path(directory) / profile
+                (home / 'Documents').mkdir(parents=True)
+                (home / 'Documents/internal.txt').write_text('private document')
+                (home / '.config/nvim').mkdir(parents=True)
+                (home / '.config/nvim/init.lua').write_text('-- existing editor')
+                (home / '.zshrc').write_text('# my previous shell')
+                module.configure(home, host, w.REPO, profile, 'di=38;2;122;162;247')
+                config = w.json.loads((home / '.config/fastfetch/config.jsonc').read_text())
+                self.assertEqual(config['logo']['color']['1'], '38;2;137;180;250')
+                self.assertNotIn('source', config['logo'])
+                self.assertEqual((home / 'Documents').resolve(), host / 'Documents')
+                private = list((home / '.local/state/podman-workbench').glob('documents-before-share-*/internal.txt'))
+                self.assertEqual(len(private), 1)
+                self.assertEqual(private[0].read_text(), 'private document')
+                (home / 'Documents/shared.txt').write_text(profile)
+                self.assertEqual((host / 'Documents/shared.txt').read_text(), profile)
+                self.assertNotIn('FLUTTER', (home / '.zshenv').read_text())
+                self.assertFalse((home / '.local/share/flutter-dev').exists())
+                self.assertEqual((home / '.config/nvim/init.lua').read_text(), '-- existing editor')
+                self.assertNotIn("alias ld=", (home / '.config/zsh/aliases.zsh').read_text())
+                backup = home / '.local/state/podman-workbench/preferences-before-security'
+                before = sorted(str(p) for p in backup.rglob('*') if p.is_file())
+                module.configure(home, host, w.REPO, profile, 'di=38;2;122;162;247')
+                after = sorted(str(p) for p in backup.rglob('*') if p.is_file())
+                self.assertEqual(before, after)
+                if shutil.which('fastfetch'):
+                    result = subprocess.run(['fastfetch', '--config', str(home / '.config/fastfetch/config.jsonc'),
+                                             '--logo', 'none', '--structure', 'title:os:shell'],
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertNotIn('invalid color', result.stderr)
+                subprocess.run(['zsh', '-n', str(home / '.zshrc')], check=True)
+
     def test_documents_link_preserves_private_files_and_shared_files(self):
         spec = importlib.util.spec_from_file_location('documents', MODULE.parent / 'share_documents.py')
         module = importlib.util.module_from_spec(spec)

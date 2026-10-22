@@ -13,6 +13,7 @@ if [[ $profile == dev ]]; then
     python3 "$source_root/components/workbench/podman/share_documents.py"
     python3 "$source_root/components/workbench/podman/adapt_presentation.py"
 else
+    python3 "$source_root/components/workbench/podman/configure_security.py"
     # Security environments use the editor, not the mobile/.NET development stack.
     python3 - <<'PY'
 import json
@@ -30,10 +31,6 @@ lazy = Path.home() / '.config/nvim/lua/config/lazy.lua'
 if lazy.exists():
     lazy.write_text(''.join(line for line in lazy.read_text().splitlines(keepends=True)
                             if 'lazyvim.plugins.extras.lang.rust' not in line))
-shell = Path.home() / '.zshrc'
-if shell.exists():
-    text = shell.read_text().replace('vivid generate tokyonight-night)', 'vivid generate tokyonight-night 2>/dev/null || vivid generate one-dark 2>/dev/null)')
-    shell.write_text(text)
 PY
 fi
 # Copies are internal; none of these updates can write to shared Neovim data.

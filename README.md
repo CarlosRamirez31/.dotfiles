@@ -11,6 +11,27 @@ La configuración prioriza cuatro ideas:
 - respaldar archivos ajenos antes de enlazar los administrados;
 - mantener identidades, contraseñas y ajustes por máquina fuera de Git.
 
+## Dónde está cada cosa
+
+```text
+config/        Configuración de aplicaciones → ~/.config/
+home/          Archivos como .zshrc y .xprofile → ~/
+bin/           Comandos personales → ~/.local/bin/
+libexec/       Programas auxiliares → ~/.local/libexec/
+share/         Lanzadores y recursos → ~/.local/share/
+system/        Servicios systemd y tema de SDDM
+assets/        Fondos y fuentes
+environments/  Workbench/Podman y Hermes
+setup/         Instaladores, biblioteca y mapa de enlaces
+tests/         Pruebas agrupadas por módulo
+docs/          Guías de uso
+```
+
+`setup/links.tsv` declara el módulo propietario, el archivo fuente y su destino.
+Los destinos instalados se conservan aunque cambie la organización del repositorio.
+Consulta [la migración y sus comprobaciones](docs/restructuracion.md) antes de
+cambiar desde la estructura anterior.
+
 ## Instalación
 
 ```bash
@@ -43,7 +64,7 @@ Hermes y el escritorio virtual se activan únicamente de forma explícita:
 ```
 
 `./install.sh` y `./install.sh all` no instalan ni configuran Hermes. Consulta el
-[componente opcional](components/hermes/README.md) para autenticación y capturas.
+[componente opcional](environments/hermes/README.md) para autenticación y capturas.
 
 Flutter con Android SDK, emulador y dispositivo virtual en `dev` también es opcional:
 
@@ -53,7 +74,7 @@ Flutter con Android SDK, emulador y dispositivo virtual en `dev` también es opc
 ```
 
 Solo se activa al escribir `flutter`; la instalación normal y `all` lo excluyen.
-Consulta el [componente Flutter](components/flutter/README.md).
+Consulta el [componente Flutter](docs/flutter.md).
 
 Rider para C# también es opcional y se instala únicamente dentro de `dev`:
 
@@ -62,7 +83,7 @@ Rider para C# también es opcional y se instala únicamente dentro de `dev`:
 rider .                    # abrir la carpeta actual en Rider dentro de dev
 ```
 
-La instalación normal y `all` lo excluyen. Consulta el [componente Rider](components/rider/README.md).
+La instalación normal y `all` lo excluyen. Consulta el [componente Rider](docs/rider.md).
 
 Docker CLI/Compose y DBeaver también son opcionales dentro de `dev`:
 
@@ -80,7 +101,7 @@ El aislamiento de voz con RNNoise es opcional y funciona en el host para OBS y o
 ./install.sh voice-isolation
 ```
 
-Detecta el micrófono de cada equipo y mantiene sus ajustes locales fuera de Git. Consulta [Aislamiento de voz](components/voice-isolation/README.md).
+Detecta el micrófono de cada equipo y mantiene sus ajustes locales fuera de Git. Consulta [Aislamiento de voz](docs/voice-isolation.md).
 
 ## Contenedores de trabajo
 
@@ -98,41 +119,41 @@ dev-podman stop
 dev-podman restart
 ```
 
-`rm` elimina el contenedor detenido; admite `--force` y `--volumes`. Los documentos enlazados permanecen en el host. La [guía de Podman](components/workbench/podman/README.md) explica, en orden, cómo crear, configurar, entrar, consultar todos los servicios, detener, borrar y reconstruir los tres perfiles, con sus comandos nativos equivalentes.
+`rm` elimina el contenedor detenido; admite `--force` y `--volumes`. Los documentos enlazados permanecen en el host. La [guía de Podman](environments/workbench/podman/README.md) explica, en orden, cómo crear, configurar, entrar, consultar todos los servicios, detener, borrar y reconstruir los tres perfiles, con sus comandos nativos equivalentes.
 
 ## Módulos
 
 | Módulo | Para qué existe |
 | --- | --- |
-| [`system`](components/system/README.md) | red, audio, portal GTK/X11, OpenVPN, SDDM y soporte de VM |
-| [`sddm`](components/sddm/README.md) | tema SilentSDDM con Catppuccin Mocha y teclado virtual en la pantalla de inicio |
-| [`themes`](components/themes/README.md) | cursor Bibata e iconos Oranchelo |
-| [`fonts`](components/fonts/README.md) | JetBrainsMono Nerd Font y Lexend |
-| [`shell`](components/shell/README.md) | Zsh, Starship, historial, navegación y herramientas de red |
-| [`fastfetch`](components/fastfetch/README.md) | resumen visual del sistema al abrir terminal |
-| [`maintenance`](components/maintenance/README.md) | revisión segura, caché de Pacman y TRIM |
-| [`quality`](components/quality/README.md) | validación reproducible de Bash, Zsh, JSON y Lua |
-| [`git-security`](components/git-security/README.md) | Git portable, identidad privada y firma SSH opcional |
-| [`backup`](components/backup/README.md) | copias cifradas y verificables con Restic |
-| [`hermes`](components/hermes/README.md) **opcional** | Hermes en dev, skills académicas y escritorio virtual con capturas del host |
-| [`flutter`](components/flutter/README.md) **opcional** | Flutter estable, Android SDK, emulador sin marco y AVD en dev |
-| [`rider`](components/rider/README.md) **opcional** | JetBrains Rider y SDK .NET en dev; `rider .` abre la carpeta actual |
-| [`docker`](components/docker/README.md) **opcional** | Docker CLI, Compose y Buildx en dev, usando la API compatible de Podman |
-| [`dbeaver`](components/dbeaver/README.md) **opcional** | DBeaver Community en dev, con lanzador gráfico independiente |
-| [`voice-isolation`](components/voice-isolation/README.md) **opcional** | Aislamiento de voz RNNoise con detección del micrófono y arranque automático |
-| [`workbench`](components/workbench/README.md) | entornos rootless de desarrollo y pentesting |
-| [`desktop-extras`](components/desktop-extras/README.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
-| [`session`](components/session/README.md) | bloqueo, inactividad, suspensión y energía |
-| [`desktop-tools`](components/desktop-tools/README.md) | capturas e historial del portapapeles |
-| [`files`](components/files/README.md) | Yazi, selector del sistema, Thunar, visores y asociaciones |
-| [`hardware`](components/hardware/README.md) | Bluetooth y, en equipos físicos, firmware/SMART |
-| [`security`](components/security/README.md) | keyring, agente SSH y firewall nftables |
-| [`alacritty`](components/alacritty/README.md) | terminal gráfica y registro XDG |
-| [`nvim`](components/nvim/README.md) | editor LazyVim para todos los lenguajes usados |
-| [`rofi`](components/rofi/README.md) | lanzador de aplicaciones |
-| [`wallpaper`](components/wallpaper/README.md) | carrusel GTK/X11 y fondo Feh |
-| [`awesome`](components/awesome/README.md) | sesión X11, Wibar, notificaciones y Picom |
-| [`doctor`](components/doctor/README.md) | diagnóstico final de toda la instalación |
+| [`system`](docs/system.md) | red, audio, portal GTK/X11, OpenVPN, SDDM y soporte de VM |
+| [`sddm`](docs/sddm.md) | tema SilentSDDM con Catppuccin Mocha y teclado virtual en la pantalla de inicio |
+| [`themes`](docs/themes.md) | cursor Bibata e iconos Oranchelo |
+| [`fonts`](docs/fonts.md) | JetBrainsMono Nerd Font y Lexend |
+| [`shell`](docs/shell.md) | Zsh, Starship, historial, navegación y herramientas de red |
+| [`fastfetch`](docs/fastfetch.md) | resumen visual del sistema al abrir terminal |
+| [`maintenance`](docs/maintenance.md) | revisión segura, caché de Pacman y TRIM |
+| [`quality`](docs/quality.md) | validación reproducible de Bash, Zsh, JSON y Lua |
+| [`git-security`](docs/git-security.md) | Git portable, identidad privada y firma SSH opcional |
+| [`backup`](docs/backup.md) | copias cifradas y verificables con Restic |
+| [`hermes`](environments/hermes/README.md) **opcional** | Hermes en dev, skills académicas y escritorio virtual con capturas del host |
+| [`flutter`](docs/flutter.md) **opcional** | Flutter estable, Android SDK, emulador sin marco y AVD en dev |
+| [`rider`](docs/rider.md) **opcional** | JetBrains Rider y SDK .NET en dev; `rider .` abre la carpeta actual |
+| [`docker`](docs/docker.md) **opcional** | Docker CLI, Compose y Buildx en dev, usando la API compatible de Podman |
+| [`dbeaver`](docs/dbeaver.md) **opcional** | DBeaver Community en dev, con lanzador gráfico independiente |
+| [`voice-isolation`](docs/voice-isolation.md) **opcional** | Aislamiento de voz RNNoise con detección del micrófono y arranque automático |
+| [`workbench`](environments/workbench/README.md) | entornos rootless de desarrollo y pentesting |
+| [`desktop-extras`](docs/desktop-extras.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
+| [`session`](docs/session.md) | bloqueo, inactividad, suspensión y energía |
+| [`desktop-tools`](docs/desktop-tools.md) | capturas e historial del portapapeles |
+| [`files`](docs/files.md) | Yazi, selector del sistema, Thunar, visores y asociaciones |
+| [`hardware`](docs/hardware.md) | Bluetooth y, en equipos físicos, firmware/SMART |
+| [`security`](docs/security.md) | keyring, agente SSH y firewall nftables |
+| [`alacritty`](docs/alacritty.md) | terminal gráfica y registro XDG |
+| [`nvim`](docs/nvim.md) | editor LazyVim para todos los lenguajes usados |
+| [`rofi`](docs/rofi.md) | lanzador de aplicaciones |
+| [`wallpaper`](docs/wallpaper.md) | carrusel GTK/X11 y fondo Feh |
+| [`awesome`](docs/awesome.md) | sesión X11, Wibar, notificaciones y Picom |
+| [`doctor`](docs/doctor.md) | diagnóstico final de toda la instalación |
 
 Cada README enlazado explica sus archivos, decisiones y los pocos comandos que
 realmente forman parte de su uso.
@@ -280,7 +301,7 @@ a un equipo con salidas distintas.
 El módulo Neovim conserva instalación independiente para Windows:
 
 ```powershell
-.\components\nvim\install.ps1
+.\setup\modules\nvim\install.ps1
 ```
 
 La configuración de Flutter detecta Android SDK y emuladores mediante variables
@@ -289,8 +310,8 @@ y rutas estándar en Windows, Linux y macOS; no depende de un nombre de usuario.
 ## Mantenimiento del repositorio
 
 Los paquetes existentes se omiten mediante `pacman -Q` y `pacman --needed`.
-GNU Stow crea enlaces hacia el repositorio; si encuentra un archivo ajeno, lo
-renombra con `.backup.FECHA-HORA`. Las configuraciones locales y secretos nunca
+El instalador crea enlaces por archivo según `setup/links.tsv`; si encuentra
+un archivo ajeno, lo respalda con un sufijo `.backup.FECHA-HORA.PID`. Las configuraciones locales y secretos nunca
 se reemplazan deliberadamente.
 
 Después de cualquier cambio importante:

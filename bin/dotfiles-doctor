@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+errors=0
+warnings=0
+
+if [[ -t 1 ]]; then
+    green=$'\e[32m'
+    yellow=$'\e[33m'
+    red=$'\e[31m'
+    bold=$'\e[1m'
+    reset=$'\e[0m'
+else
+    green='' yellow='' red='' bold='' reset=''
+fi
+
+ok() { printf '%s✓%s %s\n' "$green" "$reset" "$*"; }
+warn() {
+    printf '%s!%s %s\n' "$yellow" "$reset" "$*"
+    warnings=$((warnings + 1))
+}
+fail() {
+    printf '%s✗%s %s\n' "$red" "$reset" "$*"
+    errors=$((errors + 1))
+}
+
+printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
+
+essential_commands=(awesome picom Xorg xrandr xrdb xset glxinfo zsh alacritty nvim yazi rofi)
+essential_commands+=(xsecurelock xss-lock feh maim slop flameshot clipmenu xclip)
+essential_commands+=(ffmpeg gpick firefox thunar)
+optional_commands=(fastfetch blueman-manager nft openvpn restic podman labbox keepassxc btop trash-put)
+essential_user_commands=(
+    dotfiles-terminal
+    dotfiles-app-launcher
+    dotfiles-wallpaper
+    dotfiles-wallpaper-picker
+    dotfiles-screenshot
+    dotfiles-clipboard
+    dotfiles-record
+    dotfiles-lock
+    dotfiles-display
+    dotfiles-htb-vpn-status
+    dotfiles-htb-target
+)
+
+for command_name in "${essential_commands[@]}"; do
+    if command -v "$command_name" >/dev/null 2>&1; then
+        ok "$command_name available"
+    else
+        fail "$command_name is missing"
+    fi
+done
+
+for command_name in "${essential_user_commands[@]}"; do
+    command_path="$HOME/.local/bin/$command_name"
+    if [[ -x $command_path ]]; then
+        ok "$command_name executable"
+    else
+        fail "$command_path is missing or not executable"
+    fi
+done
+
+for command_name in "${optional_commands[@]}"; do
+    if command -v "$command_name" >/dev/null 2>&1; then
+        ok "$command_name available"
+    else
+        warn "$command_name is not installed"
+    fi
+done
+
+if command -v fc-match >/dev/null 2>&1; then
+    jetbrains_family=$(fc-match -f '%{family[0]}' 'JetBrainsMono Nerd Font' 2>/dev/null)
+    if [[ $jetbrains_family == 'JetBrainsMono Nerd Font' ]]; then
+        ok 'JetBrainsMono Nerd Font available for terminal icons'
+    else
+        fail "JetBrainsMono Nerd Font resolves to ${jetbrains_family:-nothing}"
+    fi
+
+    emoji_family=$(fc-match -f '%{family[0]}' 'Noto Color Emoji' 2>/dev/null)
+    if [[ $emoji_family == 'Noto Color Emoji' ]]; then
+        ok 'Noto Color Emoji available for Starship symbols'
+    else
+        fail "Noto Color Emoji resolves to ${emoji_family:-nothing}"
+    fi
+
+    lexend_family=$(fc-match -f '%{family[0]}' Lexend 2>/dev/null)
+    if [[ $lexend_family == Lexend ]]; then
+        ok 'Lexend available for Awesome Wibar'
+    else
+        fail "Lexend resolves to ${lexend_family:-nothing}"
+    fi
+else
+    fail 'fontconfig is missing; cannot validate desktop fonts'
+fi
+
+current_shell=$(getent passwd "$(id -un)" | cut -d: -f7)
+if [[ ${current_shell##*/} == zsh ]]; then
+    ok "Zsh is the login shell"
+else
+    fail "Login shell is $current_shell (expected Zsh)"
+fi
+
+managed_paths=(
+    "$HOME/.zshrc"
+    "$HOME/.config/awesome/rc.lua"
+    "$HOME/.config/picom/picom.conf"
+    "$HOME/.Xresources"
+    "$HOME/.xprofile"
+    "$HOME/.config/gtk-3.0/settings.ini"
+    "$HOME/.config/alacritty/alacritty.toml"
+    "$HOME/.config/nvim/init.lua"
+    "$HOME/.config/yazi/yazi.toml"
+    "$HOME/.config/xdg-desktop-portal/portals.conf"
+    "$HOME/.config/fastfetch/config.jsonc"
+)
+for managed_path in "${managed_paths[@]}"; do
+    if [[ -L $managed_path && -e $managed_path ]]; then
+        ok "Managed link: ${managed_path#"$HOME"/}"
+    elif [[ -e $managed_path ]]; then
+        warn "Not a managed link: ${managed_path#"$HOME"/}"
+    else
+        fail "Missing config: ${managed_path#"$HOME"/}"
+    fi
+done
+
+for service in NetworkManager.service nftables.service; do
+    if systemctl is-enabled --quiet "$service" 2>/dev/null; then
+        ok "$service enabled"
+    else
+        warn "$service is not enabled"
+    fi
+done
+
+for timer in paccache.timer fstrim.timer; do
+    if systemctl is-enabled --quiet "$timer" 2>/dev/null; then
+        ok "$timer enabled"
+    else
+        warn "$timer is not enabled"
+    fi
+done
+
+virtualization=$(systemd-detect-virt --vm 2>/dev/null || true)
+if [[ $virtualization == none ]]; then
+    if systemctl is-enabled --quiet bluetooth.service 2>/dev/null; then
+        ok 'bluetooth.service enabled'
+    else
+        warn 'bluetooth.service is not enabled'
+    fi
+else
+    ok "Bluetooth service optional in VM ($virtualization)"
+fi
+
+for socket in gnome-keyring-daemon.socket gcr-ssh-agent.socket; do
+    if systemctl --user is-enabled --quiet "$socket" 2>/dev/null; then
+        ok "$socket enabled"
+    else
+        warn "$socket is not enabled"
+    fi
+done
+
+if [[ -s $HOME/.config/dotfiles/backup.conf ]]; then
+    ok 'Restic backup destination configured'
+else
+    printf '· Restic awaits a destination: dotfiles-backup setup REPOSITORY\n'
+fi
+
+if git config --global --get user.email >/dev/null 2>&1; then
+    ok 'Private Git identity configured'
+else
+    printf '· Git identity remains private and awaits setup.\n'
+fi
+
+if [[ ${XDG_SESSION_TYPE:-} == x11 && ${XDG_CURRENT_DESKTOP:-} == awesome ]]; then
+    ok 'Awesome X11 session is active'
+    if pgrep -x awesome >/dev/null; then ok 'Awesome process is active'; else fail 'Awesome process is missing'; fi
+    if pgrep -x picom >/dev/null; then ok 'Picom is active'; else warn 'Picom is not active'; fi
+    if pgrep -x xss-lock >/dev/null; then ok 'Xss-lock is active'; else warn 'Xss-lock is not active'; fi
+    clipmenud_count=$(pgrep -u "$(id -u)" -fc '[c]lipmenud' || true)
+    if [[ $clipmenud_count == 1 ]]; then
+        ok 'One Clipmenu daemon is active'
+    elif [[ $clipmenud_count == 0 ]]; then
+        warn 'Clipmenu daemon is not active'
+    else
+        fail "Found $clipmenud_count Clipmenu daemons; expected one"
+    fi
+    if command -v awesome >/dev/null 2>&1 && awesome -k -c "$HOME/.config/awesome/rc.lua"; then
+        ok 'Awesome configuration syntax is valid'
+    else
+        fail 'Awesome configuration syntax is invalid'
+    fi
+    renderer=''
+    if command -v glxinfo >/dev/null 2>&1; then
+        renderer=$(glxinfo -B 2>/dev/null | awk -F: '/OpenGL renderer string/ { sub(/^[[:space:]]+/, "", $2); print $2; exit }')
+    fi
+    if [[ -z $renderer ]]; then
+        warn 'OpenGL renderer could not be read; check DISPLAY and Mesa'
+    elif [[ $virtualization == vmware && $renderer == *llvmpipe* ]]; then
+        fail "VMware is using software rendering: $renderer"
+    else
+        ok "OpenGL renderer: $renderer"
+    fi
+    if [[ -r /usr/share/xsessions/awesome.desktop ]]; then
+        ok 'Awesome X11 session is installed for SDDM'
+    else
+        fail 'Awesome session entry is missing from /usr/share/xsessions'
+    fi
+    if systemctl is-enabled --quiet sddm.service 2>/dev/null; then
+        ok 'SDDM is enabled for the next boot'
+    else
+        fail 'SDDM is not enabled for the next boot'
+    fi
+    if xrandr --query 2>/dev/null | rg -q ' connected '; then
+        ok 'XRandR reports a connected display'
+    else
+        fail 'XRandR reports no connected display'
+    fi
+else
+    warn 'Awesome X11 is not active; live checks were skipped'
+fi
+
+printf '\n%sResult:%s %d error(s), %d warning(s).\n' "$bold" "$reset" "$errors" "$warnings"
+if ((errors > 0)); then
+    printf 'Fix the errors above, then run dotfiles-doctor again.\n'
+    exit 1
+fi
+printf 'The essential desktop configuration is ready.\n'

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+component_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+exec "$component_root/../../setup/modules/sddm.sh"

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-source "$repo_root/scripts/lib.sh"
+source "$repo_root/setup/lib.sh"
 
 # This order is intentional: system services first, visual assets second,
 # applications third, and Awesome last so every referenced command is ready
@@ -118,7 +118,8 @@ for component in "${selected_components[@]}"; do
         exit 2
     fi
 
-    installer="$repo_root/components/$component/install.sh"
+    installer="$repo_root/setup/modules/$component.sh"
+    [[ -f $installer ]] || installer="$repo_root/setup/modules/$component/install.sh"
     if [[ ! -x $installer ]]; then
         printf 'Component installer is missing or not executable: %s\n' "$installer" >&2
         exit 1

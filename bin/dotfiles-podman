@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# This launcher is independent of Distrobox and does not replace its commands.
+self=$(readlink -f -- "${BASH_SOURCE[0]}")
+repo_root=$(cd -- "$(dirname -- "$self")/.." && pwd -P)
+exec python3 "$repo_root/environments/workbench/podman/workbench.py" "$@"

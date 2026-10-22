@@ -13,6 +13,7 @@
     ]
   },
   "parrotos": {
+    "network": "host",
     "name": "parrotos-podman",
     "image": "docker.io/parrotsec/security:latest",
     "apt_packages": [
@@ -57,6 +58,7 @@
     ]
   },
   "kali": {
+    "network": "host",
     "name": "kali-podman",
     "image": "docker.io/kalilinux/kali-rolling:latest",
     "apt_packages": [

@@ -45,9 +45,20 @@ vpn-on() {
         return 1
     fi
 
+    # The PID file can be overwritten or missing. Inspect the managed daemon
+    # independently before launching another session with the same VPN identity.
+    local managed_processes
+    managed_processes=$(pgrep -a -x openvpn 2>/dev/null | command grep -F -- '--daemon dotfiles-vpn ')
+    if [[ -n $managed_processes ]]; then
+        print -u2 'vpn-on: ya existe una VPN administrada; usa vpn-off antes de iniciar otra.'
+        return 1
+    fi
+    # Authentication failure must never be interpreted as a stale daemon PID.
+    sudo -v || return
+
     if [[ -r $pidfile ]]; then
         local current_pid=$(<$pidfile)
-        if [[ $current_pid == <-> ]] && sudo kill -0 "$current_pid" 2>/dev/null; then
+        if [[ $current_pid == <-> ]] && [[ $(ps -p "$current_pid" -o comm=) == openvpn ]]; then
             print -u2 "vpn-on: la VPN ya esta activa (PID $current_pid)"
             return 1
         fi

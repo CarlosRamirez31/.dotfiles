@@ -16,6 +16,40 @@ spec.loader.exec_module(w)
 
 
 class WorkbenchTests(unittest.TestCase):
+    def test_lab_network_failure_restores_original(self):
+        info = self.info('parrotos-podman')
+        info['HostConfig'] = {'NetworkMode': 'pasta'}
+        candidate = self.info('candidate')
+        candidate['HostConfig'] = {'NetworkMode': 'host'}
+        calls = []
+
+        def pod(*args, **kwargs):
+            calls.append(args)
+            if args[0] == 'rename' and args[1].startswith('parrotos-podman-network-') and args[-1] == 'parrotos-podman':
+                raise RuntimeError('rename failed')
+
+        with patch.object(w, 'managed', side_effect=[info, candidate]), \
+             patch.object(w, 'execute'), patch.object(w, 'pod', side_effect=pod):
+            with self.assertRaisesRegex(RuntimeError, 'rename failed'):
+                w.lab_network('parrotos')
+        self.assertEqual(calls[0], ('stop', 'parrotos-podman'))
+        self.assertEqual(calls[-2][0], 'rename')
+        self.assertIn('-before-network-', calls[-2][1])
+        self.assertEqual(calls[-2][-1], 'parrotos-podman')
+        self.assertEqual(calls[-1], ('start', 'parrotos-podman'))
+        self.assertFalse(any(call[0] == 'rm' for call in calls))
+
+    def test_lab_network_is_idempotent_and_dev_keeps_default_network(self):
+        info = self.info('parrotos-podman')
+        info['HostConfig'] = {'NetworkMode': 'host'}
+        with patch.object(w, 'managed', return_value=info), patch.object(w, 'pod') as pod:
+            w.lab_network('parrotos')
+            pod.assert_not_called()
+        self.assertNotIn('--network', w.create_args(w.PROFILES['dev'], 'image'))
+        for key in ('parrotos', 'kali'):
+            args = w.create_args(w.PROFILES[key], 'image')
+            self.assertEqual(args[args.index('--network') + 1], 'host')
+
     def test_removal_targets_only_verified_container_id_with_explicit_flags(self):
         for profile in w.PROFILES:
             name = w.PROFILES[profile]['name']

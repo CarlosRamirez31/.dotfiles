@@ -13,6 +13,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import uuid
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[2]
@@ -168,6 +169,8 @@ def create_args(profile, image):
             '--image-volume=ignore', '--workdir', '/',
             '--mount', f'type=bind,source={HOME},destination=/host-home,rw',
             '--security-opt', 'label=disable', '--entrypoint', '/usr/bin/sleep']
+    if profile.get('network'):
+        args += ['--network', profile['network']]
     env = {'HOME': str(HOME), 'USER': USER, 'LOGNAME': USER,
            'SHELL': '/bin/zsh', 'XDG_CONFIG_HOME': str(HOME / '.config'),
            'XDG_DATA_HOME': str(HOME / '.local/share'),
@@ -368,6 +371,55 @@ def verify(key):
     execute(name, 'bash', '-s', '--', key, data=(ROOT / 'verify.sh').read_text())
 
 
+def lab_network(key):
+    """Migrate lab rootfs through a stopped snapshot; retain the original."""
+    profile = PROFILES[key]
+    if profile.get('network') != 'host':
+        raise RuntimeError('lab-network solo se aplica a los perfiles de laboratorio.')
+    name = profile['name']
+    info = managed(name)
+    if info['HostConfig']['NetworkMode'] == 'host':
+        print(f'{name} ya comparte la red del host.')
+        return
+    # External volumes and a mounted home require a separate migration strategy.
+    mounts = info.get('Mounts', [])
+    if any(m['Type'] == 'volume' or m['Destination'] == str(HOME)
+           or m['Destination'].startswith(str(HOME) + '/') for m in mounts):
+        raise RuntimeError('La migración requiere un home interno sin volúmenes externos.')
+    token = uuid.uuid4().hex[:12]
+    candidate = name + '-network-' + token
+    backup = name + '-before-network-' + token
+    image = 'localhost/workbench-network-backup:' + token
+    running = info['State']['Running']
+    if running:
+        pod('stop', name)
+    renamed = False
+    try:
+        pod('commit', '--include-volumes=false', name, image)
+        args = create_args({**profile, 'name': candidate}, image)
+        args[args.index('--hostname') + 1] = name
+        for label, value in info['Config'].get('Labels', {}).items():
+            if label != 'manager':
+                args[1:1] = ['--label', f'{label}={value}']
+        pod(*args)
+        pod('start', candidate)
+        execute(candidate, 'test', '-d', str(HOME))
+        if managed(candidate)['HostConfig']['NetworkMode'] != 'host':
+            raise RuntimeError('El candidato no comparte la red del host.')
+        pod('rename', name, backup)
+        renamed = True
+        pod('rename', candidate, name)
+    except Exception:
+        if renamed:
+            pod('rename', backup, name)
+        if running:
+            pod('start', name)
+        print(f'Migración incompleta; se conserva el original y cualquier snapshot {image}.', file=sys.stderr)
+        raise
+    print(f'{name} comparte ahora la red del host. Respaldo detenido: {backup}; imagen: {image}')
+    execute(name, 'ip', '-brief', 'addr')
+
+
 def lifecycle(action, key, options=()):
     """Operate on exactly one managed container; never expand to all/latest."""
     name = PROFILES[key]['name']
@@ -388,7 +440,7 @@ def lifecycle(action, key, options=()):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['setup', 'enter', 'exec', 'verify', 'status', 'integrate',
-                                         'start', 'stop', 'restart', 'rm', 'ps', 'inspect', 'logs'])
+                                         'start', 'stop', 'restart', 'rm', 'ps', 'inspect', 'logs', 'lab-network'])
     parser.add_argument('profile', choices=[*PROFILES, 'all'])
     parser.add_argument('--fresh', action='store_true', help='Reconstruir dev desde paquetes e instaladores, sin snapshot.')
     args, command = parser.parse_known_args()
@@ -418,6 +470,10 @@ def main():
                 setup(key, args.fresh)
         elif args.action == 'verify':
             verify(key)
+        elif args.action == 'lab-network':
+            with open(f'/tmp/podman-workbench-{UID}-{key}.lock', 'a') as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                lab_network(key)
         elif args.action == 'status':
             info = inspect(name)
             print(f'{name}: {info["State"]["Status"] if info else "no creado"}')

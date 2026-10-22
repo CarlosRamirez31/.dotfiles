@@ -22,6 +22,10 @@ También puedes indicar la acción después del nombre:
 
 `rm --force` permite borrarlo estando activo y `rm --volumes` retira sus volúmenes anónimos. Cada comando actúa únicamente sobre su propio contenedor. Las acciones `inspect`, `logs`, `exec`, `setup`, `integrate` y `verify` se detallan en la guía de Podman.
 
+Parrot y Kali nuevos usan `--network host`: comparten interfaces, rutas VPN y puertos del host. Para migrar los existentes, termina los trabajos activos y ejecuta desde Arch `parrotos-podman lab-network` y `kali-podman lab-network`. Cada migración detiene el original, guarda una imagen con su sistema y home interno y crea el reemplazo. Conserva el original detenido con sufijo `-before-network-…`; no borra los respaldos. Dev conserva su red actual.
+
+Con la VPN activa, `parrotos-podman exec ip addr show tun0` debe mostrar la dirección actual del host. Un listener puede enlazarse a esa dirección y recibir tráfico sujeto al firewall del host y las rutas del laboratorio. Compartir la red no concede capacidades privilegiadas: capturas y herramientas que necesitan sockets raw pueden requerir otro entorno. Referencia: [red de Podman](https://docs.podman.io/en/v5.6.1/markdown/podman-run.1.html).
+
 El antiguo Distrobox `dev` se retiró tras verificar la migración. Los lanzadores del host `rider`, `dbeaver`, `docker`, `flutter-emulator`, `lazydocker`, `hermes` y `presentacion` utilizan el nuevo contenedor. Conservan el directorio del proyecto mediante `/host-home`. Rider también traduce rutas absolutas del home; los argumentos de volúmenes de Docker se conservan como rutas del host.
 
 Los componentes opcionales `./install.sh rider dbeaver docker flutter hermes` instalan sus programas dentro del `dev-podman` existente. No crean un Distrobox ni instalan paquetes en el host. Para reconstruir un dev eliminado se utiliza `dev-podman setup --fresh`.

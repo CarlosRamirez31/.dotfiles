@@ -61,6 +61,8 @@ vpn-on() {
         --writepid "$pidfile" \
         --log "$logfile" || return
 
+    mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
+    touch "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/openvpn-managed"
     print "VPN iniciada en segundo plano. Desconecta con: vpn-off"
     print "Registro: $logfile"
 }
@@ -80,7 +82,19 @@ vpn-off() {
         return 1
     fi
 
+    mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
+    touch "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/openvpn-managed"
     if sudo kill "$vpn_pid" 2>/dev/null; then
+        # SIGTERM is asynchronous; do not announce disconnection until exit.
+        local attempt
+        for attempt in {1..25}; do
+            sudo kill -0 "$vpn_pid" 2>/dev/null || break
+            sleep 0.2
+        done
+        if sudo kill -0 "$vpn_pid" 2>/dev/null; then
+            print -u2 'vpn-off: la VPN sigue cerrándose; revisa el registro y vuelve a intentarlo'
+            return 1
+        fi
         sudo rm -f -- "$pidfile"
         print 'VPN desconectada'
     else

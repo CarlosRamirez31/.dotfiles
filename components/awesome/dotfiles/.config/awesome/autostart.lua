@@ -9,8 +9,9 @@ end
 
 once("picom", "picom --config $HOME/.config/picom/picom.conf")
 once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
--- Clipboard history capture is opt-in: clipmenud caused sustained CPU usage
--- and increased battery drain on this laptop. Start it manually when needed.
+-- Record explicit copies only; tracking PRIMARY also records mouse selections.
+-- Clipmenu batches pruning after ten extra entries: 90 + 10 = 100 maximum.
+once("clipmenud", "env CM_SELECTIONS=clipboard CM_MAX_CLIPS=90 clipmenud")
 
 -- XSecureLock owns its display state.  A second DPMS timeout could keep the
 -- monitor off after a successful unlock on some X11/VM graphics drivers.

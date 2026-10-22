@@ -3,5 +3,5 @@ set -euo pipefail
 
 answer=$(printf 'No\nSí\n' | rofi -dmenu -p '¿Limpiar historial?') || exit 0
 [[ $answer == Sí ]] || exit 0
-clipdel -d '.*'
-notify-send -a Clipboard 'Historial del portapapeles eliminado'
+"$(dirname -- "$(readlink -f -- "$0")")/dotfiles-clipboard-menu" --clear
+notify-send -a Clipboard 'Historial eliminado; entradas fijadas conservadas'

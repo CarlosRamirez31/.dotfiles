@@ -4,6 +4,7 @@ import argparse
 import base64
 import fcntl
 import getpass
+import ipaddress
 import json
 import os
 import re
@@ -90,6 +91,30 @@ def refresh_authority(name):
                 'import base64,os,pathlib,sys; p=pathlib.Path.home()/".Xauthority"; '
                 'p.write_bytes(base64.b64decode(sys.stdin.read())); p.chmod(0o600)',
                 data=encoded)
+
+
+def refresh_dns(name):
+    """Refresh Parrot's resolver once when opening a container session."""
+    lines = []
+    servers = 0
+    for line in Path('/etc/resolv.conf').read_text().splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        if fields[0] == 'nameserver' and len(fields) > 1:
+            address = ipaddress.ip_address(fields[1].split('%')[0])
+            if address.is_loopback or address.is_link_local:
+                continue
+            servers += 1
+        elif fields[0] not in ('search', 'domain', 'options'):
+            continue
+        lines.append(line)
+    if not servers:
+        print('Aviso: no hay DNS del host accesible; se conserva el DNS de Parrot.', file=sys.stderr)
+        return
+    execute(name, 'python3', '-c',
+            'import pathlib,sys; pathlib.Path("/etc/resolv.conf").write_text(sys.stdin.read())',
+            root=True, data='# DNS actualizado al entrar desde el host\n' + '\n'.join(lines) + '\n')
 
 
 def pipe_tar(name, files, destination, source=HOME, dereference=True):
@@ -406,6 +431,8 @@ def main():
             lifecycle(args.action, key, command)
         else:
             start(name)
+            if key == 'parrotos':
+                refresh_dns(name)
             refresh_authority(name)
             invocation = [*PODMAN, 'exec', '--user', f'{UID}:{GID}', '--workdir', str(HOME)]
             if key == 'dev':

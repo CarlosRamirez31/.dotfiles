@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Bounded Clipmenu history with persistent pinned entries."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+LIMIT = 100
+PIN_LIMIT = 20
+
+
+def checksum(label):
+    return subprocess.check_output(['cksum'], input=(label + '\n').encode()).decode().strip()
+
+
+def history(cache, clear=False):
+    cache.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (cache / 'lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        index = cache / 'line_cache'
+        lines = index.read_text().splitlines() if index.exists() else []
+        entries, kept, files, seen = [], [], set(), set()
+        for line in sorted(lines, key=lambda s: int(s.split(' ', 1)[0]), reverse=True):
+            if clear or len(entries) >= LIMIT:
+                break
+            _, label = line.split(' ', 1)
+            if label in seen:
+                continue
+            seen.add(label)
+            name = checksum(label)
+            file = cache / name
+            if file.is_file():
+                entries.append(file.read_text(errors='surrogateescape'))
+                kept.append(line)
+                files.add(name)
+        # Keep the daemon's lock files and log; never remove its lock inode.
+        index.write_text(''.join(line + '\n' for line in reversed(kept)))
+        for file in cache.iterdir():
+            if file.name.replace(' ', '').isdigit() and file.name not in files:
+                file.unlink(missing_ok=True)
+        return entries
+
+
+def menu():
+    os.umask(0o077)
+    cache = Path(os.environ.get('CM_DIR', os.environ.get('XDG_RUNTIME_DIR', os.environ.get('TMPDIR', '/tmp'))))
+    cache /= 'clipmenu.6.' + os.environ['USER']
+    recent = history(cache, '--clear' in sys.argv)
+    if '--clear' in sys.argv:
+        return 0
+    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'dotfiles/clipboard'
+    state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Serialize pin updates across menus without locking clipboard capture.
+    with (state / 'lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        pinfile = state / 'pins.json'
+        pins = json.loads(pinfile.read_text()) if pinfile.exists() else []
+        while True:
+            entries = pins + [text for text in recent if text not in pins]
+            labels = []
+            for i, text in enumerate(entries):
+                preview = ' '.join(text.split())[:300]
+                labels.append(('★ ' if i < len(pins) else '  ') + preview)
+            result = subprocess.run(
+                ['rofi', '-dmenu', '-i', '-format', 'i', '-p', 'Portapapeles',
+                 '-mesg', 'Enter: pegar · Ctrl+P: fijar/desfijar · 100 recientes + 20 fijadas',
+                 '-kb-custom-1', 'Control+p', '-no-custom'],
+                input='\n'.join(labels), text=True, capture_output=True)
+            if result.returncode not in (0, 10) or not result.stdout.strip().isdigit():
+                return 1
+            selected = int(result.stdout.strip())
+            if selected >= len(entries):
+                return 1
+            text = entries[selected]
+            if result.returncode == 10:
+                if text in pins:
+                    pins.remove(text)
+                elif len(pins) < PIN_LIMIT:
+                    pins.append(text)
+                else:
+                    subprocess.run(['notify-send', '-a', 'Clipboard', 'Límite de 20 entradas fijadas'])
+                    continue
+                temporary = state / 'pins.tmp'
+                temporary.write_text(json.dumps(pins, ensure_ascii=True))
+                temporary.replace(pinfile)
+                continue
+            for selection in ('clipboard', 'primary'):
+                subprocess.run(['xsel', '--logfile', '/dev/null', '-i', '--' + selection],
+                               input=text.encode(errors='surrogateescape'), check=True)
+            return 0
+
+
+if __name__ == '__main__':
+    sys.exit(menu())

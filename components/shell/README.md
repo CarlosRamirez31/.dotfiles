@@ -85,7 +85,7 @@ vpn-off
 tail -f "$XDG_RUNTIME_DIR/dotfiles-openvpn.log"
 ```
 
-`vpn-on` exige exactamente un archivo legible, convierte la ruta a absoluta, cambia el directorio de OpenVPN al del perfil para resolver certificados relativos, daemoniza y guarda PID/log en el runtime. Rechaza iniciar otra sesión administrada. `vpn-off` valida el PID, termina esa sesión y limpia el archivo; no ejecuta un `pkill` global.
+`vpn-on` exige exactamente un archivo legible, convierte la ruta a absoluta, cambia el directorio de OpenVPN al del perfil para resolver certificados relativos, daemoniza y guarda PID/log en el runtime. Rechaza iniciar otra sesión administrada. `vpn-off` valida el PID, termina esa sesión y espera hasta cinco segundos a que salga antes de anunciar la desconexión y limpiar el archivo; no ejecuta un `pkill` global. Si sigue cerrándose, conserva el PID para poder volver a intentarlo.
 
 ## Historial y privacidad
 

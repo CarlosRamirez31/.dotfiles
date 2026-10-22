@@ -1,11 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Recover history capture in sessions started before autostart was enabled.
+# clipmenud also holds its own lock to prevent duplicate daemons.
+cache_dir="${CM_DIR:-${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}}/clipmenu.6.$USER"
+mkdir -p -m 700 "$cache_dir"
+touch "$cache_dir/line_cache"
+# Apply the bounded configuration to daemons left from an older session.
+while read -r pid; do
+    if ! tr '\0' '\n' <"/proc/$pid/environ" | grep -qx 'CM_MAX_CLIPS=90'; then
+        kill "$pid" 2>/dev/null || true
+        for ((attempt = 0; attempt < 20; attempt++)); do
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 0.1
+        done
+    fi
+done < <(pgrep -u "$(id -u)" -x clipmenud || true)
+if ! pgrep -u "$(id -u)" -x clipmenud >/dev/null; then
+    CM_SELECTIONS=clipboard CM_MAX_CLIPS=90 nohup clipmenud >"$cache_dir/daemon.log" 2>&1 </dev/null &
+fi
+
 target=$(xdotool getactivewindow)
 window_class=$(xprop -id "$target" WM_CLASS 2>/dev/null || true)
 
-# clipmenu restores the full entry itself, including multiline text.
-CM_LAUNCHER=rofi clipmenu -p '󰅇 Portapapeles' || exit 0
+# The menu keeps pinned entries separately from the temporary history.
+"$(dirname -- "$(readlink -f -- "$0")")/dotfiles-clipboard-menu" || exit 0
 
 xdotool windowactivate --sync "$target"
 # Allow the Return release and Rofi's keyboard grab to finish before pasting.

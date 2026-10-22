@@ -12,6 +12,7 @@ Clipmenu guarda el historial que Rofi presenta bajo demanda.
 | `slop` | Selecciona la región para captura y grabación. |
 | `xclip` | Copia imágenes y texto al portapapeles X11. |
 | `clipmenu` | Historial del portapapeles con `clipmenud` y Rofi. |
+| `python` | Menú con límite de historial y entradas fijadas. |
 | `flameshot` | Captura interactiva y anotación. |
 
 ## Capturas
@@ -42,14 +43,16 @@ dotfiles-clipboard-clear
 `Alt+C` abre el historial en Rofi. Elegir una entrada con Enter la copia al
 portapapeles y la pega en la ventana original, usando `Ctrl+Shift+V` en
 Alacritty y otras terminales, o `Ctrl+V` en aplicaciones gráficas. Requiere
-`xdotool` y `xorg-xprop`. La captura de historial está desactivada al iniciar
-Awesome: durante el diagnóstico, pausar `clipmenud` coincidió con una bajada
-de consumo de aproximadamente 44 W a 33 W. Copiar y pegar normalmente sigue
-funcionando, pero las nuevas copias no se guardan en el historial.
-
-Para activar la captura manualmente durante la sesión, ejecuta `clipmenud`
-en una terminal; detenlo con `Ctrl+C` cuando termines. `Alt+C` permite elegir
-las entradas ya disponibles. La limpieza exige confirmar en Rofi.
+`xdotool` y `xorg-xprop`. Awesome inicia `clipmenud` automáticamente para
+guardar las copias explícitas del portapapeles. No registra la selección
+del ratón (PRIMARY), para evitar capturas continuas al seleccionar texto.
+`Alt+C` también inicia el capturador si no está funcionando, sin necesidad
+de reiniciar el escritorio. Las nuevas copias se guardan desde ese momento.
+Se conservan hasta 100 entradas recientes (se recortan por lotes a 90) y
+20 fijadas. `Ctrl+P` fija o desfija la entrada seleccionada; las fijadas
+aparecen primero con ★ y se guardan en `~/.local/state/dotfiles/clipboard`
+(o `$XDG_STATE_HOME/dotfiles/clipboard`). Sobreviven a reinicios y a la
+limpieza del historial. La limpieza exige confirmar en Rofi.
 
 ## Diagnóstico
 

@@ -1,14 +1,36 @@
 #!/usr/bin/env bash
 
 # Only show tunnels used by Hack The Box, not unrelated work or personal VPNs.
-command -v ip >/dev/null 2>&1 || exit 0
+command -v ip >/dev/null 2>&1 || { printf '\n'; exit 0; }
 
+# Once vpn-on/vpn-off manages this session, its PID is authoritative. Some
+# tunnels retain carrier, addresses and routes even after disconnection.
+runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$UID}
 state_root=${XDG_STATE_HOME:-"$HOME/.local/state"}
+if [[ -e $state_root/dotfiles/openvpn-managed ]]; then
+    vpn_pid=$(cat "$runtime_dir/dotfiles-openvpn.pid" 2>/dev/null) || vpn_pid=
+    if [[ ! $vpn_pid =~ ^[0-9]+$ ]] || [[ ! -d /proc/$vpn_pid ]]; then
+        printf '\n'
+        exit 0
+    fi
+    vpn_comm=$(cat "/proc/$vpn_pid/comm" 2>/dev/null) || vpn_comm=
+    if [[ $vpn_comm != openvpn && $vpn_comm != dotfiles-vpn ]]; then
+        printf '\n'
+        exit 0
+    fi
+fi
+
 target_file="$state_root/dotfiles/htb-target"
 
 while read -r interface vpn_ip; do
     [[ $interface =~ ^(tun|tap)[[:alnum:]_.-]*$ ]] || continue
     [[ $vpn_ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || continue
+
+    # Persistent TUN devices can retain their IP/routes after OpenVPN exits.
+    # Carrier is only present while a process actually has the tunnel open.
+    carrier_file="/sys/class/net/$interface/carrier"
+    carrier=$(cat "$carrier_file" 2>/dev/null) || continue
+    [[ $carrier == 1 ]] || continue
 
     routes=$(ip -o -4 route show dev "$interface" 2>/dev/null || true)
     if [[ $vpn_ip != 10.10.* && $vpn_ip != 10.129.* ]] ||

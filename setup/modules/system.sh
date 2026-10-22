@@ -42,6 +42,6 @@ case $virtualization in
         ;;
 esac
 
-sudo systemctl enable sddm.service
+sudo systemctl enable --force sddm.service
 
 printf 'Base desktop services installed and configured.\n'

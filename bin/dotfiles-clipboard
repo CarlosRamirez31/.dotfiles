@@ -4,7 +4,7 @@ set -euo pipefail
 # Recover history capture in sessions started before autostart was enabled.
 # clipmenud also holds its own lock to prevent duplicate daemons.
 cache_dir="${CM_DIR:-${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}}/clipmenu.6.$USER"
-mkdir -p -m 700 "$cache_dir"
+install -d -m 0700 -- "$cache_dir"
 touch "$cache_dir/line_cache"
 # Apply the bounded configuration to daemons left from an older session.
 while read -r pid; do

@@ -26,15 +26,15 @@ fi
 if [[ ${1:-} == --cpu-temperature ]]; then
     for chip in /sys/class/hwmon/hwmon*; do
         [[ -r $chip/name ]] || continue
-        read -r sensor < "$chip/name" || continue
+        read -r sensor <"$chip/name" || continue
         [[ $sensor == k10temp ]] || continue
         for label in "$chip"/temp*_label; do
             [[ -r $label ]] || continue
-            read -r name < "$label" || continue
+            read -r name <"$label" || continue
             [[ $name == Tctl ]] || continue
             input=${label%_label}_input
-            if read -r value < "$input" && [[ $value =~ ^[0-9]+$ ]]; then
-                if (( value >= 70000 )); then
+            if read -r value <"$input" && [[ $value =~ ^[0-9]+$ ]]; then
+                if ((value >= 70000)); then
                     printf '%%{F#d35f5e}%d°C%%{F-}\n' "$((value / 1000))"
                 else
                     printf '%d°C\n' "$((value / 1000))"

@@ -63,7 +63,7 @@ export FZF_DEFAULT_OPTS='--height=70% --layout=reverse --border=rounded --info=i
 export FZF_CTRL_T_OPTS="--preview 'bat --color=always --style=numbers --line-range=:300 {} 2>/dev/null || eza --tree --level=2 --icons=always {}'"
 export FZF_ALT_C_OPTS="--preview 'eza --tree --level=2 --icons=always --color=always {}'"
 
-if (( $+commands[fzf] )); then
+if (( $+commands[fzf] )) && [[ -t 0 && -t 1 ]]; then
     source <(fzf --zsh)
 fi
 
@@ -97,7 +97,7 @@ if [[ -r /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substri
     bindkey '^[[B' history-substring-search-down
 fi
 
-if (( $+commands[starship] )); then
+if (( $+commands[starship] )) && [[ ${TERM:-dumb} != dumb ]]; then
     eval "$(starship init zsh)"
 fi
 

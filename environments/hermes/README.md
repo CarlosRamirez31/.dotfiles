@@ -1,6 +1,6 @@
 # Hermes (opcional)
 
-Este componente se instala **solo si lo pides por nombre**. No forma parte de `./install.sh`, `./install.sh all` ni del perfil normal de `dev`.
+Este componente se instala **solo si lo pides por nombre**. No forma parte de `./install.sh`, `./install.sh all` ni de la selección del instalador general. La receta completa `dev-podman setup --fresh` sí lo incluye.
 
 ```bash
 ./install.sh hermes           # añadirlo a una instalación existente
@@ -8,13 +8,16 @@ Este componente se instala **solo si lo pides por nombre**. No forma parte de `.
 ./install.sh --dry-run all    # ver la selección sin instalar nada
 ```
 
-Requiere el componente `workbench` (Podman rootless y Distrobox). Si todavía no existe:
+Requiere Podman rootless y un `dev-podman` ya preparado. Si falta el proveedor:
 
 ```bash
 ./install.sh workbench hermes
 ```
 
-Crea el contenedor `dev` si falta; conserva uno existente. Dentro instala Hermes CLI, las skills personalizadas, el escritorio Awesome anidado con Xephyr, Polybar, Picom, Firefox, Alacritty y el puente de capturas. Los paquetes de presentación se instalan dentro de `dev`; este componente no añade paquetes al host. No usa una máquina virtual ni XFCE.
+Este componente no crea contenedores. Para reconstruir el entorno completo usa
+`dev-podman setup --fresh`; esa receta incluye Hermes, Flutter, Rider, Docker y
+DBeaver. En un dev existente, `./install.sh hermes` instala o actualiza solamente
+Hermes. Dentro instala Hermes CLI, las skills personalizadas, el escritorio Awesome anidado con Xephyr, Polybar, Picom, Firefox, Alacritty y el puente de capturas. Los paquetes de presentación se instalan dentro de `dev`; este componente no añade paquetes al host. No usa una máquina virtual ni XFCE.
 
 ## Qué se reproduce
 
@@ -34,7 +37,7 @@ Las rutas personales se generan a partir del home real; no se fija un nombre de 
 Conecta tu proveedor solo después de instalar, dentro de dev:
 
 ```bash
-distrobox enter dev
+dev-podman
 hermes setup
 presentacion iniciar
 presentacion hermes

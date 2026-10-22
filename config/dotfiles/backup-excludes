@@ -9,4 +9,4 @@ development/flutter
 node_modules
 target/debug
 .config/dotfiles/restic-password
-/home/beambollow/Documents/VirtualMachines
+Documents/VirtualMachines

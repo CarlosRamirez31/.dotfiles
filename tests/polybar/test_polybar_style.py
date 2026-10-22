@@ -18,3 +18,9 @@ class StyleTest(unittest.TestCase):
         values = style.style({'scale': 100, 'polybar_scale': 150})
         self.assertIn('size=18.75;', values['POLYBAR_FONT_0'])
         self.assertIn('size=28.5;', values['POLYBAR_FONT_1'])
+
+
+    def test_corrupt_saved_appearance_does_not_crash_the_panel(self):
+        for value in ({'polybar_scale': 'bad'}, {'polybar_scale': None},
+                      {'polybar_scale': 'nan'}, {'polybar_scale': 'inf'}, [], None):
+            self.assertEqual(style.style(value)['POLYBAR_HEIGHT'], '30')

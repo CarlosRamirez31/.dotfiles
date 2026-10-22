@@ -1,6 +1,6 @@
 # Files
 
-Este componente convierte el escritorio mínimo en un entorno capaz de navegar archivos, montar medios y abrir formatos comunes. Yazi aporta navegación tipo Neovim y funciona como selector de archivos del sistema; Thunar permanece como respaldo gráfico. Las asociaciones MIME permiten que Rofi, Firefox y aplicaciones GTK elijan programas predecibles.
+Este componente convierte el escritorio mínimo en un entorno capaz de navegar archivos, montar medios y abrir formatos comunes. Yazi aporta navegación de terminal tipo Neovim; el portal GTK ofrece el selector de archivos del sistema y Thunar permanece como gestor gráfico. Las asociaciones MIME permiten que Rofi, Firefox y aplicaciones GTK elijan programas predecibles.
 
 ## Paquetes y responsabilidades
 
@@ -52,6 +52,10 @@ como gestor de terminal (`Alt+E`); Thunar es el respaldo gráfico.
 
 Se declaran en `.config/mimeapps.list`. Firefox viene de `desktop-extras`; si ese componente no está instalado, la asociación queda preparada pero no podrá abrirse hasta instalarlo.
 
+El manifiesto también conserva asociaciones para Citrix, enlaces Codex y
+JetBrains cuando esas aplicaciones externas están instaladas. El módulo no las
+instala; su ausencia no impide abrir los formatos básicos de la tabla.
+
 En imv, `Shift++` amplía la imagen; `Shift+-` y `Ctrl+-` la reducen. Los dos
 atajos de reducción se declaran explícitamente.
 
@@ -73,3 +77,9 @@ systemctl status udisks2.service
 ```
 
 Si una aplicación muestra un selector incorrecto, comprueba `~/.config/xdg-desktop-portal/portals.conf` y reinicia los portales de usuario. Si un teléfono no aparece, desbloquéalo y selecciona MTP. Si faltan miniaturas, reinicia Thunar con `thunar -q` y ábrelo otra vez. No ejecutes Thunar como root.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/files.sh`](../setup/modules/files.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

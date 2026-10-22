@@ -5,9 +5,9 @@ dotfiles_container_env() {
     local argument context='' socket
     for argument in "$@"; do
         case $argument in
-        --host | -H | --host=* | -H* | --context | -c | --context=* | -c?*) return ;;
-        -*) ;;
-        *) break ;;
+            --host | -H | --host=* | -H* | --context | -c | --context=* | -c?*) return ;;
+            -*) ;;
+            *) break ;;
         esac
     done
     local config="${DOCKER_CONFIG:-$HOME/.docker}/config.json"

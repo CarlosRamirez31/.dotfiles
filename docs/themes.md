@@ -25,3 +25,9 @@ Este componente no escribe preferencias GTK de usuario ni descarga fondos. El wa
 
 
 Si el cursor anterior persiste, cierra la sesión X11 completa y vuelve a entrar para recargar los recursos Xcursor.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/themes.sh`](../setup/modules/themes.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

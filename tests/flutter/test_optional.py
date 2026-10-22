@@ -54,7 +54,7 @@ class OptionalFlutter(unittest.TestCase):
             capture_output=True, text=True
         )
         self.assertEqual(result.returncode, 1)
-        self.assertIn('requiere Distrobox dev', result.stderr)
+        self.assertIn('requiere el contenedor dev', result.stderr)
         self.assertNotIn('Consultando', result.stdout)
 
     def test_environment_only_activates_in_dev(self):

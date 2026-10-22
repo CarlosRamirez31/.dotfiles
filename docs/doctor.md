@@ -1,6 +1,6 @@
 # Doctor
 
-`dotfiles-doctor` es la comprobación integral y de solo lectura del escritorio
+`dotfiles-doctor` es la diagnóstico de solo lectura del escritorio
 Awesome/X11. Distingue un requisito roto de una función opcional pendiente. Su
 instalador enlaza el script y lo ejecuta al final del despliegue.
 
@@ -25,7 +25,7 @@ existan advertencias.
    grabación, wallpaper y bloqueo.
 2. Ejecutables administrados en `~/.local/bin`, configuración de Awesome y
    Picom, y enlaces administrados críticos.
-3. JetBrainsMono Nerd Font, Noto Color Emoji y Lexend para la Wibar.
+3. JetBrainsMono Nerd Font, Noto Color Emoji y Lexend para los menús de Awesome.
 4. Zsh como shell de login, NetworkManager, firewall, timers y sockets de
    credenciales.
 5. En una sesión Awesome activa: tipo X11,
@@ -50,3 +50,9 @@ git status
 
 El único archivo administrado es `.local/bin/dotfiles-doctor`; no tiene
 paquetes propios porque inspecciona los demás componentes.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/doctor.sh`](../setup/modules/doctor.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

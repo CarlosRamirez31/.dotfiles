@@ -81,7 +81,6 @@ nvim	config/nvim/lua/plugins/cmp.lua	.config/nvim/lua/plugins/cmp.lua
 nvim	config/nvim/lua/plugins/coding.lua	.config/nvim/lua/plugins/coding.lua
 nvim	config/nvim/lua/plugins/copilot.lua	.config/nvim/lua/plugins/copilot.lua
 nvim	config/nvim/lua/plugins/editor.lua	.config/nvim/lua/plugins/editor.lua
-nvim	config/nvim/lua/plugins/example.lua	.config/nvim/lua/plugins/example.lua
 nvim	config/nvim/lua/plugins/flutter.lua	.config/nvim/lua/plugins/flutter.lua
 nvim	config/nvim/lua/plugins/gitsigns.lua	.config/nvim/lua/plugins/gitsigns.lua
 nvim	config/nvim/lua/plugins/lazydocker.lua	.config/nvim/lua/plugins/lazydocker.lua
@@ -137,6 +136,7 @@ shell	config/starship.toml	.config/starship.toml
 shell	config/zsh/aliases.zsh	.config/zsh/aliases.zsh
 shell	config/zsh/functions.zsh	.config/zsh/functions.zsh
 shell	config/zsh/keybindings.zsh	.config/zsh/keybindings.zsh
+shell	home/.zprofile	.zprofile
 shell	home/.zshenv	.zshenv
 shell	home/.zshrc	.zshrc
 voice-isolation	bin/dotfiles-microphone	.local/bin/dotfiles-microphone

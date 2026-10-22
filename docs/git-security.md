@@ -21,9 +21,9 @@ Este componente define una política Git global portable y mantiene nombre, corr
 ## Identidad y firma
 
 Las credenciales HTTPS se guardan en el llavero del sistema mediante
-`credential.helper=libsecret`. El usuario de GitHub se toma de la configuración
-global para todos sus repositorios; es independiente del nombre del autor de
-los commits. En el próximo push introduce tu token como contraseña una vez:
+`credential.helper=libsecret`. El usuario de GitHub se introduce al autenticar o se define en la configuración
+privada; es independiente del nombre del autor de los commits. La plantilla
+versionada no fija nombre, correo ni usuario de GitHub. En el próximo push introduce tu token como contraseña una vez:
 Git lo guardará en el llavero tras autenticar correctamente. El token no se
 incluye en estos dotfiles. El llavero debe estar desbloqueado; SDDM puede
 desbloquearlo al iniciar sesión si usa la misma contraseña.
@@ -50,3 +50,9 @@ git log --show-signature -1
 ```
 
 Si una firma falla, confirma que `SSH_AUTH_SOCK` apunta al socket GCR, que el agente cargó la llave privada correspondiente y que la ruta configurada apunta a `.pub`. El componente instala `git` y `openssh`; el agente se configura en `security` y se exporta en `shell`.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/git-security.sh`](../setup/modules/git-security.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

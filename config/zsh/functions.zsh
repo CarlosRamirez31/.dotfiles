@@ -93,6 +93,13 @@ vpn-off() {
         return 1
     fi
 
+    local process_name=$(ps -p "$vpn_pid" -o comm= 2>/dev/null)
+    local process_args=$(ps -p "$vpn_pid" -o args= 2>/dev/null)
+    if [[ $process_name != openvpn || $process_args != *'--daemon dotfiles-vpn '* ]]; then
+        print -u2 'vpn-off: el PID no corresponde a la VPN administrada; no se terminó ningún proceso'
+        return 1
+    fi
+
     mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
     touch "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/openvpn-managed"
     if sudo kill "$vpn_pid" 2>/dev/null; then

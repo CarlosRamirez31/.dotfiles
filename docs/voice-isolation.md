@@ -118,7 +118,7 @@ Ejecuta el comando desde la raíz del repositorio. La pantalla espera Enter ante
 
 ## Comparar reconocimiento original y filtrado
 
-La técnica de `mac_os` de reconocer sobre audio original puede evaluarse sin modificar los perfiles actuales ni el servicio de ruido. Cierra otras capturas de Solo mi voz y ejecuta:
+La alternativa de reconocer sobre audio original puede evaluarse sin modificar los perfiles actuales ni el servicio de ruido. Cierra otras capturas de Solo mi voz y ejecuta:
 
 ```bash
 dotfiles-microphone compare-voice
@@ -133,3 +133,9 @@ El comparador captura PCM float32 de 16 kHz para conservar valores que excedan e
 Tras capturar, procesa las dos rutas sin la restricción de tiempo real para no acumular retraso al ejecutar dos inferencias. Usa un registro temporal original para puntuar audio original y uno filtrado para puntuar audio filtrado. Excluye los extremos de captura y separa los primeros 2,4 segundos de contexto del modelo de las métricas de régimen estable. Informa la fracción de bloques que el filtro deja pasar en cada etapa, las puntuaciones y los tiempos de inferencia. La fase está indicada por el usuario; las fracciones no son probabilidades calibradas de identidad ni una medición del retraso completo.
 
 El resultado queda en `~/.config/voice-isolation/voice-comparison.json`, sin audio ni embeddings. Compara tanto el rechazo ajeno como la conservación de tu voz. Los perfiles originales nuevos usan la ruta seleccionada a partir de esa comparación; los anteriores conservan su ruta y sirven de referencia. No se promete aislamiento por integrar estas colas o por ejecutar un modelo.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/voice-isolation.sh`](../setup/modules/voice-isolation.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

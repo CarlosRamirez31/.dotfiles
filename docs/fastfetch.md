@@ -33,3 +33,9 @@ fastfetch --list-modules
 ```
 
 Los glifos requieren `fonts`. El alias `sysinfo` y arranque automático pertenecen a `shell`; Fastfetch funciona también por separado.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/fastfetch.sh`](../setup/modules/fastfetch.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

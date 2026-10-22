@@ -14,6 +14,7 @@ Instala Zsh, Starship, eza, bat, FZF, fd, ripgrep, zoxide, vivid, plugins de sug
 | Archivo | Responsabilidad |
 | --- | --- |
 | `.zshenv` | PATH portable, editor, pager y socket SSH en todo Zsh. |
+| `.zprofile` | Restaura PATH después de `/etc/profile` en shells de login, también en Kali/Parrot. |
 | `.zshrc` | Plugins, historial, completado, FZF, zoxide, Starship y Fastfetch. |
 | `.config/zsh/aliases.zsh` | Atajos sin argumentos complejos. |
 | `.config/zsh/functions.zsh` | Comandos con validación/estado. |
@@ -35,7 +36,9 @@ Instala Zsh, Starship, eza, bat, FZF, fd, ripgrep, zoxide, vivid, plugins de sug
 | `cheat COMANDO` | Página resumida de tldr. |
 | `pathlist` | PATH, una entrada por línea. |
 
-FZF: `Ctrl+R` busca historial, `Ctrl+T` archivos y `Alt+C` directorios, con previews de Bat/eza.
+FZF: `Ctrl+R` busca historial y `Ctrl+T` archivos, con previews de Bat/eza.
+FZF también define `Alt+C` para directorios, pero Awesome reserva esa combinación
+para el portapapeles; usa `zi` para elegir directorios sin ese conflicto.
 
 La edición de la línea sigue los atajos habituales de un editor gráfico: `Ctrl+Backspace` borra la palabra anterior, `Shift+←/→` amplía la selección por caracteres y `Ctrl+Shift+←/→` la amplía por palabras. Cuando existe una selección, `Backspace` o `Ctrl+Backspace` elimina todo el texto seleccionado. Estas combinaciones están coordinadas con el componente `alacritty`.
 
@@ -98,3 +101,9 @@ zsh -n ~/.zshrc ~/.config/zsh/aliases.zsh ~/.config/zsh/functions.zsh ~/.config/
 echo $SHELL
 command -v zsh starship fzf zoxide
 ```
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/shell.sh`](../setup/modules/shell.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

@@ -1,6 +1,6 @@
 # Rofi
 
-Este componente instala el lanzador de aplicaciones y el menú de sesión para
+Este componente instala el lanzador de aplicaciones para
 Awesome/X11. Rofi usa entradas `.desktop`, iconos y la caché XDG.
 
 ## Uso
@@ -18,7 +18,8 @@ nombre; Enter ejecuta la aplicación seleccionada y Escape cancela.
 
 `.local/bin/dotfiles-app-launcher` asegura que `~/.local/bin` esté en `PATH`,
 activa iconos y refresca la caché de aplicaciones. Ejecuta las entradas dentro
-del display X11 actual.
+del display X11 actual. El wrapper utiliza `dotfiles-app-launch` del módulo
+Awesome para aplicar escala y fuentes por monitor; requiere la base del escritorio.
 
 | Archivo | Función |
 | --- | --- |
@@ -36,3 +37,9 @@ find ~/.local/share/applications /usr/share/applications -name '*.desktop' | hea
 
 Si una aplicación recién instalada no aparece, vuelve a abrir el wrapper para
 recargar la caché. En Awesome `XDG_SESSION_TYPE` debe ser `x11`.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/rofi.sh`](../setup/modules/rofi.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

@@ -48,3 +48,9 @@ echo "$XDG_SESSION_TYPE"
 ```
 
 La sesión debe indicar `x11`.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/desktop-extras.sh`](../setup/modules/desktop-extras.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

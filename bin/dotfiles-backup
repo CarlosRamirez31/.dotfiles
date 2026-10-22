@@ -60,7 +60,10 @@ run_backup() {
     require_terminal
     mkdir -p "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles-backup"
     exec 8>"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles-backup/run.lock"
-    flock -n 8 || { printf 'Ya hay un respaldo en curso.\n' >&2; return 1; }
+    flock -n 8 || {
+        printf 'Ya hay un respaldo en curso.\n' >&2
+        return 1
+    }
     prepare_destination
     printf '\033[2m  Disco de respaldo listo\033[0m\n\n'
     local create_repository=false confirmation
@@ -70,11 +73,18 @@ run_backup() {
     fi
     read -rsp '  Contraseña › ' RESTIC_PASSWORD
     printf '\n'
-    [[ -n $RESTIC_PASSWORD ]] || { printf 'La contraseña no puede estar vacia.\n' >&2; return 1; }
+    [[ -n $RESTIC_PASSWORD ]] || {
+        printf 'La contraseña no puede estar vacia.\n' >&2
+        return 1
+    }
     if $create_repository; then
         read -rsp '  Repite      › ' confirmation
         printf '\n'
-        [[ $RESTIC_PASSWORD == "$confirmation" ]] || { unset RESTIC_PASSWORD confirmation; printf 'Las contraseñas no coinciden.\n' >&2; return 1; }
+        [[ $RESTIC_PASSWORD == "$confirmation" ]] || {
+            unset RESTIC_PASSWORD confirmation
+            printf 'Las contraseñas no coinciden.\n' >&2
+            return 1
+        }
         unset confirmation
     fi
     # Share the password only in process memory for backup and retention.
@@ -98,6 +108,7 @@ case ${1:-} in
             usage >&2
             exit 2
         }
+        require_terminal
         mkdir -p -- "$config_dir"
         umask 077
         {
@@ -158,9 +169,19 @@ case ${1:-} in
             usage >&2
             exit 2
         }
+        target=$(realpath -m -- "$target")
+        home_path=$(realpath -m -- "$HOME")
+        if [[ $target == / || $target == "$home_path" || $home_path == "$target"/* ]]; then
+            printf 'Restore requires a separate empty directory, not the home or its ancestors.\n' >&2
+            exit 2
+        fi
+        if [[ -e $target ]] && { [[ ! -d $target ]] || [[ -n $(find "$target" -mindepth 1 -maxdepth 1 -print -quit) ]]; }; then
+            printf 'Restore destination must be an empty directory.\n' >&2
+            exit 2
+        fi
         load_config
-        mkdir -p -- "$target"
         require_terminal
+        mkdir -p -- "$target"
         restic restore "$snapshot" --target "$target"
         ;;
     *)

@@ -32,10 +32,3 @@
 
 [credential]
 	helper = libsecret
-
-[credential "https://github.com"]
-	username = CarlosRamirez31
-
-[user]
-	name = Carlos Ramirez
-	email = cr2503150@gmail.com

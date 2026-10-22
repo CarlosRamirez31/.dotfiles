@@ -254,7 +254,7 @@ Abre tus proyectos usando `/host-home/...`; el home interno conserva espacio sep
 
 ### Servicios de red y Docker/Compose
 
-La red usa el modo rootless predeterminado de Podman. Los servicios del host se acceden según su configuración mediante `host.containers.internal`; `localhost` se refiere al contenedor nuevo. Las bases de datos ejecutadas en otros contenedores permanecen separadas y no se duplican automáticamente.
+Dev usa el modo rootless predeterminado de Podman: accede al host mediante `host.containers.internal` y su `localhost` es interno. Parrot y Kali usan `--network host`, por lo que comparten las interfaces, rutas VPN y `localhost` del host. Las bases de datos ejecutadas en otros contenedores permanecen separadas y no se duplican automáticamente.
 
 Docker, Compose y LazyDocker de `dev` usan el Podman rootless existente del host. `dev-podman integrate` configura un socket local de systemd que reenvía al socket existente, sin instalar paquetes en el host ni recrear contenedores. Los dos archivos de unidad quedan en `~/.config/systemd/user/workbench-podman.*`, y la conexión en `~/.local/state/podman-workbench/docker.sock`, accesible desde `/host-home`. Es el mismo motor y permite administrar también los contenedores anteriores: no constituye una separación de permisos.
 

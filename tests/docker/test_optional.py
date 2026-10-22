@@ -27,7 +27,7 @@ class ContainerSetup(unittest.TestCase):
                 env=dict(os.environ, CONTAINER_ID=''), capture_output=True, text=True,
             )
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn('Distrobox dev', result.stderr)
+            self.assertIn('el contenedor dev', result.stderr)
 
     def test_endpoint_selection_respects_user_settings(self):
         with tempfile.TemporaryDirectory() as directory:

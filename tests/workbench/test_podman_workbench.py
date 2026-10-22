@@ -301,6 +301,27 @@ class WorkbenchTests(unittest.TestCase):
                 self.assertNotIn('.local/bin/flutter-emulator', captured)
                 self.assertNotIn('.config/awesome/rc.lua', captured)
 
+    def test_network_replacement_keeps_the_final_runtime_identity(self):
+        info = self.info('parrotos-podman')
+        info['HostConfig'] = {'NetworkMode': 'pasta'}
+        candidate = self.info('candidate')
+        candidate['HostConfig'] = {'NetworkMode': 'host'}
+        with patch.object(w, 'managed', side_effect=[info, candidate]), \
+             patch.object(w, 'execute'), patch.object(w, 'pod') as pod:
+            w.lab_network('parrotos')
+        create = next(call.args for call in pod.call_args_list if call.args[0] == 'create')
+        self.assertIn('PODMAN_WORKBENCH=parrotos-podman', create)
+        self.assertIn('CONTAINER_ID=parrotos-podman', create)
+        self.assertFalse(any(str(value).startswith('PODMAN_WORKBENCH=parrotos-podman-network-') for value in create))
+
+    def test_exec_overrides_stale_candidate_environment_without_recreating_container(self):
+        with patch.object(w, 'pod') as pod:
+            w.execute('kali-podman', 'python3', 'helper.py')
+        args = pod.call_args.args
+        self.assertIn('PODMAN_WORKBENCH=kali-podman', args)
+        self.assertIn('CONTAINER_ID=kali-podman', args)
+        self.assertEqual(args[-3:], ('kali-podman', 'python3', 'helper.py'))
+
 
 if __name__ == '__main__':
     unittest.main()

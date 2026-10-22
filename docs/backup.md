@@ -26,7 +26,7 @@ backup run
 | `backup restore latest DESTINO` | Restaura el último snapshot aparte. |
 | `backup restore ID DESTINO` | Restaura un snapshot específico. |
 
-La restauración exige destino y nunca sobrescribe el home directamente:
+La restauración exige un directorio vacío separado. Rechaza el home, sus antecesores y cualquier destino con contenido:
 
 ```bash
 backup restore latest /tmp/restore-home
@@ -65,3 +65,9 @@ backup check
 ```
 
 Si el destino es externo debe estar montado. Un fallo no borra snapshots; corrige montaje/credenciales y ejecuta `backup run`.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/backup.sh`](../setup/modules/backup.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

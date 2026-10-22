@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${CONTAINER_ID:-} == dev && -e /run/.containerenv ]] || {
-    printf 'Este paso requiere Distrobox dev. Ejecuta ./install.sh rider desde el host.\n' >&2
+    printf 'Este paso requiere el contenedor dev. Ejecuta ./install.sh rider desde el host.\n' >&2
     exit 1
 }
 [[ $EUID -ne 0 ]] || {

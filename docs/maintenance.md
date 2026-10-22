@@ -45,3 +45,9 @@ du -sh /var/cache/pacman/pkg
 ```
 
 Revisa cuidadosamente la salida de `orphans` antes de usar `pacman -Rns`; una dependencia marcada como huérfana puede seguir siendo útil de forma manual. `clean` no toca archivos personales ni la caché de herramientas de desarrollo.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/maintenance.sh`](../setup/modules/maintenance.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

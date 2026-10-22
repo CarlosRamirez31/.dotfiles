@@ -91,6 +91,21 @@ else
     done
 fi
 
+component_installer() {
+    local installer="$repo_root/setup/modules/$1.sh"
+    [[ -f $installer ]] || installer="$repo_root/setup/modules/$1/install.sh"
+    printf '%s\n' "$installer"
+}
+
+# Fail before sudo or package transactions if any selected entry point is absent.
+for component in "${selected_components[@]}"; do
+    installer=$(component_installer "$component")
+    if [[ ! -x $installer ]]; then
+        printf 'Component installer is missing or not executable: %s\n' "$installer" >&2
+        exit 1
+    fi
+done
+
 if [[ $dry_run == true ]]; then
     printf 'Selected components: %s\n' "${selected_components[*]}"
     exit 0
@@ -118,8 +133,7 @@ for component in "${selected_components[@]}"; do
         exit 2
     fi
 
-    installer="$repo_root/setup/modules/$component.sh"
-    [[ -f $installer ]] || installer="$repo_root/setup/modules/$component/install.sh"
+    installer=$(component_installer "$component")
     if [[ ! -x $installer ]]; then
         printf 'Component installer is missing or not executable: %s\n' "$installer" >&2
         exit 1

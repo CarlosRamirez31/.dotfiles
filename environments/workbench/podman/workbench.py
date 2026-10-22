@@ -78,6 +78,10 @@ def start(name):
 
 def execute(name, *command, root=False, data=None, capture=False):
     args = ['exec', '--user', '0' if root else f'{UID}:{GID}']
+    profile = next((p for p in PROFILES.values() if p['name'] == name), None)
+    if profile:
+        identity = 'dev' if profile.get('source') else name
+        args += ['--env', 'PODMAN_WORKBENCH=' + name, '--env', 'CONTAINER_ID=' + identity]
     if data is not None:
         args += ['-i']
     return pod(*args, name, *command, input=data, text=True,
@@ -178,8 +182,8 @@ def create_args(profile, image):
            'XDG_DATA_HOME': str(HOME / '.local/share'),
            'XDG_STATE_HOME': str(HOME / '.local/state'),
            'XDG_CACHE_HOME': str(HOME / '.cache'), 'XDG_RUNTIME_DIR': f'/run/user/{UID}',
-           'CONTAINER_ID': 'dev' if profile.get('source') else profile['name'],
-           'PODMAN_WORKBENCH': profile['name'], 'HOST_HOME': '/host-home',
+           'CONTAINER_ID': 'dev' if profile.get('source') else profile.get('runtime_name', profile['name']),
+           'PODMAN_WORKBENCH': profile.get('runtime_name', profile['name']), 'HOST_HOME': '/host-home',
            'PATH': f'{HOME}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
            'DOCKER_HOST': ('unix:///host-home/.local/state/podman-workbench/docker.sock'
                            if profile.get('source') else ''),
@@ -406,7 +410,7 @@ def lab_network(key):
     renamed = False
     try:
         pod('commit', '--include-volumes=false', name, image)
-        args = create_args({**profile, 'name': candidate}, image)
+        args = create_args({**profile, 'name': candidate, 'runtime_name': name}, image)
         args[args.index('--hostname') + 1] = name
         for label, value in info['Config'].get('Labels', {}).items():
             if label != 'manager':
@@ -500,7 +504,9 @@ def main():
             if key == 'parrotos':
                 refresh_dns(name)
             refresh_authority(name)
-            invocation = [*PODMAN, 'exec', '--user', f'{UID}:{GID}', '--workdir', str(HOME)]
+            invocation = [*PODMAN, 'exec', '--user', f'{UID}:{GID}', '--workdir', str(HOME),
+                          '--env', 'PODMAN_WORKBENCH=' + name,
+                          '--env', 'CONTAINER_ID=' + ('dev' if key == 'dev' else name)]
             if key == 'dev':
                 endpoint = os.environ.get('DOCKER_HOST') or 'unix:///host-home/.local/state/podman-workbench/docker.sock'
                 if endpoint == f'unix:///run/user/{UID}/podman/podman.sock':
@@ -521,5 +527,7 @@ if __name__ == '__main__':
     try:
         main()
     except (subprocess.CalledProcessError, OSError, RuntimeError) as error:
-        print(f'Error: {error}', file=sys.stderr)
+        message = (f'{error.cmd[0]} terminó con código {error.returncode}; revisa el diagnóstico anterior.'
+                   if isinstance(error, subprocess.CalledProcessError) else str(error))
+        print(f'Error: {message}', file=sys.stderr)
         sys.exit(1)

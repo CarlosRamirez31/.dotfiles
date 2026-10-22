@@ -50,7 +50,7 @@ def configure(home, host, repo, profile, ls_colors=''):
 
     # Use the user's existing styles, with versioned defaults for fresh hosts.
     paths = {
-        'shell': ['.zshrc', '.zshenv', '.config/starship.toml',
+        'shell': ['.zshrc', '.zshenv', '.zprofile', '.config/starship.toml',
                   '.config/zsh/aliases.zsh', '.config/zsh/functions.zsh',
                   '.config/zsh/keybindings.zsh', '.config/bat/config',
                   '.config/lazygit/config.yml'],

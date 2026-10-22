@@ -1,17 +1,12 @@
-"""Verify selective installation and safe migration using disposable homes."""
+"""Verify selective installation, backups and managed destinations."""
 import csv
-import importlib.util
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('migrate_links', REPO / 'setup/migrate-links.py')
-migration = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(migration)
 
 
 class Structure(unittest.TestCase):
@@ -19,9 +14,9 @@ class Structure(unittest.TestCase):
         with (REPO / 'setup/links.tsv').open() as stream:
             return [row for row in csv.reader(stream, delimiter='\t') if row and not row[0].startswith('#')]
 
-    def link(self, home, *modules):
+    def link(self, home, *modules, repo=REPO):
         subprocess.run(['bash', '-c', 'set -euo pipefail; source "$1/setup/lib.sh"; shift; for module in "$@"; do link_component "$module"; done',
-                        'test', str(REPO), *modules], env=dict(os.environ, HOME=str(home)), check=True,
+                        'test', str(repo), *modules], env=dict(os.environ, HOME=str(home)), check=True,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def test_manifest_is_complete_and_destinations_are_unique(self):
@@ -72,36 +67,21 @@ class Structure(unittest.TestCase):
             for _, source, target in self.rows():
                 self.assertEqual((home / target).resolve(), REPO / source)
 
-    def test_migration_handles_directory_units_and_preserves_foreign_links(self):
-        with tempfile.TemporaryDirectory() as directory:
-            home = Path(directory) / 'home'; home.mkdir()
-            repo = home / '.dotfiles'; repo.mkdir()
-            battery = home / '.local/share/battery-conservation'
-            battery.parent.mkdir(parents=True)
-            battery.symlink_to(repo / 'components/session/dotfiles/.local/share/battery-conservation')
-            unit = home / '.config/systemd/user/timers.target.wants/dotfiles-backup.timer'
-            unit.parent.mkdir(parents=True)
-            unit.symlink_to(repo / 'components/backup/dotfiles/.config/systemd/user/dotfiles-backup.timer')
-            foreign = home / '.zshrc'; foreign.symlink_to('/some/other/config')
-            changes = migration.plan(home, repo, REPO)
-            self.assertEqual(len(changes), 2)
-            self.assertIn('components/', os.readlink(battery))
-            migration.apply(changes)
-            self.assertEqual(os.readlink(battery), str(repo / 'share/battery-conservation'))
-            self.assertEqual(os.readlink(unit), str(repo / 'system/systemd/user/dotfiles-backup.timer'))
-            self.assertEqual(os.readlink(foreign), '/some/other/config')
-            self.assertEqual(migration.plan(home, repo, REPO), [])
 
-    def test_migration_rolls_back_if_a_destination_changes(self):
+    def test_source_directory_link_never_moves_or_backs_up_the_source(self):
         with tempfile.TemporaryDirectory() as directory:
-            a, b = Path(directory) / 'a', Path(directory) / 'b'
-            a.symlink_to('old-a'); b.write_text('personal file')
-            changes = [{'target': str(a), 'before': 'old-a', 'after': 'new-a'},
-                       {'target': str(b), 'before': 'old-b', 'after': 'new-b'}]
-            with self.assertRaises(RuntimeError):
-                migration.apply(changes)
-            self.assertEqual(os.readlink(a), 'old-a')
-            self.assertEqual(b.read_text(), 'personal file')
+            root = Path(directory)
+            repo = root / 'repo'; (repo / 'setup').mkdir(parents=True)
+            (repo / 'setup/lib.sh').write_text((REPO / 'setup/lib.sh').read_text())
+            source = repo / 'share/policy/apply'
+            source.parent.mkdir(parents=True); source.write_text('policy source')
+            (repo / 'setup/links.tsv').write_text('session\tshare/policy/apply\t.local/share/policy/apply\n')
+            home = root / 'home'; target = home / '.local/share/policy'
+            target.parent.mkdir(parents=True); target.symlink_to(source.parent)
+            self.link(home, 'session', repo=repo)
+            self.assertEqual(source.read_text(), 'policy source')
+            self.assertEqual(list(source.parent.iterdir()), [source])
+            self.assertTrue(target.is_symlink())
 
 
 if __name__ == '__main__':

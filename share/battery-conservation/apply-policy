@@ -16,7 +16,7 @@ for control in /sys/class/power_supply/BAT*/charge_types; do
     [[ $available == *Long_Life* && $available == *Standard* ]] || continue
     found=1
     if [[ $available != *"[$mode]"* ]]; then
-        printf '%s\n' "$mode" > "$control"
+        printf '%s\n' "$mode" >"$control"
     fi
     [[ $(<"$control") == *"[$mode]"* ]] || {
         printf 'No se pudo confirmar el modo %s en %s\n' "$mode" "$control" >&2
@@ -25,7 +25,7 @@ for control in /sys/class/power_supply/BAT*/charge_types; do
     printf '%s: %s (America/Santo_Domingo)\n' "$control" "$mode"
 done
 
-if (( ! found )); then
+if ((! found)); then
     printf 'No se encontró una batería compatible con Long_Life y Standard.\n' >&2
     exit 1
 fi

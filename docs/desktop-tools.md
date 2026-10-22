@@ -31,7 +31,7 @@ y se copian al portapapeles. `edit` abre Flameshot en modo X11.
 | --- | --- |
 | `Print` | Pantalla completa. |
 | `Alt+Print` | Seleccionar región. |
-| `Alt+Shift+S` | Capturar región y anotar. |
+| `Alt+Shift+S` | Capturar una región; usa `dotfiles-screenshot edit` para anotar. |
 
 ## Portapapeles
 
@@ -63,3 +63,9 @@ journalctl --user -b | rg -i 'clipmenu|flameshot|maim'
 ```
 
 Todos sus procesos y dependencias pertenecen a la sesión X11.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/desktop-tools.sh`](../setup/modules/desktop-tools.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

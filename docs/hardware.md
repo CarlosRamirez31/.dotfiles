@@ -68,3 +68,9 @@ systemctl --user stop dotfiles-touchpad-typing.service
 ```
 
 Para cambiar el tiempo, modifica el valor de `-i 0.2` en la unidad, ejecuta `systemctl --user daemon-reload` y reinicia el servicio.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/hardware.sh`](../setup/modules/hardware.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
 # Only show tunnels used by Hack The Box, not unrelated work or personal VPNs.
-command -v ip >/dev/null 2>&1 || { printf '\n'; exit 0; }
+command -v ip >/dev/null 2>&1 || {
+    printf '\n'
+    exit 0
+}
 
 # Once vpn-on/vpn-off manages this session, its PID is authoritative. Some
 # tunnels retain carrier, addresses and routes even after disconnection.

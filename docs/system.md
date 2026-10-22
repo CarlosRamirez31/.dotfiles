@@ -19,7 +19,7 @@ Este es el cimiento del escritorio. Instala servicios y utilidades que otros com
 
 ## Display manager y máquinas virtuales
 
-Instala SDDM y lo selecciona para el próximo arranque. Si GDM, LightDM u otro gestor está activo, lo deshabilita para arranques futuros sin terminar la sesión actual.
+Instala SDDM y lo selecciona para el próximo arranque. Reemplaza el enlace `display-manager.service` para seleccionar SDDM en arranques futuros sin detener el gestor ni la sesión actuales.
 
 Detecta el hipervisor e instala solo su integración:
 
@@ -54,3 +54,9 @@ systemd-detect-virt
 ```
 
 Tras una instalación completa reinicia y selecciona `Awesome` en SDDM.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/system.sh`](../setup/modules/system.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

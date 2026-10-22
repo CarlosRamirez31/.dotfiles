@@ -38,3 +38,9 @@ test -r ~/.config/wallpapers/mocha-aurora.png
 ```
 
 La sesión debe indicar `x11`. El fondo se aplica con Feh y el selector usa Rofi.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/wallpaper.sh`](../setup/modules/wallpaper.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

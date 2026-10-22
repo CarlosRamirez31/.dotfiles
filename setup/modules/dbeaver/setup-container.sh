@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${CONTAINER_ID:-} == dev && -e /run/.containerenv ]] || {
-    printf 'Se requiere Distrobox dev.\n' >&2
+    printf 'Se requiere el contenedor dev.\n' >&2
     exit 1
 }
 missing=()

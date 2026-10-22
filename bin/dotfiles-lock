@@ -16,11 +16,18 @@ if command -v betterlockscreen >/dev/null 2>&1 && command -v bc >/dev/null 2>&1 
 
     # Betterlockscreen owns the cache and the actual lock screen.  Refresh it
     # whenever its source is changed, even when an older wallpaper is selected.
+    cache_ready=true
     if [[ ! -s $cache_image || ! -r $cache_source || $(<"$cache_source") != "$wallpaper" ]]; then
-        betterlockscreen --update "$wallpaper" --fx dimblur
-        printf '%s\n' "$wallpaper" > "$cache_source"
+        if betterlockscreen --update "$wallpaper" --fx dimblur; then
+            printf '%s\n' "$wallpaper" >"$cache_source" || cache_ready=false
+        else
+            cache_ready=false
+        fi
     fi
-    exec betterlockscreen --lock dimblur
+    if [[ $cache_ready == true ]] && betterlockscreen --lock dimblur; then
+        exit 0
+    fi
+    printf 'Betterlockscreen failed; starting Xsecurelock fallback.\n' >&2
 fi
 
 # Safe fallback until i3lock-color is installed.  The launcher switches to

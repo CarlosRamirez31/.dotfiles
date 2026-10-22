@@ -38,7 +38,8 @@ lab-firewall lab-open tcp 4444
 lab-firewall lab-close tcp 4444
 ```
 
-`enable` valida la sintaxis con `nft --check`, respalda `/etc/nftables.conf` si difiere, instala el archivo con modo `0600`, habilita el servicio y lo reinicia. `disable` apaga el servicio y elimina únicamente la tabla administrada.
+`enable` reemplaza únicamente `inet dotfiles_filter`, sin vaciar las tablas
+de libvirt, Podman u otros administradores. Valida la sintaxis con `nft --check`, respalda `/etc/nftables.conf` si difiere, instala el archivo con modo `0600`, habilita el servicio y lo reinicia. `disable` apaga el servicio y elimina únicamente la tabla administrada.
 
 `lab-open` acepta `tcp` o `udp` y puertos 1–65535. La apertura solo recibe tráfico por `tun*`; no expone el listener en Wi-Fi/Ethernet. Los sets son efímeros y se vacían tras recargar nftables o reiniciar.
 
@@ -56,3 +57,9 @@ journalctl -u nftables.service -b
 ```
 
 Antes de cambiar reglas en un host remoto mantén una segunda vía de acceso. Los backups de `/etc/nftables.conf` llevan fecha/hora y no se eliminan automáticamente.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/security.sh`](../setup/modules/security.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

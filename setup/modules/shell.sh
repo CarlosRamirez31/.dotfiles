@@ -59,6 +59,7 @@ mkdir -p -- "${XDG_STATE_HOME:-$HOME/.local/state}/zsh"
 
 zsh -n "$DOTFILES_ROOT/home/.zshenv"
 zsh -n "$DOTFILES_ROOT/home/.zshrc"
+zsh -n "$DOTFILES_ROOT/home/.zprofile"
 zsh -n "$DOTFILES_ROOT/config/zsh/aliases.zsh"
 zsh -n "$DOTFILES_ROOT/config/zsh/functions.zsh"
 zsh -n "$DOTFILES_ROOT/config/zsh/keybindings.zsh"

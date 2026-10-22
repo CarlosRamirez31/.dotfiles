@@ -182,7 +182,7 @@ Next, import the default nixosModule and set the enable option
 
 That's it! SilentSDDM should now be installed and configured.
 You may now run the `test-sddm-silent` executable for testing.
-For further configuration read the [module](./nix/module.nix) option descriptions and examples.
+For further configuration read the `nix/module.nix` (not bundled in this local copy) option descriptions and examples.
 
 > [!NOTE]
 > Since the module adds extra dependencies to SDDM, 

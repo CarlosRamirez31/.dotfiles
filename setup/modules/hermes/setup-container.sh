@@ -37,7 +37,7 @@ if [[ ! -x /opt/hermes/.hermes/hermes-agent/.hermes/bin/hermes ]]; then
     curl --fail --silent --show-error --location --proto '=https' \
         https://raw.githubusercontent.com/NousResearch/hermes-agent/d923a5eb487a17c0a68801bba9ef0f56c81040a8/scripts/install.sh -o /opt/hermes/install.sh
     # Run only the headless stages. The upstream products stage also writes
-    # ~/.local/bin and shell startup files, which Distrobox shares with the host.
+    # ~/.local/bin and shell startup files, which must remain private to this installation.
     # Keep those untouched; publish only an internal launcher below instead.
     for stage in prerequisites repository venv python-deps config; do
         bash /opt/hermes/install.sh --non-interactive --skip-browser --skip-computer-use \
@@ -59,5 +59,5 @@ fi
     -r "$component_root/requirements-academic.txt"
 hermes --version
 printf '\nHermes opcional instalado solo en dev.\n'
-printf 'Autenticación (no versionada): distrobox enter dev -- hermes setup\n'
+printf 'Autenticación (no versionada): dev-podman exec -- hermes setup\n'
 printf 'Uso dentro de dev: presentacion iniciar; presentacion hermes\n'

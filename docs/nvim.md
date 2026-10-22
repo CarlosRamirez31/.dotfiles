@@ -47,7 +47,7 @@ nvim archivo
 
 Cada borrado aparece como una sola entrada: un archivo, o una carpeta completa con su contenido. Selecciona una entrada con `Enter` para recuperarla exactamente donde estaba; si su ruta ya está ocupada, se conserva en la papelera y no sobrescribe el archivo nuevo. La lista muestra la ruta original y el tiempo restante.
 
-La retención es de cinco horas desde el borrado, independientemente de la fecha del archivo. En Linux, `nvim-trash-cleanup.timer` comprueba cada minuto y elimina permanentemente solo las entradas vencidas de esta papelera, incluso con Neovim cerrado. Si el equipo está apagado o suspendido, limpia al reanudarse la sesión. Host y Distrobox `dev` comparten esta papelera. En otras plataformas, también se comprueban vencimientos cada minuto mientras Neovim está abierto. Se requiere Python; si falla, el borrado se cancela sin recurrir a eliminación permanente.
+La retención es de cinco horas desde el borrado, independientemente de la fecha del archivo. En Linux, `nvim-trash-cleanup.timer` comprueba cada minuto y elimina permanentemente solo las entradas vencidas de esta papelera, incluso con Neovim cerrado. Si el equipo está apagado o suspendido, limpia al reanudarse la sesión. El host y `dev-podman` tienen papeleras separadas en sus respectivos homes. En otras plataformas, también se comprueban vencimientos cada minuto mientras Neovim está abierto. Se requiere Python; si falla, el borrado se cancela sin recurrir a eliminación permanente.
 
 Los diagnósticos de LSP se actualizan también en modo inserción, a medida que el servidor publica errores y advertencias.
 
@@ -57,7 +57,7 @@ Flutter añade bajo `Space+d`: hot reload (`dr`), hot restart (`ds`), salir (`dq
 
 El SDK se instala con el [componente opcional Flutter](flutter.md): `./install.sh flutter`. Incluye Android SDK, Android Emulator y un AVD; se excluye de la instalación normal y de `all`. El editor descubre el SDK mediante `PATH` o `.fvm/flutter_sdk` en el proyecto. Antes de ejecutar, verifica `flutter doctor -v` y `flutter devices`.
 
-El entorno Flutter se reserva para Distrobox `dev`. Sus SDKs van en `~/.local/share/flutter-dev/{flutter,android-sdk}`; Zsh solo los añade cuando está instalado el componente opcional y `CONTAINER_ID=dev`. Entra con `distrobox enter dev` y ejecuta Neovim desde allí para que LSP, DAP, Java y ADB compartan el contenedor. Los SDKs ocupan el home compartido, pero sus dependencias de sistema se instalan dentro de `dev`.
+El entorno Flutter se reserva para `dev-podman`. Sus SDKs van en `~/.local/share/flutter-dev/{flutter,android-sdk}`; Zsh solo los añade cuando está instalado el componente opcional y `CONTAINER_ID=dev`. Entra con `dev-podman` y ejecuta Neovim desde allí para que LSP, DAP, Java y ADB compartan el contenedor. Los SDKs, AVDs, cachés y dependencias pertenecen al contenedor. Los proyectos del host se abren desde `/host-home` o `~/Documents`, que está enlazado.
 
 Abre `lib/main.dart` y pulsa `F5`: guarda los archivos, detecta el `pubspec.yaml` más cercano y permite seleccionar el dispositivo para depurar. Durante una sesión, `F5` continúa la ejecución. No se guarda un serial de teléfono ni una ruta de proyecto fija. Se pueden añadir configuraciones propias en `.vscode/launch.json` para entradas alternativas y flavors.
 
@@ -102,3 +102,9 @@ El script usa Winget para Git, Neovim, ripgrep, fd, CMake, Node LTS, .NET 10 y R
 ## Archivos importantes
 
 `init.lua` carga opciones, keymaps, autocmds y Lazy. `lua/plugins/` contiene extensiones por función; `lua/config/treesitter.lua` es la lista autoritativa de parsers; `lazy-lock.json` fija plugins; `stylua.toml` define formato Lua. Para actualizar conscientemente, ejecuta `:Lazy update`, prueba y revisa el diff del lockfile.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/nvim/install.sh`](../setup/modules/nvim/install.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

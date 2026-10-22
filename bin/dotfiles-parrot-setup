@@ -28,11 +28,11 @@ while IFS= read -r line || [[ -n $line ]]; do
     elif [[ $section == '[parrotos]' && $line == additional_packages=\"*\" ]]; then
         value=${line#additional_packages=\"}
         value=${value%\"}
-        read -r -a batch <<< "$value"
+        read -r -a batch <<<"$value"
         packages+=("${batch[@]}")
     fi
-done < "$manifest"
-(( ${#packages[@]} > 0 )) || {
+done <"$manifest"
+((${#packages[@]} > 0)) || {
     printf 'No hay paquetes declarados para parrotos.\n' >&2
     exit 1
 }

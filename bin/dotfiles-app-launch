@@ -3,9 +3,9 @@ set -euo pipefail
 
 # X11 has no general per-output application DPI setting. Pass each toolkit the
 # scale saved for the monitor under the pointer when launching an application.
-scale=$($HOME/.local/bin/dotfiles-display --scale-at-pointer 2>/dev/null) || scale=1
+scale=$("$HOME/.local/bin/dotfiles-display" --scale-at-pointer 2>/dev/null) || scale=1
 [[ $scale =~ ^[0-9]+([.][0-9]+)?$ ]] || scale=1
-font_size=$($HOME/.local/bin/dotfiles-display --font-size-at-pointer 2>/dev/null) || font_size=10
+font_size=$("$HOME/.local/bin/dotfiles-display" --font-size-at-pointer 2>/dev/null) || font_size=10
 [[ $font_size =~ ^[0-9]+([.][0-9]+)?$ ]] || font_size=10
 font_factor=$(awk -v font="$font_size" 'BEGIN { printf "%.3f", font / 10 }')
 gtk_font_scale=$(awk -v app="$scale" -v font="$font_factor" 'BEGIN { printf "%.3f", app * font }')

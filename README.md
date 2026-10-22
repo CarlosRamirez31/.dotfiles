@@ -29,8 +29,7 @@ docs/          Guías de uso
 
 `setup/links.tsv` declara el módulo propietario, el archivo fuente y su destino.
 Los destinos instalados se conservan aunque cambie la organización del repositorio.
-Consulta [la migración y sus comprobaciones](docs/restructuracion.md) antes de
-cambiar desde la estructura anterior.
+Consulta [la organización y los enlaces](docs/estructura.md) para localizar las fuentes y sus destinos.
 
 ## Instalación
 
@@ -91,9 +90,13 @@ Docker CLI/Compose y DBeaver también son opcionales dentro de `dev`:
 ./install.sh docker dbeaver
 ```
 
-El cliente Docker usa por defecto la API compatible del Podman rootless existente. LazyDocker es general del entorno: `lazydocker` funciona dentro y fuera de Distrobox, `Alt+Shift+D` abre una ventana centrada y `Space+gk` hace lo mismo dentro de Neovim.
+El cliente Docker usa por defecto la API compatible del Podman rootless existente. LazyDocker es general del entorno: `lazydocker` funciona desde el host y dentro de `dev-podman`, `Alt+Shift+D` abre una ventana centrada y `Space+gk` hace lo mismo dentro de Neovim.
 
-El orden escrito no importa: el orquestador siempre respeta las dependencias.
+El orden escrito no importa: el orquestador usa un orden fijo de instalación.
+La selección parcial no añade dependencias entre módulos automáticamente; instala
+primero la base completa para usar los componentes del escritorio por separado.
+Los opcionales de desarrollo requieren un `dev-podman` ya preparado;
+`./install.sh workbench` instala el proveedor, pero no crea ese contenedor.
 
 El aislamiento de voz con RNNoise es opcional y funciona en el host para OBS y otras aplicaciones:
 
@@ -132,7 +135,7 @@ dev-podman restart
 | [`shell`](docs/shell.md) | Zsh, Starship, historial, navegación y herramientas de red |
 | [`fastfetch`](docs/fastfetch.md) | resumen visual del sistema al abrir terminal |
 | [`maintenance`](docs/maintenance.md) | revisión segura, caché de Pacman y TRIM |
-| [`quality`](docs/quality.md) | validación reproducible de Bash, Zsh, JSON y Lua |
+| [`quality`](docs/quality.md) | validación de fuentes, datos, documentación y pruebas |
 | [`git-security`](docs/git-security.md) | Git portable, identidad privada y firma SSH opcional |
 | [`backup`](docs/backup.md) | copias cifradas y verificables con Restic |
 | [`hermes`](environments/hermes/README.md) **opcional** | Hermes en dev, skills académicas y escritorio virtual con capturas del host |
@@ -152,16 +155,18 @@ dev-podman restart
 | [`nvim`](docs/nvim.md) | editor LazyVim para todos los lenguajes usados |
 | [`rofi`](docs/rofi.md) | lanzador de aplicaciones |
 | [`wallpaper`](docs/wallpaper.md) | carrusel GTK/X11 y fondo Feh |
-| [`awesome`](docs/awesome.md) | sesión X11, Wibar, notificaciones y Picom |
+| [`awesome`](docs/awesome.md) | sesión X11, ventanas, notificaciones y Picom |
+| [`polybar`](docs/polybar.md) | barra por monitor, escritorios, audio, red y batería |
 | [`doctor`](docs/doctor.md) | diagnóstico final de toda la instalación |
 
-Cada README enlazado explica sus archivos, decisiones y los pocos comandos que
+Cada guía enlazada explica sus archivos, decisiones y los pocos comandos que
 realmente forman parte de su uso.
 
 ## Gramática del teclado
 
-Los atajos evitan `Super` para no activar combinaciones del Windows anfitrión
-cuando el escritorio se ejecuta dentro de una máquina virtual:
+La tecla principal es `Alt`. `Super+P` abre pantallas y `Super+Space` cambia
+el teclado; en una VM esas dos combinaciones pueden ser capturadas por el anfitrión.
+Consulta [todos los atajos](docs/awesome-atajos.md).
 
 | Atajo | Acción |
 | --- | --- |
@@ -171,7 +176,6 @@ cuando el escritorio se ejecuta dentro de una máquina virtual:
 | `Alt+1..4` | cambiar entre los cuatro workspaces |
 | `Alt+Shift+1..4` | mover ventana al workspace |
 | `Alt+Q` | cerrar ventana |
-| `Alt+F` | pantalla completa |
 | `Alt+V` | alternar flotante |
 
 Aplicaciones y sesión:
@@ -195,7 +199,7 @@ Captura y utilidades:
 | --- | --- |
 | `Print` | capturar pantalla completa |
 | `Alt+Print` | capturar región |
-| `Alt+Shift+S` | capturar región y editar |
+| `Alt+Shift+S` | capturar región |
 | `Alt+Shift+R` | iniciar/detener grabación de región |
 | `Alt+Shift+C` | copiar color de la pantalla |
 
@@ -205,13 +209,13 @@ con la pantalla bloqueada.
 ## Comandos cotidianos
 
 ```bash
-doctor                       # comprobar toda la instalación
+doctor                       # diagnóstico del escritorio instalado
 maintain check               # servicios, disco y actualizaciones
 maintain clean               # caché segura y journal de usuario
 backup run                   # ejecutar respaldo ya configurado
-distrobox enter dev         # entrar al entorno de desarrollo
-distrobox enter kalilinux   # entrar al entorno Kali
-distrobox enter parrotos    # entrar al entorno ParrotOS, si fue creado
+dev-podman                   # entrar al entorno de desarrollo
+kali-podman                  # entrar al entorno Kali
+parrotos-podman              # entrar al entorno Parrot, si fue creado
 sysinfo                      # información visual del sistema
 ```
 
@@ -242,12 +246,13 @@ backup setup /ruta/al/repositorio-restic
 backup run
 ```
 
-`backup.conf`, la identidad Git y `local.lua` están ignorados por Git.
+`backup.conf` y la identidad Git privada están ignorados por Git; los ajustes
+de monitores y micrófono se guardan en el home, fuera de las fuentes versionadas.
 El respaldo semanal abre una terminal flotante. La contraseña se introduce allí y no se guarda en un archivo.
 
 ## HTB y OpenVPN
 
-La Wibar de Awesome muestra el icono verde de HTB y la IP cuando detecta la VPN. Puedes
+Polybar muestra el icono verde de HTB y la IP cuando detecta la VPN. Puedes
 fijar la máquina objetivo con:
 
 ```bash
@@ -268,20 +273,25 @@ lab-firewall lab-close tcp 4444
 Ese puerto solo se expone en interfaces VPN `tun*` y desaparece al reiniciar o
 recargar nftables.
 
-## Contenedores de trabajo
+## Crear entornos
 
-Los contenedores no se crean automáticamente ni consumen espacio hasta que los
-pidas:
+`./install.sh workbench` prepara Podman y sus utilidades. Los contenedores se
+crean solo cuando lo pides:
 
 ```bash
-distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name dev
-distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name kalilinux
-distrobox assemble create --file ~/.config/distrobox/distrobox.ini --name parrotos
-distrobox list
+dev-podman setup --fresh
+parrotos-podman setup
+kali-podman setup
 ```
 
-Podman funciona rootless. Distrobox integra el home, pero mantiene compiladores
-y herramientas específicas fuera del sistema Arch principal.
+La receta `dev --fresh` instala la pila completa de desarrollo, incluidos los
+cinco componentes Docker, DBeaver, Rider, Flutter y Hermes. Requiere una terminal
+para revisar las licencias de Android. Esta receta es distinta de `./install.sh all`,
+que no selecciona esos componentes opcionales.
+
+Cada contenedor tiene home privado y acceso al home real mediante `/host-home`.
+Los perfiles Distrobox anteriores quedan documentados en
+[Workbench](environments/workbench/README.md); ya no son la ruta de desarrollo.
 
 ## Monitores
 

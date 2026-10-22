@@ -29,4 +29,10 @@ instalador nunca termina la sesión gráfica actual.
 
 La copia incluida procede de
 [uiriansan/SilentSDDM](https://github.com/uiriansan/SilentSDDM), bajo GPL-3.0;
-la licencia original está en `theme/LICENSE`.
+la licencia original está en `system/sddm/theme/LICENSE`.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/sddm.sh`](../setup/modules/sddm.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

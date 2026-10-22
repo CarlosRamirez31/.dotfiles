@@ -24,13 +24,13 @@ require_command() {
     fi
 }
 
-for command_name in shellcheck shfmt zsh jq luac git; do
+for command_name in shellcheck shfmt zsh jq luac lua git python3 nvim; do
     require_command "$command_name"
 done
 ((failures == 0)) || exit 1
 
 mapfile -d '' -t repository_files < <(
-    find "$repo_root" -type f -not -path "$repo_root/.git/*" -print0
+    git -C "$repo_root" ls-files -z --cached --others --exclude-standard
 )
 
 bash_files=()
@@ -39,6 +39,8 @@ json_files=()
 lua_files=()
 
 for file in "${repository_files[@]}"; do
+    file="$repo_root/$file"
+    [[ -f $file ]] || continue
     relative=${file#"$repo_root"/}
     first_line=''
     IFS= read -r first_line <"$file" || true
@@ -48,7 +50,7 @@ for file in "${repository_files[@]}"; do
     esac
 
     case $relative in
-        *.zsh | */.zshrc | */.zshenv) zsh_files+=("$file") ;;
+        *.zsh | */.zshrc | */.zshenv | */.zprofile) zsh_files+=("$file") ;;
         *.json) json_files+=("$file") ;;
         *.lua) lua_files+=("$file") ;;
     esac
@@ -110,8 +112,22 @@ else
     fail 'Lua encontró problemas de sintaxis'
 fi
 
+section 'Python, TOML, JSONC, manifiesto y documentación'
+if python3 -B "$repo_root/setup/validate.py"; then
+    pass 'Fuentes, datos, rutas y enlaces locales válidos'
+else
+    fail 'Validación de fuentes o estructura fallida'
+fi
+
+section 'Pruebas funcionales sin instalación'
+if python3 -B "$repo_root/tests/run.py"; then
+    pass 'Pruebas Python y Lua'
+else
+    fail 'Hay pruebas funcionales fallidas'
+fi
+
 section 'Git: whitespace'
-if git -C "$repo_root" diff --check; then
+if git -C "$repo_root" diff --check && git -C "$repo_root" diff --cached --check; then
     pass 'Git no encontró errores de whitespace'
 else
     fail 'Git encontró errores de whitespace'

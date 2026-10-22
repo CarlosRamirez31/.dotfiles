@@ -119,6 +119,9 @@ link_component() {
     for index in "${!sources[@]}"; do
         source_file=${sources[index]}
         target=${targets[index]}
+        # A parent directory may itself point into the repository. Never move
+        # the source file aside while trying to replace its installed alias.
+        [[ $target -ef $source_file ]] && continue
         if [[ -L $target ]]; then
             resolved=$(realpath -m -- "$target")
             [[ $resolved == "$source_file" ]] && continue

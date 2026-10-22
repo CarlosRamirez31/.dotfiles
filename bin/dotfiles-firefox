@@ -30,7 +30,7 @@ fi
 
 # A launcher invocation should create a window here instead of activating an
 # existing Firefox window on another monitor or tag.
-if (( $# == 0 )); then
+if (($# == 0)); then
     exec firefox --new-window
 fi
 exec firefox "$@"

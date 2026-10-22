@@ -19,7 +19,9 @@ dotfiles-can-suspend && echo permitida
 `Ctrl+Shift+B` bloquea inmediatamente. Awesome configura un salvapantallas de
 10 minutos y Xss-lock bloquea en ese momento. Betterlockscreen usa el wallpaper
 seleccionado con efecto dim+blur y un prompt de contraseña minimalista.
-`dotfiles-lock` no inicia una segunda instancia del locker.
+`dotfiles-lock` no inicia una segunda instancia del locker. Si falla la
+generación del fondo o el inicio de Betterlockscreen, intenta Xsecurelock en
+lugar de terminar dejando la sesión sin bloqueo.
 
 En hardware físico, `dotfiles-sleep` suspende mediante systemd. En VMware solo
 bloquea la sesión; para guardar el estado completo, suspende la VM desde el
@@ -46,7 +48,7 @@ systemd-detect-virt --vm
 ss -Htn state established '( sport = :ssh )'
 ```
 
-Este componente usa Xss-lock, Xsecurelock y XSet.
+Este componente usa Betterlockscreen, Xss-lock, Xsecurelock como respaldo y XSet.
 
 ## Perfiles de batería
 
@@ -117,3 +119,9 @@ sudo python3 share/gpu-recovery/install.py --uninstall
 ```
 
 Pruebas: `python3 -m unittest discover -s tests/session`.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/session.sh`](../setup/modules/session.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

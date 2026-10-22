@@ -22,14 +22,14 @@ dotfiles-terminal -e btop    # ejecutar un comando dentro de Alacritty
 alacritty --print-events     # diagnóstico de ventanas y entrada
 ```
 
-`Alt+Enter` y `Ctrl+Alt+T` llaman a `dotfiles-terminal`. En Awesome el wrapper no fuerza `LIBGL_ALWAYS_SOFTWARE`; Alacritty usa X11 y el renderer disponible para VMware.
+`Alt+Enter` y `Ctrl+Alt+T` llaman a `dotfiles-terminal`. En Awesome el wrapper no fuerza `LIBGL_ALWAYS_SOFTWARE`; Alacritty usa X11 y el renderer disponible.
 
 ## Archivos administrados
 
 | Archivo | Propósito |
 | --- | --- |
 | `.config/alacritty/alacritty.toml` | Ventana, fuente, colores, cursor y Zsh de login. |
-| `.local/bin/dotfiles-terminal` | Entrada portable con compatibilidad VMware. |
+| `.local/bin/dotfiles-terminal` | Entrada portable con fuente ajustada por monitor. |
 | `.local/share/applications/Alacritty.desktop` | Registro para Rofi y menús XDG. |
 | `.config/xdg-terminals.list` | Declara Alacritty como terminal preferida. |
 
@@ -43,3 +43,9 @@ grep Alacritty ~/.config/xdg-terminals.list
 ```
 
 Si faltan iconos, reinstala `fonts` y ejecuta `fc-cache -f`. Si no cargan alias, reinstala `shell` o comprueba `zsh -l`. En Awesome confirma `echo "$XDG_SESSION_TYPE"` (`x11`).
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/alacritty.sh`](../setup/modules/alacritty.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

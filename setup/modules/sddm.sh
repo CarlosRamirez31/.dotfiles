@@ -10,7 +10,7 @@ font_target=/usr/share/fonts/silent-sddm
 config_source="$DOTFILES_ROOT/system/sddm/silent.conf"
 
 require_arch_user
-install_packages qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg qt6-imageformats
+install_packages sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg qt6-imageformats
 
 if [[ ! -f $theme_source/Main.qml || ! -f $theme_source/metadata.desktop || ! -d $theme_source/fonts ]]; then
     printf 'The bundled SilentSDDM theme does not contain the expected files.\n' >&2

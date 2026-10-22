@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Install only inside the existing dev Distrobox; never install packages on the host.
+# Install only inside the existing dev container; never install packages on the host.
 set -euo pipefail
 
 [[ ${CONTAINER_ID:-} == dev && -e /run/.containerenv ]] || {
-    printf 'Ejecuta ./install.sh flutter desde el host; este paso requiere Distrobox dev.\n' >&2
+    printf 'Ejecuta ./install.sh flutter desde el host; este paso requiere el contenedor dev.\n' >&2
     exit 1
 }
 export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/.android/avd}"
 case ${FLUTTER_AVD_KEYBOARD:-yes} in
     yes | no | keep) ;;
-    *) printf 'FLUTTER_AVD_KEYBOARD debe ser yes, no o keep.\n' >&2; exit 1 ;;
+    *)
+        printf 'FLUTTER_AVD_KEYBOARD debe ser yes, no o keep.\n' >&2
+        exit 1
+        ;;
 esac
 
 [[ $EUID -ne 0 ]] || {

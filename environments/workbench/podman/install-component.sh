@@ -14,7 +14,13 @@ case $repo_root in
         ;;
 esac
 # The controller requires the existing dev and never installs host packages.
-"$controller" exec dev -- env FLUTTER_AVD_KEYBOARD="${FLUTTER_AVD_KEYBOARD:-yes}" \
+# The home is private: host links alone do not update container launchers or env.
+"$controller" exec dev -- python3 "$internal_root/setup/copy-component.py" workbench "$component"
+flutter_settings=("FLUTTER_AVD_KEYBOARD=${FLUTTER_AVD_KEYBOARD:-yes}")
+for variable in FLUTTER_DEV_HOME ANDROID_AVD_HOME FLUTTER_AVD_NAME; do
+    if [[ -v $variable ]]; then flutter_settings+=("$variable=${!variable}"); fi
+done
+"$controller" exec dev -- env "${flutter_settings[@]}" \
     bash "$internal_root/setup/modules/$component/setup-container.sh" "$internal_root"
 if [[ $component == hermes ]]; then
     "$controller" exec dev -- python3 "$internal_root/environments/workbench/podman/adapt_presentation.py"

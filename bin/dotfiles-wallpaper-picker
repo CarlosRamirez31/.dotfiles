@@ -61,11 +61,11 @@ selected=$(
         -theme "$HOME/.config/rofi/wallpaper.rasi" \
         -theme-str "element-icon { size: ${icon_size}px; }" \
         -p '󰸉  Elegir wallpaper' < <(
-        for wallpaper in "${wallpapers[@]}"; do
-            printf '%s\0display\x1f%s\x1ficon\x1f%s\n' \
-                "$wallpaper" "$(basename -- "$wallpaper")" "$(thumbnail_for "$wallpaper")"
-        done
-    )
+            for wallpaper in "${wallpapers[@]}"; do
+                printf '%s\0display\x1f%s\x1ficon\x1f%s\n' \
+                    "$wallpaper" "$(basename -- "$wallpaper")" "$(thumbnail_for "$wallpaper")"
+            done
+        )
 ) || exit 0
 
 [[ -f $selected ]] || exit 0

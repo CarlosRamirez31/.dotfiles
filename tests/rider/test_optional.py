@@ -34,7 +34,7 @@ class OptionalRider(unittest.TestCase):
             env=dict(os.environ, CONTAINER_ID=''), capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 1)
-        self.assertIn('requiere Distrobox dev', result.stderr)
+        self.assertIn('requiere el contenedor dev', result.stderr)
 
     @classmethod
     def setUpClass(cls):

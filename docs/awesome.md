@@ -1,13 +1,13 @@
 # AwesomeWM
 
-Sesión X11 nativa para VMware con Awesome 4.3, Wibar, Naughty y Picom oficial.
+Sesión X11 con AwesomeWM, Polybar, notificaciones Naughty y Picom. Funciona en hardware físico y en VMs con soporte X11.
 Instala con `./install.sh awesome`; la instalación completa la incluye por defecto.
 Selecciona **Awesome** en SDDM después de reiniciar.
 Comprueba la configuración antes de entrar con `awesome -k -c ~/.config/awesome/rc.lua`.
 
 El teclado inicia en **US**. Usa `Super+Space` (tecla Windows+Espacio) o haz clic en el indicador `us`/`latam` de la barra para alternar a **Español Latinoamericano** (`latam`) y volver a US.
 
-Consulta la lista completa y categorizada en [ATAJOS.md](awesome-atajos.md).
+Consulta la lista completa y categorizada en [lista de atajos](awesome-atajos.md).
 
 El emulador Android conserva el mosaico y muestra transparente el espacio sobrante alrededor de su pantalla. Su barra de controles sigue el área visible del dispositivo al moverlo, redimensionarlo o cambiarlo de tag; se coloca a la izquierda si no cabe a la derecha y se mantiene dentro del monitor. El panel de los tres puntos (Extended Controls) abre flotante, sin modificar el reparto del mosaico.
 
@@ -109,3 +109,9 @@ Hay 20 segundos para conservar o restaurar la prueba.
 La visibilidad de Polybar se controla por proceso y monitor. Una ventana a
 pantalla completa solo oculta la barra de su pantalla; las demás siguen visibles.
 Acerca el cursor al borde superior durante un momento para mostrarla temporalmente.
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/awesome.sh`](../setup/modules/awesome.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

@@ -1,18 +1,18 @@
-# Flutter opcional en Distrobox dev
+# Flutter opcional en dev-podman
 
 Solo se instala al seleccionar `flutter` explícitamente, igual que Hermes:
 
 ```bash
 ./install.sh flutter
-./install.sh workbench flutter  # si aún no están Podman y Distrobox
+./install.sh workbench flutter  # requiere dev-podman ya creado
 ./install.sh all flutter        # instalación normal más Flutter
 ```
 
-`./install.sh` y `./install.sh all` excluyen este componente. El instalador crea el perfil Arch `dev` si no existe y añade sus dependencias dentro del contenedor. No instala Java ni herramientas Android en el sistema principal.
+`./install.sh` y `./install.sh all` excluyen este componente. El instalador requiere el contenedor Arch `dev-podman` ya preparado. Si falta, ejecuta primero `./install.sh workbench` y `dev-podman setup --fresh` desde una terminal; esa receta instala la pila completa de desarrollo. No instala Java ni herramientas Android en el sistema principal.
 
 Incluye Flutter estable (consultado al instalar), Dart incluido en Flutter, Java 21, Android CLI/SDK, ADB, build-tools, NDK y CMake acordes al SDK de Flutter. También descarga Android Emulator y la imagen Google APIs x86_64 del nivel de Android usado por Flutter, y crea el dispositivo virtual `Beambollow`. Las licencias se muestran para aceptación en la terminal.
 
-Los SDKs van en `~/.local/share/flutter-dev/{flutter,android-sdk}` y las descargas en `~/.cache/flutter-dev/setup`. Son archivos del home compartido, pero su PATH solo se activa dentro de `dev`. `~/.config/flutter/env.zsh` se enlaza únicamente al instalar este componente. `ANDROID_AVD_HOME` apunta a `${XDG_CONFIG_HOME:-$HOME/.config}/.android/avd`, la carpeta usada para crear y descubrir los AVDs.
+Los SDKs van en `~/.local/share/flutter-dev/{flutter,android-sdk}` y las descargas en `~/.cache/flutter-dev/setup`. Pertenecen al home interno de `dev-podman`; no son los SDKs del host. Su PATH solo se activa con `CONTAINER_ID=dev`. `~/.config/flutter/env.zsh` se enlaza únicamente al instalar este componente. `ANDROID_AVD_HOME` apunta a `${XDG_CONFIG_HOME:-$HOME/.config}/.android/avd`, la carpeta usada para crear y descubrir los AVDs.
 
 Se conservan los dispositivos virtuales existentes: nunca se usa `--force` ni se versionan sus imágenes, datos o claves de ADB. Se puede personalizar `FLUTTER_DEV_HOME`, `ANDROID_AVD_HOME` y `FLUTTER_AVD_NAME` antes de instalar; conserva esos valores en tu entorno si los cambias.
 
@@ -25,7 +25,7 @@ FLUTTER_AVD_KEYBOARD=keep ./install.sh flutter  # conservar su configuración
 ```
 
 ```bash
-distrobox enter dev
+dev-podman
 flutter doctor -v
 flutter-emulator             # Beambollow, pantalla sin marco
 flutter-emulator Otro_AVD    # otro dispositivo ya creado
@@ -33,7 +33,7 @@ cd ~/Projects/flutter_sanity_check
 nvim lib/main.dart
 ```
 
-En Neovim, `Space d e` selecciona y abre un emulador sin marco; `F5` selecciona un dispositivo arrancado e inicia la depuración. `F4` recarga, `Shift+F4` hace hot restart, `F9` alterna breakpoints y `Shift+F5` termina la sesión. Las configuraciones por proyecto se leen de `.vscode/launch.json`. El componente `nvim` proporciona esta integración y se instala por separado o con `all`.
+En Neovim, `Space d e` selecciona y abre un emulador sin marco; `F5` selecciona un dispositivo arrancado e inicia la depuración. `F4` recarga, `Shift+F4` hace hot restart, `F9` alterna breakpoints y `Shift+F5` termina la sesión. Las configuraciones por proyecto se leen de `.vscode/launch.json`. La configuración `config/nvim/` proporciona esta integración; la receta de dev la copia al home interno.
 
 En Awesome, la pantalla del emulador abre en mosaico como las demás aplicaciones. El área sobrante de su contenedor se recorta para mostrar el fondo, sin volver transparente la pantalla Android ni la barra de controles. El recorte sigue el tamaño que publica el emulador, incluida la rotación. Tú decides cuándo flota con `Alt+V`. Usa `Alt+clic derecho + arrastrar` o `Alt+Shift+clic derecho + arrastrar` para ajustar el tamaño libremente (activa el modo flotante), y `Alt+Shift+clic izquierdo + arrastrar` para moverlo.
 
@@ -46,3 +46,9 @@ Comprobaciones sin descargas:
 ./install.sh --dry-run flutter
 python3 tests/flutter/test_optional.py
 ```
+
+## Fuentes del módulo
+
+Instalador: [`setup/modules/flutter/install.sh`](../setup/modules/flutter/install.sh). Los archivos y destinos administrados
+se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
+`.config/` y `.local/` de esta guía se refieren al home instalado.

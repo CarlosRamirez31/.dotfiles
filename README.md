@@ -1,5 +1,7 @@
 # Dotfiles
 
+**Autor: Carlos Ramirez · © 2026 · [Licencia MIT](LICENSE)**
+
 Escritorio Arch Linux reproducible para programación, uso diario y laboratorios
 de seguridad autorizados. El conjunto usa AwesomeWM sobre X11, Alacritty, Zsh y
 Neovim con una apariencia coherente y módulos instalables por separado.
@@ -320,3 +322,19 @@ Después de cualquier cambio importante:
 doctor
 git status
 ```
+
+## Licencia y atribuciones
+
+El trabajo original de Carlos Ramirez en este repositorio se publica bajo la
+[licencia MIT](LICENSE): permite usar, modificar y redistribuir ese material,
+incluido su uso comercial, conservando el aviso de copyright y la licencia.
+
+Los componentes de terceros y las adaptaciones sujetas a sus licencias conservan
+sus condiciones y atribuciones; la licencia MIT del proyecto no las sustituye:
+
+- [Configuración de Neovim: Apache-2.0](config/nvim/LICENSE).
+- [Tema SilentSDDM: procedencia y GPL-3.0-or-later](system/sddm/theme/UPSTREAM.md).
+- [Fuentes Lexend: SIL OFL](assets/fonts/Lexend/OFL.txt).
+- [Fuentes del tema SDDM: SIL OFL](system/sddm/theme/fonts/OFL.txt).
+- [Diseño adaptado de Awesome: GPL-3.0-or-later](docs/third-party/awesome.md).
+- [Diseño adaptado de Polybar: MIT y atribución a ZProger](docs/third-party/polybar.md).

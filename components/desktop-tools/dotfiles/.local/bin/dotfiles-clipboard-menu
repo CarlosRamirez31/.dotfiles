@@ -66,8 +66,12 @@ def menu():
             result = subprocess.run(
                 ['rofi', '-dmenu', '-i', '-format', 'i', '-p', 'Portapapeles',
                  '-mesg', 'Enter: pegar · Ctrl+P: fijar/desfijar · 100 recientes + 20 fijadas',
+                 '-theme-str', 'message { background-color: transparent; } '
+                 'textbox { background-color: transparent; text-color: @muted; } '
+                 'entry { text-color: @foreground; placeholder: "Buscar en el portapapeles…"; }',
+                 '-kb-row-up', 'Up',
                  '-kb-custom-1', 'Control+p', '-no-custom'],
-                input='\n'.join(labels), text=True, capture_output=True)
+                input='\n'.join(labels), text=True, stdout=subprocess.PIPE)
             if result.returncode not in (0, 10) or not result.stdout.strip().isdigit():
                 return 1
             selected = int(result.stdout.strip())

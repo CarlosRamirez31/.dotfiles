@@ -4,7 +4,8 @@ ConditionPathExists=%h/.config/dotfiles/backup.conf
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/dotfiles-backup run
+TimeoutStartSec=infinity
+ExecStart=%h/.local/bin/dotfiles-backup popup
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7

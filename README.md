@@ -221,8 +221,8 @@ backup setup /ruta/al/repositorio-restic
 backup run
 ```
 
-`backup.conf`, la contraseña de Restic, la identidad Git y `local.lua` están
-ignorados por Git.
+`backup.conf`, la identidad Git y `local.lua` están ignorados por Git.
+El respaldo semanal abre una terminal flotante. La contraseña se introduce allí y no se guarda en un archivo.
 
 ## HTB y OpenVPN
 

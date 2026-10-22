@@ -1,6 +1,6 @@
 # Backup
 
-Este componente proporciona copias del home con Restic. Está separado porque el destino y la contraseña son privados: prepara programa, comando y timer, pero nunca inventa un repositorio ni guarda secretos en Git.
+Este componente proporciona copias del home con Restic. Está separado porque el destino y la contraseña son privados: prepara el programa y un respaldo semanal en una terminal flotante. La contraseña se introduce en esa terminal y no se guarda en un archivo.
 
 Restic cifra antes de enviar, deduplica bloques y verifica integridad. La política conserva 7 snapshots diarios, 4 semanales y 6 mensuales y luego ejecuta `prune`.
 
@@ -12,14 +12,15 @@ backup setup /ruta/al/repositorio-restic
 backup run
 ```
 
-`setup` solicita y confirma contraseña, crea `restic-password` y `backup.conf` con permisos `0600`, ejecuta `restic init` y habilita el timer. El repositorio puede ser disco montado, ruta local o destino remoto admitido por Restic. Si está dentro de `$HOME`, se excluye automáticamente.
+`setup` crea `backup.conf` con permisos `0600` y ejecuta `restic init`, que solicita y confirma la contraseña en la terminal sin guardarla. El timer semanal abre una terminal flotante que solicita la contraseña. No se inicia la copia hasta introducirla. El repositorio puede ser disco montado, ruta local o destino remoto admitido por Restic. Si está dentro de `$HOME`, se excluye automáticamente.
 
 ## Referencia de comandos
 
 | Comando | Efecto |
 | --- | --- |
-| `backup setup REPOSITORY` | Inicializa destino, contraseña y timer. |
-| `backup run` | Respalda las rutas y aplica retención. |
+| `backup setup REPOSITORY` | Inicializa el destino y solicita la contraseña sin guardarla. |
+| `backup run` | Solicita la contraseña una vez, respalda las rutas y aplica retención. |
+| `backup popup` | Abre la terminal flotante del respaldo programado. |
 | `backup snapshots` | Lista snapshots, fechas, hosts y rutas. |
 | `backup check` | Valida la estructura del repositorio. |
 | `backup restore latest DESTINO` | Restaura el último snapshot aparte. |
@@ -52,7 +53,7 @@ BACKUP_PATHS=("$HOME/Documents" "$HOME/Pictures" "$HOME/.ssh")
 | `.config/systemd/user/dotfiles-backup.service` | Trabajo `oneshot` con prioridad baja. |
 | `.config/systemd/user/dotfiles-backup.timer` | Semanal, persistente y con demora aleatoria de hasta 30 min. |
 
-`backup.conf` y `restic-password` están ignorados por Git. `Persistent=true` ejecuta una copia pendiente al volver a encender.
+`backup.conf` y el antiguo nombre `restic-password` están ignorados por Git. No se crea ningún archivo de contraseña. El timer abre una terminal flotante y espera la contraseña. Se conserva solo en la memoria de los procesos durante la copia y la retención. El resultado queda visible hasta pulsar Enter. Solo se abre una ventana a la vez. Si falta el repositorio local, solicita y confirma una contraseña nueva antes de crearlo. Con `BACKUP_DISK_UUID` configurado, intenta montar ese disco y comprueba que corresponda al destino; si falla, muestra el error sin iniciar la copia. Las variables `RESTIC_PASSWORD`, `RESTIC_PASSWORD_FILE` y `RESTIC_PASSWORD_COMMAND` se descartan al cargar la configuración.
 
 ## Diagnóstico
 

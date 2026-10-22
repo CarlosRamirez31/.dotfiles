@@ -1,7 +1,9 @@
 # Created automatically by: dotfiles-backup setup REPOSITORY
 RESTIC_REPOSITORY=/run/media/USER/backup/restic
-RESTIC_PASSWORD_FILE="$HOME/.config/dotfiles/restic-password"
 
 # By default the script protects the complete home directory and applies the
 # exclusions in backup-excludes. Override only when a smaller backup is wanted.
 BACKUP_PATHS=("$HOME")
+
+# Optional: mount this external disk before backing up.
+# BACKUP_DISK_UUID=your-external-disk-uuid

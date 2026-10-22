@@ -11,7 +11,7 @@ systemctl --user daemon-reload
 
 if [[ -s $HOME/.config/dotfiles/backup.conf ]]; then
     systemctl --user enable --now dotfiles-backup.timer
-    printf 'Restic backup timer enabled for the configured repository.\n'
+    printf 'Weekly Restic backup enabled. A floating terminal requests the password.\n'
 else
     printf 'Restic installed. Configure its destination with: backup setup REPOSITORY\n'
 fi

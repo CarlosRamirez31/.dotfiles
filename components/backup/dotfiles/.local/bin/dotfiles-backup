@@ -3,11 +3,10 @@ set -euo pipefail
 
 config_dir=${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles
 config_file="$config_dir/backup.conf"
-password_file="$config_dir/restic-password"
 exclude_file="$config_dir/backup-excludes"
 
 usage() {
-    printf 'Usage: %s {setup REPOSITORY|run|snapshots|check|restore [SNAPSHOT] TARGET}\n' "${0##*/}"
+    printf 'Usage: %s {setup REPOSITORY|run|popup|scheduled-run|preview|snapshots|check|restore [SNAPSHOT] TARGET}\n' "${0##*/}"
 }
 
 load_config() {
@@ -20,13 +19,76 @@ load_config() {
     # shellcheck disable=SC1090
     source "$config_file"
     : "${RESTIC_REPOSITORY:?RESTIC_REPOSITORY is missing}"
-    : "${RESTIC_PASSWORD_FILE:?RESTIC_PASSWORD_FILE is missing}"
-    export RESTIC_REPOSITORY RESTIC_PASSWORD_FILE
+    # Passwords are entered through the terminal, never loaded from a file.
+    unset RESTIC_PASSWORD RESTIC_PASSWORD_FILE RESTIC_PASSWORD_COMMAND
+    export RESTIC_REPOSITORY
     if ! declare -p BACKUP_PATHS >/dev/null 2>&1; then
         BACKUP_PATHS=("$HOME")
     elif ((${#BACKUP_PATHS[@]} == 0)); then
         BACKUP_PATHS=("$HOME")
     fi
+}
+
+require_terminal() {
+    [[ -t 0 ]] || {
+        printf 'Introduce la contraseña desde una terminal; usa dotfiles-backup popup.\n' >&2
+        exit 1
+    }
+}
+
+prepare_destination() {
+    if [[ -n ${BACKUP_DISK_UUID:-} ]]; then
+        local mounted
+        mounted=$(findmnt -rn -S "UUID=$BACKUP_DISK_UUID" -o TARGET || true)
+        if [[ -z $mounted ]]; then
+            printf 'Montando el disco de respaldo...\n'
+            udisksctl mount -b "/dev/disk/by-uuid/$BACKUP_DISK_UUID" || {
+                printf 'No se pudo montar el disco. Conectalo y vuelve a intentar.\n' >&2
+                return 1
+            }
+            mounted=$(findmnt -rn -S "UUID=$BACKUP_DISK_UUID" -o TARGET)
+        fi
+        [[ $RESTIC_REPOSITORY == "$mounted"/* ]] || {
+            printf 'El destino configurado no corresponde al disco de respaldo.\n' >&2
+            return 1
+        }
+    fi
+}
+
+run_backup() {
+    load_config
+    require_terminal
+    mkdir -p "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles-backup"
+    exec 8>"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles-backup/run.lock"
+    flock -n 8 || { printf 'Ya hay un respaldo en curso.\n' >&2; return 1; }
+    prepare_destination
+    printf '\033[2m  Disco de respaldo listo\033[0m\n\n'
+    local create_repository=false confirmation
+    if [[ $RESTIC_REPOSITORY == /* && ! -e $RESTIC_REPOSITORY/config ]]; then
+        create_repository=true
+        printf '  Respaldo nuevo. Elige una contraseña\n  y guardala en un lugar seguro.\n\n'
+    fi
+    read -rsp '  Contraseña › ' RESTIC_PASSWORD
+    printf '\n'
+    [[ -n $RESTIC_PASSWORD ]] || { printf 'La contraseña no puede estar vacia.\n' >&2; return 1; }
+    if $create_repository; then
+        read -rsp '  Repite      › ' confirmation
+        printf '\n'
+        [[ $RESTIC_PASSWORD == "$confirmation" ]] || { unset RESTIC_PASSWORD confirmation; printf 'Las contraseñas no coinciden.\n' >&2; return 1; }
+        unset confirmation
+    fi
+    # Share the password only in process memory for backup and retention.
+    export RESTIC_PASSWORD
+    trap 'unset RESTIC_PASSWORD' EXIT
+    if $create_repository; then restic init; fi
+    local extra_excludes=()
+    if [[ $RESTIC_REPOSITORY == "$HOME"/* ]]; then
+        extra_excludes+=(--exclude "$RESTIC_REPOSITORY")
+    fi
+    restic backup "${BACKUP_PATHS[@]}" --exclude-caches \
+        --exclude-file "$exclude_file" "${extra_excludes[@]}"
+    restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+    unset RESTIC_PASSWORD
 }
 
 case ${1:-} in
@@ -38,46 +100,55 @@ case ${1:-} in
         }
         mkdir -p -- "$config_dir"
         umask 077
-        read -rsp 'Nueva contraseña de respaldo: ' password
-        printf '\n'
-        read -rsp 'Repite la contraseña: ' confirmation
-        printf '\n'
-        [[ -n $password && $password == "$confirmation" ]] || {
-            printf 'Las contraseñas no coinciden o están vacías.\n' >&2
-            exit 1
-        }
-        printf '%s\n' "$password" >"$password_file"
-        unset password confirmation
         {
             printf 'RESTIC_REPOSITORY=%q\n' "$repository"
-            printf 'RESTIC_PASSWORD_FILE=%q\n' "$password_file"
             printf 'BACKUP_PATHS=(%q)\n' "$HOME"
         } >"$config_file"
-        chmod 600 "$config_file" "$password_file"
+        chmod 600 "$config_file"
         load_config
+        require_terminal
         restic init
         systemctl --user daemon-reload
         systemctl --user enable --now dotfiles-backup.timer
-        printf 'Backup configured. Start the first copy with: dotfiles-backup run\n'
+        printf 'Backup configured. A floating terminal will request your password weekly. Start now with: dotfiles-backup popup\n'
         ;;
     run)
-        load_config
-        extra_excludes=()
-        if [[ $RESTIC_REPOSITORY == "$HOME"/* ]]; then
-            extra_excludes+=(--exclude "$RESTIC_REPOSITORY")
+        run_backup
+        ;;
+    popup)
+        mkdir -p "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles-backup"
+        exec 9>"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles-backup/popup.lock"
+        flock -n 9 || exit 0
+        "$HOME/.local/bin/dotfiles-terminal" --class DotfilesBackup \
+            --option window.padding.x=20 --option window.padding.y=16 \
+            --title 'Respaldo · Beambollow' -e "$0" scheduled-run
+        ;;
+    scheduled-run)
+        require_terminal
+        printf '\n\033[1;35m  ◇  RESPALDO BEAMBOLLOW\033[0m\n\033[2m  Tu contraseña no se guarda.\033[0m\n\n'
+        # A child shell preserves errexit inside run_backup and reports failures.
+        if "$0" run; then
+            result=0
+            printf '\nRespaldo terminado correctamente.\n'
+        else
+            result=$?
+            printf '\nEl respaldo no termino correctamente (codigo %s). Revisa el mensaje anterior.\n' "$result"
         fi
-        restic backup "${BACKUP_PATHS[@]}" \
-            --exclude-caches \
-            --exclude-file "$exclude_file" \
-            "${extra_excludes[@]}"
-        restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+        read -rp 'Pulsa Enter para cerrar esta ventana. ' _ || true
+        exit "$result"
+        ;;
+    preview)
+        printf '\n\033[1;35m  ◇  RESPALDO BEAMBOLLOW\033[0m\n\033[2m  Tu contraseña no se guarda.\033[0m\n\n  Vista previa · no inicia una copia.\n\n'
+        read -rp '  Enter para cerrar › ' _ || true
         ;;
     snapshots)
         load_config
+        require_terminal
         restic snapshots
         ;;
     check)
         load_config
+        require_terminal
         restic check
         ;;
     restore)
@@ -89,6 +160,7 @@ case ${1:-} in
         }
         load_config
         mkdir -p -- "$target"
+        require_terminal
         restic restore "$snapshot" --target "$target"
         ;;
     *)

@@ -74,6 +74,19 @@ return {
         callback = function(c) require("emulator-shape").attach(c) end,
     },
     {
+        rule = { class = "DotfilesBackup" },
+        properties = {
+            floating = true,
+            ontop = true,
+            placement = awful.placement.centered,
+        },
+        callback = function(c)
+            local area = c.screen.workarea
+            c:geometry({ width = math.min(560, math.floor(area.width * 0.9)), height = math.min(280, math.floor(area.height * 0.8)) })
+            awful.placement.centered(c, { honor_workarea = true })
+        end,
+    },
+    {
         rule = { class = "DotfilesLazyDocker" },
         properties = {
             floating = true,

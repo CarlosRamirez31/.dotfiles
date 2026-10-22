@@ -306,17 +306,6 @@ xrandr --output NOMBRE_REAL --mode 1920x1080 --rate 60
 Sustituye `NOMBRE_REAL` por el nombre reportado por XRandR; no copies ese ajuste
 a un equipo con salidas distintas.
 
-## Windows y Neovim
-
-El módulo Neovim conserva instalación independiente para Windows:
-
-```powershell
-.\setup\modules\nvim\install.ps1
-```
-
-La configuración de Flutter detecta Android SDK y emuladores mediante variables
-y rutas estándar en Windows, Linux y macOS; no depende de un nombre de usuario.
-
 ## Mantenimiento del repositorio
 
 Los paquetes existentes se omiten mediante `pacman -Q` y `pacman --needed`.

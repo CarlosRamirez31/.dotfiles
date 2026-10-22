@@ -1,6 +1,6 @@
 # Neovim
 
-Este componente instala una estación de edición basada en LazyVim, mantenida dentro del mismo historial de dotfiles. Incluye navegación, completado, LSP, formato, Tree-sitter, Git, depuración, Copilot y soporte Flutter para Linux y Windows.
+Este componente instala una estación de edición basada en LazyVim, mantenida dentro del mismo historial de dotfiles. Incluye navegación, completado, LSP, formato, Tree-sitter, Git, depuración, Copilot y soporte Flutter en Arch Linux y los contenedores de trabajo.
 
 ## Dependencias instaladas en Arch
 
@@ -89,15 +89,7 @@ En el Android activa Opciones de desarrollador y Depuración USB, conecta un cab
 :Copilot auth
 ```
 
-La configuración desactiva autoformato global por defecto, usa espacios de 2 columnas, líneas sin wrap, búsqueda smart-case, splits abajo/derecha, sin swap y sin mouse. El shell se detecta por plataforma; en Windows prefiere PowerShell 7.
-
-## Windows
-
-```powershell
-.\setup\modules\nvim\install.ps1
-```
-
-El script usa Winget para Git, Neovim, ripgrep, fd, CMake, Node LTS, .NET 10 y Rustup; instala Tree-sitter con npm, añade rust-analyzer, respalda `%LOCALAPPDATA%\nvim`, copia la configuración y sincroniza plugins/parsers. Flutter busca SDK y emuladores mediante variables/rutas estándar, no un usuario fijo.
+La configuración desactiva autoformato global por defecto, usa espacios de 2 columnas, líneas sin wrap, búsqueda smart-case, splits abajo/derecha, sin swap y sin mouse. En Linux usa el shell disponible indicado en `$SHELL`, con fish o sh como respaldo.
 
 ## Archivos importantes
 

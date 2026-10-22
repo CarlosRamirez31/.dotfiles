@@ -41,8 +41,8 @@ shfmt --write --indent 4 --case-indent RUTA
 Una comprobación correcta no demuestra el arranque de SDDM, permisos de hardware,
 calidad audible, interacción gráfica, descargas externas ni instalación limpia.
 Complementa con `dotfiles-doctor`, uso real de cada función, un arranque guardando
-antes el trabajo y una instalación nueva en VM. Windows necesita su propia prueba
-con Winget y PowerShell.
+antes el trabajo y una instalación nueva de Arch Linux en VM. El proyecto no incluye un instalador
+para Windows.
 
 ## Fuentes
 

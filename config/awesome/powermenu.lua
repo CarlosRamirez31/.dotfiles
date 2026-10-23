@@ -6,7 +6,7 @@ local widgets = require("widgets")
 local dashboard
 
 local function text(markup, font)
-    return wibox.widget({ markup = markup, font = font or "Lexend 10", widget = wibox.widget.textbox })
+    return wibox.widget({ markup = markup, font = font or "JetBrainsMono Nerd Font Medium 10", widget = wibox.widget.textbox })
 end
 
 local function card(child)
@@ -22,7 +22,7 @@ local function button(icon, label, color, callback)
     local body = wibox.widget({
         {
             text(string.format('<span foreground="%s">%s</span>', color, icon), "JetBrainsMono Nerd Font 10"),
-            text(string.format('<span foreground="#cdd6f4">%s</span>', label), "Lexend 9"),
+            text(string.format('<span foreground="#cdd6f4">%s</span>', label), "JetBrainsMono Nerd Font Medium 9"),
             spacing = 8,
             layout = wibox.layout.fixed.horizontal,
         },
@@ -43,19 +43,19 @@ end
 
 local function build(screen)
     local heading = wibox.widget({
-        text('<span foreground="#f5c2e7">Dashboard</span><span foreground="#a6adc8">  ·  Awesome X11</span>', "Lexend 14"),
+        text('<span foreground="#f5c2e7">Dashboard</span><span foreground="#a6adc8">  ·  Awesome X11</span>', "JetBrainsMono Nerd Font Bold 14"),
         bottom = 10,
         widget = wibox.container.margin,
     })
     local time = wibox.widget.textclock("%I:%M %p")
-    time.font = "Lexend 28"
+    time.font = "JetBrainsMono Nerd Font Bold 28"
     local date = wibox.widget.textclock("%A, %d de %B")
-    date.font = "Lexend 9"
+    date.font = "JetBrainsMono Nerd Font Medium 9"
     local profile = card({
         {
             {
                 text('<span foreground="#89dceb">󰀄</span>', "JetBrainsMono Nerd Font 11"),
-                text('<span foreground="#cdd6f4">beambollow</span>', "Lexend 10"),
+                text('<span foreground="#cdd6f4">beambollow</span>', "JetBrainsMono Nerd Font Medium 10"),
                 spacing = 8,
                 layout = wibox.layout.fixed.horizontal,
             },
@@ -80,7 +80,7 @@ local function build(screen)
 
     local status = wibox.layout.fixed.vertical()
     status.spacing = 9
-    status:add(text('<span foreground="#a6adc8">ESTADO DEL SISTEMA</span>', "Lexend 8"))
+    status:add(text('<span foreground="#a6adc8">ESTADO DEL SISTEMA</span>', "JetBrainsMono Nerd Font Medium 8"))
     status:add(widgets.volume())
     status:add(widgets.network())
     status:add(widgets.memory())

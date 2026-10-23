@@ -85,7 +85,7 @@ if command -v fc-match >/dev/null 2>&1; then
 
     lexend_family=$(fc-match -f '%{family[0]}' Lexend 2>/dev/null)
     if [[ $lexend_family == Lexend ]]; then
-        ok 'Lexend available for Awesome Wibar'
+        ok 'Lexend available for GTK applications'
     else
         fail "Lexend resolves to ${lexend_family:-nothing}"
     fi

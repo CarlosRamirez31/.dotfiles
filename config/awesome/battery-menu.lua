@@ -1,20 +1,17 @@
 local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
+local menu_style = require("menu-style")
 
 local M = {}
 local popup, current, content, message
 local busy = false
 local generation = 0
 local timer
-local colors = {
-    base = "#181825", surface = "#242438", raised = "#313244",
-    text = "#cdd6f4", muted = "#a6adc8", border = "#45475a",
-    green = "#a6e3a1", lavender = "#cba6f7", blue = "#89dceb", red = "#f38ba8",
-}
+local colors = menu_style.colors
 local styles = {
     bright = { "󰓅", "#fab387" }, balanced = { "󰾅", "#f9e2af" },
-    ["balanced-60"] = { "󰾆", "#89dceb" },
+    ["balanced-60"] = { "󰾆", "#89b4fa" },
     ["save-fluid"] = { "", "#a6e3a1" }, ["save-max"] = { "󰁹", "#94e2d5" },
 }
 local helper = os.getenv("HOME") .. "/.local/bin/dotfiles-power-profile"
@@ -23,7 +20,7 @@ local function text(value, font, color)
     return wibox.widget({
         markup = string.format('<span foreground="%s">%s</span>', color or colors.text,
             gears.string.xml_escape(tostring(value))),
-        font = font or "Lexend 10", widget = wibox.widget.textbox,
+        font = font or "JetBrainsMono Nerd Font Bold 10", widget = wibox.widget.textbox,
     })
 end
 
@@ -90,16 +87,16 @@ local function profile_card(profile, data)
     local style = styles[profile.id]
     local accent = style[2]
     local titles = wibox.widget({
-        text(profile.title, "Lexend Bold 10", selected and accent or colors.text),
-        text(profile.detail, "Lexend 8", colors.muted),
+        text(profile.title, "JetBrainsMono Nerd Font Bold 10", selected and accent or colors.text),
+        text(profile.detail, "JetBrainsMono Nerd Font Medium 8", colors.muted),
         spacing = 4, layout = wibox.layout.fixed.vertical,
     })
-    local badge = text(profile.measured, "Lexend 8", accent)
+    local badge = text(profile.measured, "JetBrainsMono Nerd Font Medium 8", accent)
     badge.align = "right"
-    local check = text(selected and "󰄬" or "○", "JetBrainsMono Nerd Font 12", selected and accent or colors.border)
+    local check = menu_style.icon(selected and "󰄬" or "○", 12, selected and accent or colors.border, 24, 24)
     check.align = "right"
     local trailing = wibox.widget({ check, badge, spacing = 3, layout = wibox.layout.fixed.vertical })
-    local icon = text(style[1], "JetBrainsMono Nerd Font 19", accent)
+    local icon = menu_style.icon(style[1], 19, accent, 33, 34)
     icon.forced_width = 33
     icon.valign = "center"
     local card = wibox.widget({
@@ -107,10 +104,10 @@ local function profile_card(profile, data)
             { icon, titles, spacing = 10, layout = wibox.layout.fixed.horizontal },
             nil, trailing, layout = wibox.layout.align.horizontal,
         }), 13, 11),
-        bg = selected and "#303342" or colors.surface,
+        bg = selected and "#2d2840" or colors.surface,
         border_width = selected and 1 or 0,
         border_color = accent,
-        shape = function(cr, width, height) gears.shape.rounded_rect(cr, width, height, 10) end,
+        shape = function(cr, width, height) gears.shape.rounded_rect(cr, width, height, 12) end,
         widget = wibox.container.background,
     })
     card.opacity = (busy or not profile.available) and 0.5 or 1
@@ -118,7 +115,7 @@ local function profile_card(profile, data)
         if not busy and profile.available then widget.bg = colors.raised end
     end)
     card:connect_signal("mouse::leave", function(widget)
-        widget.bg = selected and "#303342" or colors.surface
+        widget.bg = selected and "#2d2840" or colors.surface
     end)
     card:buttons(gears.table.join(awful.button({}, 1, function() apply(profile) end)))
     return card
@@ -128,11 +125,11 @@ render = function(data, notice, failed)
     if not content then return end
     content:reset()
     if not data then
-        content:add(text(notice or "Leyendo el estado de energía…", "Lexend 10", colors.muted))
+        content:add(text(notice or "Leyendo el estado de energía…", "JetBrainsMono Nerd Font Medium 10", colors.muted))
         return
     end
     local saving = data.energy == "power-saver"
-    local battery = text((data.capacity or "—") .. "%", "Lexend Bold 24")
+    local battery = text((data.capacity or "—") .. "%", "JetBrainsMono Nerd Font Bold 24")
     local power = data.watts and string.format("%.1f W ahora", data.watts) or
         (data.state == "Charging" and "Cargando" or "Conectado a corriente")
     local active_title = "Personalizado"
@@ -143,7 +140,7 @@ render = function(data, notice, failed)
         { battery, nil, text(saving and "  AHORRO ACTIVO" or "󰚥  EQUILIBRADO",
             "JetBrainsMono Nerd Font 9", saving and colors.green or colors.blue),
             layout = wibox.layout.align.horizontal },
-        { text(power, "Lexend 10", colors.blue), nil, text(active_title, "Lexend 9", colors.muted),
+        { text(power, "JetBrainsMono Nerd Font Medium 10", colors.blue), nil, text(active_title, "JetBrainsMono Nerd Font Medium 9", colors.muted),
             layout = wibox.layout.align.horizontal },
         spacing = 5, layout = wibox.layout.fixed.vertical,
     })
@@ -156,7 +153,7 @@ render = function(data, notice, failed)
         shape = gears.shape.rounded_rect, widget = wibox.container.background }))
     local toggle_title = saving and "Desactivar modo ahorro de batería" or "Activar modo ahorro de batería"
     local toggle = wibox.widget({
-        margin(text(toggle_title, "Lexend Bold 10", saving and colors.blue or colors.green), 14, 11),
+        margin(text(toggle_title, "JetBrainsMono Nerd Font Bold 10", saving and colors.blue or colors.green), 14, 11),
         bg = colors.raised, shape = gears.shape.rounded_rect,
         widget = wibox.container.background,
     })
@@ -166,12 +163,12 @@ render = function(data, notice, failed)
             command = { helper, saving and "saving-off" or "saving-on", "--tsv" } })
     end)))
     content:add(toggle)
-    content:add(margin(text("MAYOR CONSUMO  ↓  MAYOR AUTONOMÍA", "Lexend Bold 8", colors.muted), 2, 5))
+    content:add(margin(text("MAYOR CONSUMO  ↓  MAYOR AUTONOMÍA", "JetBrainsMono Nerd Font Bold 8", colors.muted), 2, 5))
     for _, profile in ipairs(data.profiles) do content:add(profile_card(profile, data)) end
     content:add(margin(text("Los Hz de estos perfiles son los de la laptop.\nReferencias medidas sin monitores externos.",
-        "Lexend 8", colors.muted), 2, 4))
+        "JetBrainsMono Nerd Font Medium 8", colors.muted), 2, 4))
     if notice and notice ~= "" then
-        message = text(notice, "Lexend 8", failed and colors.red or colors.green)
+        message = text(notice, "JetBrainsMono Nerd Font Medium 8", failed and colors.red or colors.green)
         message.wrap = "word_char"
         message.forced_width = 380
         content:add(message)
@@ -194,14 +191,16 @@ function M.show()
     if popup then popup.visible = false end
     content = wibox.layout.fixed.vertical()
     content.spacing = 7
-    local close = text("", "JetBrainsMono Nerd Font 14", colors.muted)
+    local close = menu_style.icon("󰅙", 14, colors.red, 24, 24)
+    close.forced_width, close.align, close.valign = 24, "center", "center"
     close:buttons(gears.table.join(awful.button({}, 1, hide)))
-    local reload = text("󰜉", "JetBrainsMono Nerd Font 15", colors.blue)
+    local reload = menu_style.icon("󰜉", 15, colors.blue, 24, 24)
+    reload.forced_width, reload.align, reload.valign = 24, "center", "center"
     reload:buttons(gears.table.join(awful.button({}, 1, refresh)))
     local controls = wibox.widget({ reload, close, spacing = 16, layout = wibox.layout.fixed.horizontal })
     local heading = wibox.widget({
-        { text("Batería y energía", "Lexend Bold 13"),
-          text("Elige cómo quieres trabajar", "Lexend 9", colors.muted),
+        { text("Batería y energía", "JetBrainsMono Nerd Font Bold 13", colors.blue),
+          text("Elige cómo quieres trabajar", "JetBrainsMono Nerd Font Medium 9", colors.muted),
           spacing = 4, layout = wibox.layout.fixed.vertical },
         nil, controls, layout = wibox.layout.align.horizontal,
     })

@@ -28,10 +28,10 @@ function M.show(capacity, is_preview)
     preview = is_preview == true
     local icon = text("", "JetBrainsMono Nerd Font 42", "#f9e2af")
     icon.forced_height = 68
-    local percentage = text(tostring(capacity) .. "%", "Lexend Bold 30", "#f9e2af")
+    local percentage = text(tostring(capacity) .. "%", "JetBrainsMono Nerd Font Bold 30", "#f9e2af")
     percentage.forced_height = 54
     local button = wibox.widget({
-        text("Entendido", "Lexend Bold 11", "#181825"),
+        text("Entendido", "JetBrainsMono Nerd Font Bold 11", "#181825"),
         margins = 10,
         widget = wibox.container.margin,
     })
@@ -67,12 +67,12 @@ function M.show(capacity, is_preview)
         widget = {
             {
                 icon,
-                text("Batería baja", "Lexend Bold 19", "#cdd6f4"),
+                text("Batería baja", "JetBrainsMono Nerd Font Bold 19", "#cdd6f4"),
                 percentage,
                 progress,
-                text("Conecta el cargador para seguir trabajando.", "Lexend 10", "#a6adc8"),
+                text("Conecta el cargador para seguir trabajando.", "JetBrainsMono Nerd Font Medium 10", "#a6adc8"),
                 button,
-                text(preview and "Vista previa · No es el nivel real de tu batería" or "Te avisamos para que no pierdas tu trabajo.", "Lexend 8", "#a6adc8"),
+                text(preview and "Vista previa · No es el nivel real de tu batería" or "Te avisamos para que no pierdas tu trabajo.", "JetBrainsMono Nerd Font Medium 8", "#a6adc8"),
                 spacing = 12,
                 layout = wibox.layout.fixed.vertical,
             },

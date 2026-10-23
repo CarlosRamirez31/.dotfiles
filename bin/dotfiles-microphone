@@ -1032,10 +1032,20 @@ def gui(compact=False):
             self.set_name('microphone-panel')
             css = Gtk.CssProvider()
             css.load_from_data(b'''
-                #microphone-panel { background: #181825; color: #cdd6f4; font-family: Lexend; }
-                #microphone-panel button, #microphone-panel combobox { background: #313244; color: #cdd6f4; border-color: #45475a; box-shadow: none; text-shadow: none; border-radius: 8px; }
-                #microphone-panel button:hover { background: #45475a; }
-                #microphone-panel check { background: #242438; border-color: #585b70; }
+                #microphone-panel { background: #171722; color: #cdd6f4; font-family: JetBrainsMono Nerd Font, monospace; font-size: 14px; font-weight: 600; }
+                #microphone-panel label { color: #cdd6f4; }
+                #microphone-panel .menu-title { color: #89b4fa; font-weight: 700; }
+                #microphone-panel .muted { color: #a6adc8; font-weight: 500; }
+                #microphone-panel entry, #microphone-panel scale trough { background: #20202e; color: #cdd6f4; border-color: #39394f; }
+                #microphone-panel scale highlight { background: #cba6f7; }
+                #microphone-panel scale slider { background: #cdd6f4; }
+                #microphone-panel button, #microphone-panel checkbutton { font-weight: 600; }
+                #microphone-panel combobox button { border-radius: 10px; }
+                #microphone-panel { border: 1px solid #39394f; border-radius: 14px; }
+                decoration { border: 0; box-shadow: none; }
+                #microphone-panel button, #microphone-panel combobox { background: #303040; color: #cdd6f4; border-color: #39394f; box-shadow: none; text-shadow: none; border-radius: 8px; }
+                #microphone-panel button:hover { background: #39394f; }
+                #microphone-panel check { background: #20202e; border-color: #585b70; }
                 #microphone-panel check:checked { background: #cba6f7; color: #181825; }
                 #microphone-panel :disabled { color: #6c7086; }
                 #microphone-panel .command-hint { font-family: monospace; font-size: 11px; color: #a6adc8; opacity: 0.65; }
@@ -1048,6 +1058,7 @@ def gui(compact=False):
             self.add(box)
             header = Gtk.Box(spacing=10)
             title = Gtk.Label(xalign=0)
+            title.get_style_context().add_class('menu-title')
             title.set_markup('<b>Micrófono</b>' if compact else '<b>Micrófono y aislamiento</b>')
             header.pack_start(title, True, True, 0)
             close = Gtk.Button()
@@ -1060,6 +1071,7 @@ def gui(compact=False):
             header.pack_end(close, False, False, 0)
             box.pack_start(header, False, False, 0)
             self.info = Gtk.Label(xalign=0, wrap=True)
+            self.info.get_style_context().add_class('muted')
             box.pack_start(self.info, False, False, 0)
             self.combo = Gtk.ComboBoxText()
             self.combo.connect('changed', self.select)

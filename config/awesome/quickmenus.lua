@@ -1,6 +1,7 @@
 local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
+local menu_style = require("menu-style")
 
 local M = {}
 local popups = {}
@@ -12,19 +13,7 @@ local network_generation = 0
 local network_timer
 local network_page = 1
 local password_grabber
-local palette = {
-    base = "#181825",
-    surface = "#242438",
-    raised = "#313244",
-    border = "#45475a",
-    text = "#cdd6f4",
-    muted = "#a6adc8",
-    lavender = "#cba6f7",
-    green = "#a6e3a1",
-    yellow = "#f9e2af",
-    red = "#f38ba8",
-    blue = "#89dceb",
-}
+local palette = menu_style.colors
 
 local function escape(value)
     return gears.string.xml_escape(tostring(value or ""))
@@ -33,7 +22,7 @@ end
 local function label(value, font, color)
     return wibox.widget({
         markup = string.format('<span foreground="%s">%s</span>', color or palette.text, escape(value)),
-        font = font or "Lexend 10",
+        font = font or "JetBrainsMono Nerd Font Bold 10",
         widget = wibox.widget.textbox,
     })
 end
@@ -63,20 +52,12 @@ local function make_popup(kind, title, subtitle, content, width)
         network_host = wibox.container.background(content)
         content = network_host
     end
-    local close = wibox.widget({
-        markup = '<span foreground="#a6adc8"></span>',
-        font = "JetBrainsMono Nerd Font 14",
-        align = "center",
-        valign = "center",
-        forced_width = 24,
-        forced_height = 24,
-        widget = wibox.widget.textbox,
-    })
+    local close = menu_style.icon("󰅙", 14, palette.red, 24, 24)
     close:buttons(gears.table.join(awful.button({}, 1, function() hide(kind) end)))
 
     local controls = wibox.widget({ spacing = 12, layout = wibox.layout.fixed.horizontal })
     if kind == "network" then
-        local power = label("⏻", "JetBrainsMono Nerd Font 16", palette.lavender)
+        local power = menu_style.icon("⏻", 16, palette.lavender, 26, 28)
         power.forced_width = 26
         power.align = "center"
         power:buttons(gears.table.join(awful.button({}, 1, function()
@@ -90,8 +71,8 @@ local function make_popup(kind, title, subtitle, content, width)
     local heading = wibox.widget({
         {
             {
-                label(title, "Lexend Bold 12", palette.text),
-                label(subtitle, "Lexend 9", palette.muted),
+                label(title, "JetBrainsMono Nerd Font Bold 12", palette.blue),
+                label(subtitle, "JetBrainsMono Nerd Font Medium 9", palette.muted),
                 spacing = 3,
                 layout = wibox.layout.fixed.vertical,
             },
@@ -137,15 +118,15 @@ local function make_popup(kind, title, subtitle, content, width)
 end
 
 local function action_row(icon, title, detail, accent, callback)
-    local icon_widget = label(icon, "JetBrainsMono Nerd Font 16", accent)
+    local icon_widget = menu_style.icon(icon, 16, accent, 28, 30)
     icon_widget.align = "center"
     icon_widget.valign = "center"
-    icon_widget.forced_width = 26
-    icon_widget.forced_height = 28
+    icon_widget.forced_width = 28
+    icon_widget.forced_height = 30
 
     local text = wibox.widget({
-        label(title, "Lexend 10", palette.text),
-        label(detail, "Lexend 8", palette.muted),
+        label(title, "JetBrainsMono Nerd Font Bold 10", palette.text),
+        label(detail, "JetBrainsMono Nerd Font Medium 8", palette.muted),
         spacing = 2,
         layout = wibox.layout.fixed.vertical,
     })
@@ -178,7 +159,7 @@ local function power_content(confirm_kind)
     local rows = wibox.widget({ spacing = 7, layout = wibox.layout.fixed.vertical })
     if confirm_kind then
         local verb = confirm_kind == "shutdown" and "apagar" or "reiniciar"
-        rows:add(label("¿Seguro que quieres " .. verb .. " el equipo?", "Lexend 10", palette.text))
+        rows:add(label("¿Seguro que quieres " .. verb .. " el equipo?", "JetBrainsMono Nerd Font Bold 10", palette.text))
         rows:add(wibox.widget({ forced_height = 8, widget = wibox.widget.textbox }))
         rows:add(action_row("󰄬", "Sí, " .. verb, "Confirmar acción", palette.red, function()
             hide("power")
@@ -235,10 +216,10 @@ local function show_network_detail(network)
     local rows = wibox.widget({ spacing = 9, layout = wibox.layout.fixed.vertical })
     local password = ""
     local busy = false
-    local message = label(network.uuid and "Red guardada · Conecta o escribe una nueva contraseña" or "Introduce la contraseña de la red", "Lexend 9", palette.muted)
-    rows:add(label(network.ssid, "Lexend Bold 12", palette.lavender))
+    local message = label(network.uuid and "Red guardada · Conecta o escribe una nueva contraseña" or "Introduce la contraseña de la red", "JetBrainsMono Nerd Font Medium 9", palette.muted)
+    rows:add(label(network.ssid, "JetBrainsMono Nerd Font Bold 12", palette.lavender))
     rows:add(message)
-    local input = label("Pulsa aquí para escribir la contraseña", "Lexend 10", palette.text)
+    local input = label("Pulsa aquí para escribir la contraseña", "JetBrainsMono Nerd Font Bold 10", palette.text)
     local function update_input()
         input.text = password == "" and "Escribe la contraseña…" or string.rep("●", utf8.len(password) or #password)
     end
@@ -302,11 +283,11 @@ local function network_content()
     refresh.forced_width = 38
     refresh:buttons(gears.table.join(awful.button({}, 1, function() M.show_network(true) end)))
     awful.tooltip({ objects = { refresh }, text = "Actualizar redes" })
-    view.status = label("Wi-Fi", "Lexend 10")
+    view.status = label("Wi-Fi", "JetBrainsMono Nerd Font Bold 10")
     rows:add(view.status)
     view.connection = wibox.container.background()
     rows:add(view.connection)
-    rows:add(wibox.widget({ label("REDES DISPONIBLES", "Lexend Bold 8", palette.muted), nil, refresh, layout = wibox.layout.align.horizontal }))
+    rows:add(wibox.widget({ label("REDES DISPONIBLES", "JetBrainsMono Nerd Font Bold 8", palette.muted), nil, refresh, layout = wibox.layout.align.horizontal }))
     view.spinner = wibox.widget.base.make_widget(nil, nil, { enable_properties = true })
     view.spinner.fit = function() return 24, 24 end
     view.spinner.forced_width = 24
@@ -374,7 +355,7 @@ local function render_networks(view, scan_error)
         local message = not view.wifi_enabled and "Wi-Fi apagado o adaptador no disponible. Pulsa ⏻ para activarlo."
             or (scan_error and "No se pudo buscar redes. Pulsa Actualizar para volver a intentarlo."
                 or "No hay redes disponibles. Pulsa Actualizar para buscar de nuevo.")
-        rows:add(label(message, "Lexend 9", palette.muted))
+        rows:add(label(message, "JetBrainsMono Nerd Font Medium 9", palette.muted))
     end
     if network_page > 1 then rows:add(action_row("󰜱", "Redes anteriores", "", palette.blue, function() network_page = network_page - 1; render_networks(view, scan_error) end)) end
     if #available > network_page * 5 then rows:add(action_row("󰜴", "Más redes", "", palette.blue, function() network_page = network_page + 1; render_networks(view, scan_error) end)) end

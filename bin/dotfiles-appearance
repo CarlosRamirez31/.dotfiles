@@ -219,10 +219,10 @@ def gui(test_hook=None):
                 decoration { border: 0; box-shadow: none; margin: 0; background: transparent; border-radius: 0; }
                 menu, menuitem, popover, popover contents { background-color: #11151a;
                     color: #b4b9d8; border-radius: 0; }
-                menuitem label { color: #b4b9d8; font-family: Iosevka Nerd Font, monospace; }
+                menuitem label { color: #b4b9d8; font-family: JetBrainsMono Nerd Font, monospace; font-weight: 500; }
                 menuitem:hover { background-color: #26334d; }
                 #appearance { background: #0d1117; color: #b4b9d8;
-                    font-family: Iosevka Nerd Font, monospace; font-size: 13px;
+                    font-family: JetBrainsMono Nerd Font, monospace; font-weight: 500; font-size: 13px;
                     border: 0; border-radius: 0; box-shadow: none; }
                 #appearance label { color: #b4b9d8; }
                 #appearance headerbar { background: #0d1117; color: #b4b9d8;

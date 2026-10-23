@@ -33,6 +33,11 @@ escala esas medidas por monitor. Cambiar solamente la fuente o su desplazamiento
 puede dejar el fondo sobresaliendo como un cuadrado o recortar la curva.
 
 Clic en red, Bluetooth, batería o encendido abre los menús correspondientes.
+Sus interiores comparten la paleta oscura de los paneles de música y sistema,
+con tipografía JetBrainsMono como la barra, opciones con más peso y descripciones
+más suaves. El menú de micrófono sigue el mismo estilo. Los iconos de los menús
+nativos se centran por su contorno visible y se ajustan dentro de su espacio
+para evitar recortes, sin cambiar las funciones de los controles.
 Las acciones de audio y brillo cambian el estado real al usarlas. La barra se
 reinicia desde el arranque de Awesome y desde el panel de pantallas cuando procede.
 

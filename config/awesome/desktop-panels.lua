@@ -18,7 +18,7 @@ local colors = { base = "#171722", surface = "#20202e", raised = "#373747",
 local function text(value, size, color)
     return wibox.widget({ markup = '<span foreground="' .. (color or colors.text) .. '">'
         .. gears.string.xml_escape(tostring(value or "")) .. '</span>',
-        font = "Iosevka Nerd Font Bold " .. (size or 10), wrap = "word_char", widget = wibox.widget.textbox })
+        font = "JetBrainsMono Nerd Font Bold " .. (size or 10), wrap = "word_char", widget = wibox.widget.textbox })
 end
 
 -- Center the visible ink, avoiding font bearings and baseline clipping.
@@ -303,18 +303,29 @@ local function render_music(data)
         wibox.container.place(music_button("󰒭", "Siguiente", "Next", available and data.next == "1", colors.text, 15)),
         layout = wibox.layout.flex.horizontal })
     transport.forced_height = 44
-    local track_title = text(empty and "Sin reproducción" or data.title, 10, colors.text)
+    local player = (data.player or ""):gsub("^org%.mpris%.MediaPlayer2%.", ""):gsub("%.instance.*$", "")
+    local player_names = { limusic = "Limusic", spotify = "Spotify", vlc = "VLC", firefox = "Firefox", chromium = "Chromium" }
+    local track_title = text(empty and "Sin reproducción" or (player_names[player] or player), 10, colors.text)
     track_title.ellipsize, track_title.forced_height = "end", 22
-    local track_artist = text(empty and "Tu música aparecerá aquí" or data.artist, 8, colors.muted)
+    local remaining = math.max(0, (tonumber(data.length) or 0) - (tonumber(data.position) or 0))
+    local track_artist = text(empty and "Tu música aparecerá aquí" or (timestamp(remaining) .. " restantes"), 8, colors.muted)
     track_artist.ellipsize, track_artist.forced_height = "end", 20
     local current = wibox.widget({ margin(wibox.widget({ track_title, track_artist,
         spacing = 2, layout = wibox.layout.fixed.vertical }), 8, 7),
         bg = "#ffffff0c", shape = gears.shape.rounded_rect, widget = wibox.container.background })
     local status = text(empty and "MÚSICA" or (data.state == "Playing" and "REPRODUCIENDO" or "EN PAUSA"), 8, colors.muted)
     local heading_row = wibox.widget({ status, nil, close, layout = wibox.layout.align.horizontal })
+    local function normalized(value)
+        return (value or ""):lower():gsub("’", ""):gsub("[%p%s]", "")
+    end
+    local album_value = not empty and normalized(data.album) ~= normalized(data.title) and data.album or ""
+    local album = text(album_value, 8, colors.muted)
+    album.ellipsize, album.forced_height = "end", 20
     local detail = wibox.widget({ heading_row, current,
-        text(empty and "" or data.album, 8, colors.muted), spacing = 8, layout = wibox.layout.fixed.vertical })
-    local side = margin(wibox.widget({ detail, nil, transport, layout = wibox.layout.align.vertical }), 8, 5)
+        spacing = 8, layout = wibox.layout.fixed.vertical })
+    if album_value ~= "" then detail:add(album) end
+    local side = margin(wibox.widget({ detail, wibox.container.place(transport, "center", "center"), nil,
+        layout = wibox.layout.align.vertical }), 8, 5)
     side.forced_width, side.forced_height = 160, 176
     body:add(wibox.widget({ cover, side, spacing = 10, layout = wibox.layout.fixed.horizontal }))
 

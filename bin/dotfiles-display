@@ -678,7 +678,7 @@ def gui(outputs):
             self.set_name('display-panel')
             self.css = Gtk.CssProvider()
             self.css.load_from_data(b'''
-                #display-panel { background: #181825; color: #cdd6f4; font-family: Lexend; }
+                #display-panel { background: #181825; color: #cdd6f4; font-family: JetBrainsMono Nerd Font, monospace; font-weight: 500; }
                 #display-panel headerbar { background: #1e1e2e; color: #cdd6f4; border: 0; box-shadow: none; }
                 #display-panel .section-title { color: #cba6f7; font-weight: bold; font-size: 14px; }
                 #display-panel .muted { color: #a6adc8; }

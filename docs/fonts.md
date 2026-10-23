@@ -1,6 +1,6 @@
 # Fonts
 
-Este componente instala las familias tipográficas que sostienen la interfaz: JetBrainsMono Nerd Font para terminal/código/iconos y Lexend para los menús de Awesome. Tenerlas en un módulo temprano evita cuadros vacíos y cambios de medida durante el resto de la instalación.
+Este componente instala las familias tipográficas que sostienen la interfaz: JetBrainsMono Nerd Font para la barra, los menús del escritorio, terminal, código e iconos; Lexend queda disponible para las aplicaciones GTK. Tenerlas en un módulo temprano evita cuadros vacíos y cambios de medida durante el resto de la instalación.
 
 ## Contenido
 
@@ -10,7 +10,7 @@ Este componente instala las familias tipográficas que sostienen la interfaz: Je
 | Iosevka Nerd Font | Paquete Arch `ttf-iosevka-nerd` | Tipografía compacta de la barra y respaldo de glifos. |
 | Material Icons | Paquete Arch `ttf-material-icons` | Recursos de iconos compatibles con aplicaciones; los bordes de Polybar usan Nerd Font. |
 | Noto Color Emoji | Paquete Arch `noto-fonts-emoji` | Emojis de Starship, incluido el dragón que identifica Kali Linux. |
-| Lexend Variable | Archivos en `assets/fonts/Lexend`, enlazados a `~/.local/share/fonts/Lexend` | Texto y controles de Awesome. |
+| Lexend Variable | Archivos en `assets/fonts/Lexend`, enlazados a `~/.local/share/fonts/Lexend` | Fuente disponible para aplicaciones GTK. |
 
 El archivo `OFL.txt` conserva la licencia de Lexend junto a la fuente. El instalador añade `fontconfig`, enlaza los archivos y fuerza `fc-cache -f` para que aplicaciones ya instaladas puedan descubrirlos.
 
@@ -28,7 +28,7 @@ fc-list | rg 'JetBrains|Lexend'
 
 ## Relaciones y personalización
 
-Alacritty solicita JetBrainsMono Regular; Polybar usa JetBrainsMono e Iosevka Nerd Font y los menús de Awesome usan Lexend. Cambiar el nombre o retirar una familia exige actualizar esas configuraciones para evitar fallback inconsistente.
+Alacritty solicita JetBrainsMono Regular; Polybar usa JetBrainsMono e Iosevka Nerd Font y los menús de Awesome usan JetBrainsMono con opciones marcadas y descripciones más suaves. Cambiar el nombre o retirar una familia exige actualizar esas configuraciones para evitar fallback inconsistente.
 
 Si aparecen glifos cuadrados, verifica primero que el proceso use esta cuenta de usuario y ejecuta:
 

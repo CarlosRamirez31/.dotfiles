@@ -25,7 +25,7 @@ existan advertencias.
    wallpaper y bloqueo.
 2. Ejecutables administrados en `~/.local/bin`, configuración de Awesome y
    Picom, y enlaces administrados críticos.
-3. JetBrainsMono Nerd Font, Noto Color Emoji y Lexend para los menús de Awesome.
+3. JetBrainsMono Nerd Font, Noto Color Emoji y Lexend para aplicaciones GTK.
 4. Zsh como shell de login, NetworkManager, firewall, timers y sockets de
    credenciales.
 5. En una sesión Awesome activa: tipo X11,

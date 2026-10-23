@@ -1,7 +1,7 @@
 local beautiful = require("beautiful")
 
 beautiful.init({
-    font = "Lexend 10",
+    font = "JetBrainsMono Nerd Font Medium 10",
     mono_font = "JetBrainsMono Nerd Font 10",
     bg_normal = "#1e1e2e",
     bg_focus = "#45475a",
@@ -16,7 +16,7 @@ beautiful.init({
     border_focus = "#cba6f7",
     border_marked = "#f5c2e7",
     useless_gap = 10,
-    notification_font = "Lexend 10",
+    notification_font = "JetBrainsMono Nerd Font Medium 10",
     notification_bg = "#242438",
     notification_fg = "#cdd6f4",
     notification_border_color = "#cba6f7",

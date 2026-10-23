@@ -1,5 +1,5 @@
 * {
-    font:             "Lexend Regular 10";
+    font:             "JetBrainsMono Nerd Font Medium 10";
     background:       #11111bf2;
     surface:          #1e1e2eff;
     surface-alt:      #242438ff;

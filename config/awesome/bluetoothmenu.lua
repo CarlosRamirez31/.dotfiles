@@ -1,6 +1,7 @@
 local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
+local menu_style = require("menu-style")
 
 local M = { version = 3 }
 local popup, body, timer, session, grabber
@@ -8,17 +9,13 @@ local generation, page = 0, 1
 local loading, dispatching, busy = false, false, false
 local view, last_output, request_key = "saved", nil, nil
 local backend = os.getenv("HOME") .. "/.local/bin/dotfiles-polybar-bluetooth"
-local colors = {
-    base = "#181825", surface = "#242438", raised = "#313244", border = "#45475a",
-    text = "#cdd6f4", muted = "#a6adc8", blue = "#89b4fa", green = "#a6e3a1",
-    lavender = "#cba6f7", red = "#f38ba8",
-}
+local colors = menu_style.colors
 
 local function text(value, font, color)
     return wibox.widget({
         markup = string.format('<span foreground="%s">%s</span>', color or colors.text,
             gears.string.xml_escape(value)),
-        font = font or "Lexend 10", ellipsize = "end", widget = wibox.widget.textbox,
+        font = font or "JetBrainsMono Nerd Font Bold 10", ellipsize = "end", widget = wibox.widget.textbox,
     })
 end
 
@@ -41,20 +38,21 @@ function M.close()
 end
 
 local function row(icon, title, detail, color, callback)
-    local glyph = text(icon, "JetBrainsMono Nerd Font 18", color)
+    local glyph = menu_style.icon(icon, 18, color, 30, 32)
     glyph.forced_width = 30
     glyph.align = "center"
     local widget = wibox.widget({
         {
             {
                 glyph,
-                { text(title), text(detail, "Lexend 8", colors.muted), spacing = 3,
+                { text(title), text(detail, "JetBrainsMono Nerd Font Medium 8", colors.muted), spacing = 3,
                   layout = wibox.layout.fixed.vertical },
                 spacing = 12, layout = wibox.layout.fixed.horizontal,
             },
             margins = 12, widget = wibox.container.margin,
         },
-        bg = colors.surface, shape = gears.shape.rounded_rect,
+        bg = colors.surface,
+        shape = function(cr, width, height) gears.shape.rounded_rect(cr, width, height, 12) end,
         widget = wibox.container.background,
     })
     widget:connect_signal("mouse::enter", function() widget.bg = colors.raised end)
@@ -89,7 +87,7 @@ end
 local function tabs()
     local tabs_widget = wibox.widget({ spacing = 8, layout = wibox.layout.flex.horizontal })
     for _, tab in ipairs({ { "saved", "󰂱  Mis dispositivos" }, { "nearby", "󰂴  Vincular" } }) do
-        local title = text(tab[2], "Lexend 9", view == tab[1] and colors.blue or colors.muted)
+        local title = text(tab[2], "JetBrainsMono Nerd Font Medium 9", view == tab[1] and colors.lavender or colors.muted)
         title.align = "center"
         local pill = wibox.widget({
             { title, margins = 10, widget = wibox.container.margin },
@@ -103,18 +101,18 @@ local function tabs()
 end
 
 local function pairing_request(rows, kind, code, name, id)
-    rows:add(text(name, "Lexend Bold 12", colors.lavender))
+    rows:add(text(name, "JetBrainsMono Nerd Font Bold 12", colors.lavender))
     if kind == "confirm" or kind == "display" then
         rows:add(text(kind == "confirm" and "¿Coincide este código en ambos dispositivos?"
-            or "Escribe este código en el otro dispositivo y pulsa Enter.", "Lexend 9", colors.muted))
-        local passkey = text(#code == 6 and (code:sub(1, 3) .. " " .. code:sub(4)) or code, "Lexend Bold 26", colors.blue)
+            or "Escribe este código en el otro dispositivo y pulsa Enter.", "JetBrainsMono Nerd Font Medium 9", colors.muted))
+        local passkey = text(#code == 6 and (code:sub(1, 3) .. " " .. code:sub(4)) or code, "JetBrainsMono Nerd Font Bold 26", colors.blue)
         passkey.align = "center"
         rows:add(wibox.widget({ { passkey, margins = 14, widget = wibox.container.margin }, bg = colors.surface,
             shape = gears.shape.rounded_rect, widget = wibox.container.background }))
     end
     if kind == "pin" or kind == "passkey" then
-        rows:add(text("Introduce el código mostrado por el dispositivo.", "Lexend 9", colors.muted))
-        local input, value = text("Pulsa aquí para escribir el código", "Lexend 12", colors.blue), ""
+        rows:add(text("Introduce el código mostrado por el dispositivo.", "JetBrainsMono Nerd Font Medium 9", colors.muted))
+        local input, value = text("Pulsa aquí para escribir el código", "JetBrainsMono Nerd Font Bold 12", colors.blue), ""
         local function submit()
             if #value == 0 then return end
             stop_input()
@@ -169,19 +167,19 @@ render = function(output, force)
             state == "on" and "Pulsa para apagar" or "Pulsa para encender", state == "on" and colors.blue or colors.muted,
             function() action({ "--toggle" }) end))
     elseif state == "starting" then
-        rows:add(text("Preparando Bluetooth…", "Lexend 10", colors.blue))
+        rows:add(text("Preparando Bluetooth…", "JetBrainsMono Nerd Font Bold 10", colors.blue))
     else
         rows:add(text(state == "unavailable" and "No hay un adaptador Bluetooth disponible."
-            or "No se pudo acceder al servicio Bluetooth.", "Lexend 9", colors.red))
+            or "No se pudo acceder al servicio Bluetooth.", "JetBrainsMono Nerd Font Medium 9", colors.red))
     end
     rows:add(tabs())
-    if message then rows:add(text(message, "Lexend 9", level == "error" and colors.red or (level == "success" and colors.green or colors.blue))) end
+    if message then rows:add(text(message, "JetBrainsMono Nerd Font Medium 9", level == "error" and colors.red or (level == "success" and colors.green or colors.blue))) end
     if kind then pairing_request(rows, kind, code, name, id) end
     if busy then
         rows:add(row("󰜺", "Cancelar", "Detener la operación actual", colors.red, function() stop_input(); action({ "--cancel" }) end))
     elseif state == "on" then
         rows:add(text(view == "nearby" and (scanning and "󰔟  BUSCANDO DISPOSITIVOS…" or "DISPOSITIVOS CERCANOS")
-            or "TUS DISPOSITIVOS", "Lexend Bold 8", colors.muted))
+            or "TUS DISPOSITIVOS", "JetBrainsMono Nerd Font Bold 8", colors.muted))
         page = math.max(1, math.min(page, math.ceil(#devices / 4)))
         for index = (page - 1) * 4 + 1, math.min(page * 4, #devices) do
             local device = devices[index]
@@ -193,7 +191,7 @@ render = function(output, force)
         end
         if #devices == 0 then
             rows:add(text(view == "nearby" and "Activa el modo de vinculación de tu dispositivo."
-                or "Tus dispositivos aparecerán aquí al vincularlos.", "Lexend 9", colors.muted))
+                or "Tus dispositivos aparecerán aquí al vincularlos.", "JetBrainsMono Nerd Font Medium 9", colors.muted))
         end
         if page > 1 then rows:add(row("󰜱", "Anteriores", "", colors.blue, function() page = page - 1; render(output, true) end)) end
         if #devices > page * 4 then rows:add(row("󰜴", "Más dispositivos", "", colors.blue, function() page = page + 1; render(output, true) end)) end
@@ -220,10 +218,10 @@ function M.toggle()
     if popup and popup.visible then M.close(); return end
     M.close()
     page, view, last_output, request_key = 1, "saved", nil, nil
-    body = wibox.container.background(text("Cargando dispositivos…", "Lexend 10", colors.muted))
+    body = wibox.container.background(text("Cargando dispositivos…", "JetBrainsMono Nerd Font Bold 10", colors.muted))
     local controls = wibox.widget({ spacing = 12, layout = wibox.layout.fixed.horizontal })
-    for _, button in ipairs({ { "󰜉", function() if view == "nearby" then action({ "--scan" }) else refresh() end end, "Actualizar" }, { "", M.close, "Cerrar" } }) do
-        local glyph = text(button[1], "JetBrainsMono Nerd Font 16", colors.muted)
+    for _, button in ipairs({ { "󰜉", function() if view == "nearby" then action({ "--scan" }) else refresh() end end, "Actualizar" }, { "󰅙", M.close, "Cerrar" } }) do
+        local glyph = menu_style.icon(button[1], 16, button[3] == "Cerrar" and colors.red or colors.blue, 25, 28)
         glyph.forced_width = 25
         glyph.align = "center"
         glyph:buttons(gears.table.join(awful.button({}, 1, button[2])))
@@ -231,7 +229,7 @@ function M.toggle()
         controls:add(glyph)
     end
     local heading = wibox.widget({
-        { text("Bluetooth", "Lexend Bold 13"), text("Tus conexiones, en un solo lugar", "Lexend 9", colors.muted),
+        { text("Bluetooth", "JetBrainsMono Nerd Font Bold 13", colors.blue), text("Tus conexiones, en un solo lugar", "JetBrainsMono Nerd Font Medium 9", colors.muted),
           spacing = 4, layout = wibox.layout.fixed.vertical },
         nil, controls, layout = wibox.layout.align.horizontal,
     })
@@ -252,7 +250,7 @@ function M.toggle()
         local token = output:match("^([0-9a-f]+)")
         if generation ~= current or not popup.visible then end_session(token); return end
         if status ~= 0 or not token or #token ~= 32 then
-            body:set_widget(text("No se pudo abrir Bluetooth. Vuelve a intentarlo.", "Lexend 9", colors.red))
+            body:set_widget(text("No se pudo abrir Bluetooth. Vuelve a intentarlo.", "JetBrainsMono Nerd Font Medium 9", colors.red))
             return
         end
         session = token

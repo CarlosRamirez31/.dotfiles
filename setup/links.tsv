@@ -15,6 +15,7 @@ awesome	config/awesome/appearance.lua	.config/awesome/appearance.lua
 awesome	config/awesome/bar.lua	.config/awesome/bar.lua
 awesome	config/awesome/battery-alert.lua	.config/awesome/battery-alert.lua
 awesome	config/awesome/battery-menu.lua	.config/awesome/battery-menu.lua
+awesome	config/awesome/menu-style.lua	.config/awesome/menu-style.lua
 awesome	config/awesome/desktop-panels.lua	.config/awesome/desktop-panels.lua
 awesome	bin/dotfiles-desktop-panel	.local/bin/dotfiles-desktop-panel
 awesome	config/awesome/bindings.lua	.config/awesome/bindings.lua

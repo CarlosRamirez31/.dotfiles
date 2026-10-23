@@ -6,7 +6,7 @@ configuration {
 }
 
 * {
-    font: "Lexend Regular 10";
+    font: "JetBrainsMono Nerd Font Medium 10";
     background: #11111be8;
     surface: #1e1e2ef5;
     card: #242438f5;

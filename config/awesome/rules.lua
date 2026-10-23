@@ -48,6 +48,9 @@ return {
             -- Ordinary applications always join the active tag's tiling
             -- layout.  Dialogs below deliberately override this behavior.
             floating = false,
+            -- Tiled clients must fit their allocation even when the app asks
+            -- for a larger minimum; otherwise a column can cross monitors.
+            size_hints_honor = false,
             maximized = false,
             fullscreen = false,
             ontop = false,
@@ -62,6 +65,7 @@ return {
             sticky = true,
             ontop = true,
             skip_taskbar = true,
+            size_hints_honor = true,
         },
     },
     {
@@ -111,7 +115,11 @@ return {
             type = { "dialog", "utility", "toolbar", "splash" },
             class = { "Gpick", "flameshot" },
         },
-        properties = { floating = true, placement = awful.placement.centered },
+        properties = {
+            floating = true,
+            size_hints_honor = true,
+            placement = awful.placement.centered,
+        },
     },
     {
         rule = { class = "Emulator", name = "^Emulator$" },

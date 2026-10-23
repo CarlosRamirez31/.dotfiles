@@ -9,6 +9,12 @@ El teclado inicia en **US**. Usa `Super+Space` (tecla Windows+Espacio) o haz cli
 
 Consulta la lista completa y categorizada en [lista de atajos](awesome-atajos.md).
 
+Las aplicaciones normales en mosaico se ajustan al espacio asignado aunque
+declaren un tamaño mínimo mayor, para evitar que invadan el monitor vecino.
+Si una aplicación queda demasiado estrecha para mostrar sus controles, amplía
+su columna o pásala a flotante con `Alt+V`. Los diálogos y el emulador Android
+conservan sus restricciones especiales de tamaño.
+
 El emulador Android conserva el mosaico y muestra transparente el espacio sobrante alrededor de su pantalla. Su barra de controles sigue el área visible del dispositivo al moverlo, redimensionarlo o cambiarlo de tag; se coloca a la izquierda si no cabe a la derecha y se mantiene dentro del monitor. El panel de los tres puntos (Extended Controls) abre flotante, sin modificar el reparto del mosaico.
 
 En **Super+P**, arrastrar un monitor dentro de una fila reordena los demás sin

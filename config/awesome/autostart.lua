@@ -7,7 +7,7 @@ local function once(process, command)
     )
 end
 
-once("picom", "$HOME/.local/bin/dotfiles-appearance --start-compositor")
+-- appearance.start() restores and monitors Picom, including startup failures.
 once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
 -- Record explicit copies only; tracking PRIMARY also records mouse selections.
 -- Clipmenu batches pruning after ten extra entries: 90 + 10 = 100 maximum.
@@ -23,12 +23,11 @@ awful.spawn.with_shell("setxkbmap -layout us,latam -option")
 require("gears").timer({
     timeout = 5,
     autostart = true,
-    call_now = true,
+    call_now = false,
     callback = function()
         awful.spawn.easy_async({ os.getenv("HOME") .. "/.local/bin/dotfiles-display", "--auto" }, function() end)
     end,
 })
-awful.spawn.with_shell("$HOME/.local/bin/dotfiles-wallpaper restore")
 awful.spawn.with_shell("$HOME/.local/bin/dotfiles-polybar")
 awful.spawn.with_shell(
     "xrdb -merge \"$HOME/.Xresources\"; " ..

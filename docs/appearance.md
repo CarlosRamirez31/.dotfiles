@@ -39,12 +39,19 @@ backend, sincronización y exclusiones. Al cambiar efectos se reinicia Picom;
 puede haber un breve parpadeo. Cambiar solo bordes, espacios o color no lo reinicia.
 Las ventanas especiales del escritorio y el emulador conservan sus bordes propios.
 
-La sesión restaura los ajustes desde Awesome y el arranque de Picom. Los archivos
+Al iniciar sesión se leen las preferencias guardadas, sin reutilizar una prueba
+temporal de una sesión anterior. Primero se configura la pantalla y se restaura
+el fondo; después arranca Picom con GLX para evitar que lea un fondo aún sin
+preparar. No se cambia automáticamente a otro backend.
+Awesome comprueba Picom cada cinco segundos y
+lo recupera si se cierra inesperadamente; no lo reinicia mientras está funcionando
+ni interfiere con una operación de Guardar o Probar en curso. Los archivos
 temporales, el registro de Picom y el estado de las pruebas están en
 `$XDG_RUNTIME_DIR/dotfiles-appearance/`.
 
 ```bash
 dotfiles-appearance --export
+dotfiles-appearance --export-saved
 python3 -B -m unittest discover -s tests/appearance
 lua tests/appearance/test_appearance.lua
 ```

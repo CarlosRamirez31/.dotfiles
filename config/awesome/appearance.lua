@@ -1,6 +1,9 @@
 local awful = require("awful")
 local beautiful = require("beautiful")
+local gears = require("gears")
 local M = {}
+local monitor, recovering
+local helper = os.getenv("HOME") .. "/.local/bin/dotfiles-appearance"
 
 function M.apply(gap, border, accent)
     assert(type(gap) == "number" and gap >= 0 and gap <= 100)
@@ -23,12 +26,30 @@ function M.apply(gap, border, accent)
 end
 
 function M.start()
-    awful.spawn.easy_async({ os.getenv("HOME") .. "/.local/bin/dotfiles-appearance", "--export" }, function(output, _, _, code)
+    awful.spawn.easy_async({ helper, "--export-saved" }, function(output, _, _, code)
         if code ~= 0 then return end
         local values = {}
         for key, value in output:gmatch("([^\t\n]+)\t([^\n]+)") do values[key] = value end
         if values.accent then M.apply(tonumber(values.gap), tonumber(values.border), values.accent) end
     end)
+    if monitor then return end
+    -- Finish monitor setup and publish a valid wallpaper pixmap before GLX
+    -- binds it. These previously raced each other at login.
+    recovering = true
+    awful.spawn.easy_async({ os.getenv("HOME") .. "/.local/bin/dotfiles-display", "--auto" }, function()
+        awful.spawn.easy_async({ os.getenv("HOME") .. "/.local/bin/dotfiles-wallpaper", "restore" }, function()
+            awful.spawn.easy_async({ helper, "--start-compositor" }, function()
+                recovering = false
+            end)
+        end)
+    end)
+    monitor = gears.timer({ timeout = 5, autostart = true, callback = function()
+        if recovering then return end
+        recovering = true
+        awful.spawn.easy_async({ helper, "--ensure-compositor" }, function()
+            recovering = false
+        end)
+    end })
 end
 
 return M

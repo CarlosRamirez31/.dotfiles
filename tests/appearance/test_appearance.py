@@ -12,6 +12,7 @@ loader = importlib.machinery.SourceFileLoader("appearance", str(Path(__file__).r
 spec = importlib.util.spec_from_loader(loader.name, loader)
 app = importlib.util.module_from_spec(spec)
 loader.exec_module(app)
+real_compositor = app.compositor
 
 
 class AppearanceTest(unittest.TestCase):
@@ -99,6 +100,55 @@ class AppearanceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             app.preview(dict(app.DEFAULTS, gap=12))
         self.assertEqual(app.read(app.RUNTIME / "preview.json")["token"], token)
+
+    def test_login_restores_saved_preferences_instead_of_old_runtime_preview(self):
+        stored = dict(app.DEFAULTS, corners=22, shadow_opacity=45, inactive_opacity=92)
+        app.write(app.SAVED, stored)
+        app.write(app.RUNTIME / "live.json", dict(app.DEFAULTS, corners=0, shadows=False))
+        app.write(app.RUNTIME / "preview.json", dict(token="old-session"))
+        app.restore_compositor()
+        self.compositor.assert_called_once_with(stored)
+        self.assertEqual(app.current(), stored)
+        self.assertEqual(app.saved(), stored)
+        self.assertFalse((app.RUNTIME / "preview.json").exists())
+
+    def test_monitor_does_not_restart_a_healthy_compositor(self):
+        with patch.object(app, "active_compositors", return_value=[123]):
+            self.assertFalse(app.ensure_compositor())
+        self.compositor.assert_not_called()
+
+    def test_monitor_recovers_missing_compositor_using_saved_settings(self):
+        stored = dict(app.DEFAULTS, corners=18, shadows=False)
+        app.write(app.SAVED, stored)
+        app.write(app.RUNTIME / "live.json", dict(app.DEFAULTS, corners=0))
+        with patch.object(app, "active_compositors", return_value=[]):
+            self.assertTrue(app.ensure_compositor())
+        self.compositor.assert_called_once_with(stored)
+        self.assertEqual(app.current(), stored)
+
+    def test_monitor_preserves_an_active_temporary_preview(self):
+        temporary = dict(app.DEFAULTS, inactive_opacity=85)
+        app.write(app.RUNTIME / "live.json", temporary)
+        app.write(app.RUNTIME / "preview.json", dict(token="trial", deadline=time.time() + 20))
+        with patch.object(app, "active_compositors", return_value=[]):
+            app.ensure_compositor()
+        self.compositor.assert_called_once_with(temporary)
+        self.assertFalse(app.SAVED.exists())
+
+    def test_monitor_does_not_queue_behind_a_save_or_preview(self):
+        with app.locked(), patch.object(app, "active_compositors") as active:
+            self.assertFalse(app.ensure_compositor())
+            active.assert_not_called()
+        self.compositor.assert_not_called()
+
+    def test_compositor_keeps_glx_and_reports_failure_without_switching_backend(self):
+        base = self.root / "base.conf"
+        base.write_text('backend = "glx";\nvsync = true;\n')
+        with patch.object(app, "BASE", base), patch.object(app, "launch_compositor", side_effect=RuntimeError("GLX failed")) as launch:
+            with self.assertRaisesRegex(RuntimeError, "GLX failed"):
+                real_compositor(app.DEFAULTS)
+        self.assertEqual(launch.call_count, 1)
+        self.assertIn('backend = "glx";', launch.call_args.args[0])
 
     def test_every_numeric_setting_accepts_both_displayed_limits(self):
         for key, limits in app.RANGES.items():

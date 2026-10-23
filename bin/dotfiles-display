@@ -678,6 +678,22 @@ def gui(outputs):
             self.set_name('display-panel')
             self.css = Gtk.CssProvider()
             self.css.load_from_data(b'''
+                decoration { border: 0; box-shadow: none; margin: 0; border-radius: 0; background: transparent; }
+                menu, menuitem, popover, popover contents { background-color: #20202e; color: #cdd6f4; }
+                menuitem label { color: #cdd6f4; font-family: JetBrainsMono Nerd Font, monospace; font-weight: 500; }
+                menuitem:hover { background-color: #39394f; }
+                #lid-settings, #lid-auth { background: #171722; color: #cdd6f4;
+                    font-family: JetBrainsMono Nerd Font, monospace; font-size: 14px; font-weight: 500; }
+                #lid-settings label, #lid-auth label { color: #cdd6f4; }
+                #lid-settings button, #lid-auth button { background: #303040; color: #cdd6f4;
+                    border: 1px solid #39394f; border-radius: 8px; box-shadow: none;
+                    text-shadow: none; padding: 6px 12px; font-weight: 600; }
+                #lid-settings button:hover, #lid-auth button:hover { background: #39394f; border-color: #cba6f7; }
+                #lid-settings button.suggested-action, #lid-auth button.suggested-action { background: #cba6f7; color: #171722; }
+                #lid-settings button.suggested-action label, #lid-auth button.suggested-action label { color: #171722; }
+                #lid-settings check { background: #20202e; border: 1px solid #585b70; }
+                #lid-settings check:checked { background: #cba6f7; color: #171722; }
+                #lid-auth entry { background: #20202e; color: #cdd6f4; border: 1px solid #39394f; }
                 #display-panel { background: #181825; color: #cdd6f4; font-family: JetBrainsMono Nerd Font, monospace; font-weight: 500; }
                 #display-panel headerbar { background: #1e1e2e; color: #cdd6f4; border: 0; box-shadow: none; }
                 #display-panel .section-title { color: #cba6f7; font-weight: bold; font-size: 14px; }
@@ -691,6 +707,7 @@ def gui(outputs):
                 #display-panel check:checked, #display-panel radio:checked { background: #cba6f7; color: #181825; }
                 #display-panel scrolledwindow { border: 0; }
             ''')
+            Gtk.Settings.get_default().set_property('gtk-application-prefer-dark-theme', True)
             Gtk.StyleContext.add_provider_for_screen(self.get_screen(), self.css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
             header = Gtk.HeaderBar(title='Pantallas', subtitle='Tu espacio de trabajo')
             header.set_show_close_button(True)
@@ -977,6 +994,7 @@ def gui(outputs):
                     dialog.destroy()
                     return
                 auth = Gtk.Dialog(title='Autorizar cambios', transient_for=dialog, modal=True)
+                auth.set_name('lid-auth')
                 auth.add_buttons('Cancelar', Gtk.ResponseType.CANCEL, 'Guardar', Gtk.ResponseType.OK)
                 content = auth.get_content_area()
                 content.set_border_width(20)

@@ -60,11 +60,15 @@ def write(path, value):
 
 
 @contextlib.contextmanager
-def locked():
+def locked(blocking=True):
     RUNTIME.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (RUNTIME / "lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+        except BlockingIOError:
+            yield False
+            return
+        yield True
 
 
 def saved():
@@ -102,25 +106,29 @@ def wm(settings):
              (settings["gap"], settings["border"], settings["accent"])])
 
 
-def compositor(settings):
+def active_compositors():
+    result = subprocess.run(["pgrep", "-u", str(os.getuid()), "-x", "picom"], capture_output=True, text=True)
+    running = []
+    for pid in result.stdout.split():
+        try:
+            if Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z":
+                running.append(int(pid))
+        except FileNotFoundError:
+            pass
+    return running
+
+
+def launch_compositor(config):
     RUNTIME.mkdir(mode=0o700, parents=True, exist_ok=True)
     candidate = RUNTIME / "candidate.conf"
-    candidate.write_text(picom_config(BASE.read_text(), settings))
+    candidate.write_text(config)
     command(["picom", "--config", str(candidate), "--diagnostics"])
     target = RUNTIME / "picom.conf"
     candidate.replace(target)
     subprocess.run(["pkill", "-u", str(os.getuid()), "-x", "picom"], check=False)
     # Wait for the previous compositor to release the X11 selection.
     for _ in range(40):
-        result = subprocess.run(["pgrep", "-u", str(os.getuid()), "-x", "picom"], capture_output=True, text=True)
-        running = []
-        for pid in result.stdout.split():
-            try:
-                if Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z":
-                    running.append(pid)
-            except FileNotFoundError:
-                pass
-        if not running:
+        if not active_compositors():
             break
         time.sleep(0.05)
     with (RUNTIME / "picom.log").open("a") as log:
@@ -128,6 +136,32 @@ def compositor(settings):
     time.sleep(0.3)
     if process.poll() is not None:
         raise RuntimeError("Picom no pudo iniciar. Revisa " + str(RUNTIME / "picom.log"))
+    return process.pid
+
+
+def compositor(settings):
+    pid = launch_compositor(picom_config(BASE.read_text(), settings))
+    write(RUNTIME / "compositor.json", dict(pid=pid, started=time.time()))
+
+
+def restore_compositor():
+    with locked():
+        settings = saved()
+        (RUNTIME / "preview.json").unlink(missing_ok=True)
+        compositor(settings)
+        write(RUNTIME / "live.json", settings)
+
+
+def ensure_compositor():
+    # Never queue recovery behind an active preview or saved-settings transaction.
+    with locked(blocking=False) as acquired:
+        if not acquired or active_compositors():
+            return False
+        marker = read(RUNTIME / "preview.json")
+        settings = current() if marker and marker.get("deadline", 0) > time.time() else saved()
+        compositor(settings)
+        write(RUNTIME / "live.json", settings)
+        return True
 
 
 def apply_live(settings, force=False):
@@ -553,15 +587,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--export", action="store_true")
+    action.add_argument("--export-saved", action="store_true")
     action.add_argument("--start-compositor", action="store_true")
+    action.add_argument("--ensure-compositor", action="store_true")
     action.add_argument("--watch")
     args = parser.parse_args()
-    if args.export:
-        for key, value in current().items():
+    if args.export or args.export_saved:
+        for key, value in (saved() if args.export_saved else current()).items():
             print(key, str(value).lower(), sep="\t")
     elif args.start_compositor:
-        with locked():
-            compositor(current())
+        restore_compositor()
+    elif args.ensure_compositor:
+        ensure_compositor()
     elif args.watch:
         watch(args.watch)
     else:

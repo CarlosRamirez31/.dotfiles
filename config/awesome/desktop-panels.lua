@@ -298,11 +298,11 @@ local function render_music(data)
     local play_circle = wibox.widget({ wibox.container.place(pause), bg = available and "#7c3aed" or colors.surface,
         forced_width = 40, forced_height = 40, shape = gears.shape.circle, widget = wibox.container.background })
     local transport = wibox.widget({
-        wibox.container.place(music_button("󰒮", "Anterior", "Previous", available and data.previous == "1", colors.text, 15)),
+        wibox.container.place(music_button("󰒮", "Anterior", "Previous", available and data.previous == "1", colors.text, 18)),
         wibox.container.place(play_circle),
-        wibox.container.place(music_button("󰒭", "Siguiente", "Next", available and data.next == "1", colors.text, 15)),
+        wibox.container.place(music_button("󰒭", "Siguiente", "Next", available and data.next == "1", colors.text, 18)),
         layout = wibox.layout.flex.horizontal })
-    transport.forced_height = 44
+    transport.forced_width, transport.forced_height = 144, 44
     local player = (data.player or ""):gsub("^org%.mpris%.MediaPlayer2%.", ""):gsub("%.instance.*$", "")
     local player_names = { limusic = "Limusic", spotify = "Spotify", vlc = "VLC", firefox = "Firefox", chromium = "Chromium" }
     local track_title = text(empty and "Sin reproducción" or (player_names[player] or player), 10, colors.text)

@@ -176,3 +176,8 @@ workbench	config/distrobox/distrobox.ini	.config/distrobox/distrobox.ini
 workbench	libexec/dotfiles-container-env	.local/libexec/dotfiles-container-env
 workbench	libexec/dotfiles-distrobox-bootstrap	.local/libexec/dotfiles-distrobox-bootstrap
 workbench	libexec/lazydocker/docker	.local/libexec/lazydocker/docker
+fonts	assets/fonts/DotfilesIcons/DotfilesIcons-Regular.ttf	.local/share/fonts/DotfilesIcons/DotfilesIcons-Regular.ttf
+fonts	assets/fonts/DotfilesIcons/LICENSE.md	.local/share/fonts/DotfilesIcons/LICENSE.md
+fonts	assets/fonts/DotfilesIcons/README.md	.local/share/fonts/DotfilesIcons/README.md
+fonts	assets/fonts/DotfilesIcons/build.py	.local/share/fonts/DotfilesIcons/build.py
+fonts	assets/fonts/DotfilesIcons/hackthebox.svg	.local/share/fonts/DotfilesIcons/hackthebox.svg

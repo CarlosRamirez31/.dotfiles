@@ -7,4 +7,4 @@ if [[ -z $vpn_status ]]; then
     exit 0
 fi
 
-printf '%%{F#9fef00}%%{F-} %s\n' "$vpn_status"
+printf '%%{F#9fef00}%%{T7}%%{T-}%%{F-} %s\n' "$vpn_status"

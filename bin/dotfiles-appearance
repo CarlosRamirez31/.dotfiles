@@ -1,0 +1,577 @@
+#!/usr/bin/env python3
+"""Appearance preferences, reversible previews and the Awesome desktop editor."""
+import argparse
+import contextlib
+import fcntl
+import json
+import math
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+import uuid
+
+CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/dotfiles-{os.getuid()}")) / "dotfiles-appearance"
+SAVED = CONFIG_HOME / "dotfiles/appearance.json"
+BASE = CONFIG_HOME / "picom/picom.conf"
+DEFAULTS = dict(gap=5, border=0, accent="#cba6f7", corners=10, shadows=True,
+                shadow_radius=18, shadow_opacity=22, fading=True, inactive_opacity=100)
+RANGES = dict(gap=(0, 100), border=(0, 20), corners=(0, 99), shadow_radius=(0, 100),
+              shadow_opacity=(0, 100), inactive_opacity=(0, 100))
+PICOM = dict(corners="corner-radius", shadows="shadow", shadow_radius="shadow-radius",
+             shadow_opacity="shadow-opacity", fading="fading", inactive_opacity="inactive-opacity")
+PRESETS = {
+    "Equilibrado": DEFAULTS,
+    "Suave": dict(DEFAULTS, gap=8, border=1, corners=14, inactive_opacity=96),
+    "Sin efectos": dict(DEFAULTS, corners=0, shadows=False, fading=False),
+}
+
+
+def validate(value):
+    if not isinstance(value, dict) or set(value) - set(DEFAULTS):
+        raise ValueError("Configuración de apariencia no válida")
+    result = dict(DEFAULTS, **value)
+    for key, (low, high) in RANGES.items():
+        if type(result[key]) is not int or not low <= result[key] <= high:
+            raise ValueError(f"Valor fuera de rango: {key}")
+    for key in ("shadows", "fading"):
+        if type(result[key]) is not bool:
+            raise ValueError(f"Valor no válido: {key}")
+    if not isinstance(result["accent"], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", result["accent"]):
+        raise ValueError("El color debe usar el formato #RRGGBB")
+    return result
+
+
+def read(path, fallback=None):
+    try:
+        return json.loads(path.read_text())
+    except FileNotFoundError:
+        return fallback
+
+
+def write(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(path.name + ".tmp")
+    temp.write_text(json.dumps(value, indent=2) + "\n")
+    temp.replace(path)
+
+
+@contextlib.contextmanager
+def locked():
+    RUNTIME.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (RUNTIME / "lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def saved():
+    return validate(read(SAVED, DEFAULTS))
+
+
+def current():
+    return validate(read(RUNTIME / "live.json", saved()))
+
+
+def picom_config(base, settings):
+    settings = validate(settings)
+    result = base
+    for key, option in PICOM.items():
+        value = settings[key]
+        if key in ("shadow_opacity", "inactive_opacity"):
+            value = value / 100
+        literal = str(value).lower()
+        line = f"{option} = {literal};"
+        pattern = rf"(?m)^\s*{re.escape(option)}\s*=\s*[^;]+;"
+        result = re.sub(pattern, lambda _: line, result) if re.search(pattern, result) else result + "\n" + line
+    return result + "\n"
+
+
+def command(args, timeout=12):
+    result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+    if result.returncode or "Error during execution:" in result.stdout:
+        raise RuntimeError((result.stderr or result.stdout).strip() or "No se pudo aplicar el cambio")
+    return result.stdout
+
+
+def wm(settings):
+    settings = validate(settings)
+    command(["awesome-client", 'require("appearance").apply(%d, %d, "%s")' %
+             (settings["gap"], settings["border"], settings["accent"])])
+
+
+def compositor(settings):
+    RUNTIME.mkdir(mode=0o700, parents=True, exist_ok=True)
+    candidate = RUNTIME / "candidate.conf"
+    candidate.write_text(picom_config(BASE.read_text(), settings))
+    command(["picom", "--config", str(candidate), "--diagnostics"])
+    target = RUNTIME / "picom.conf"
+    candidate.replace(target)
+    subprocess.run(["pkill", "-u", str(os.getuid()), "-x", "picom"], check=False)
+    # Wait for the previous compositor to release the X11 selection.
+    for _ in range(40):
+        result = subprocess.run(["pgrep", "-u", str(os.getuid()), "-x", "picom"], capture_output=True, text=True)
+        running = []
+        for pid in result.stdout.split():
+            try:
+                if Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z":
+                    running.append(pid)
+            except FileNotFoundError:
+                pass
+        if not running:
+            break
+        time.sleep(0.05)
+    with (RUNTIME / "picom.log").open("a") as log:
+        process = subprocess.Popen(["picom", "--config", str(target)], stdout=log, stderr=log, start_new_session=True)
+    time.sleep(0.3)
+    if process.poll() is not None:
+        raise RuntimeError("Picom no pudo iniciar. Revisa " + str(RUNTIME / "picom.log"))
+
+
+def apply_live(settings, force=False):
+    previous = current()
+    if force or any(previous[k] != settings[k] for k in PICOM):
+        compositor(settings)
+    wm(settings)
+    write(RUNTIME / "live.json", settings)
+
+
+def preview(settings):
+    settings = validate(settings)
+    with locked():
+        if (RUNTIME / "preview.json").exists():
+            raise ValueError("Cancela o guarda la prueba actual antes de iniciar otra")
+        token = uuid.uuid4().hex
+        previous = current()
+        marker = dict(token=token, previous=previous, deadline=time.time() + 20, applied=False)
+        write(RUNTIME / "preview.json", marker)
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--watch", token],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        try:
+            apply_live(settings)
+            marker["applied"] = True
+            write(RUNTIME / "preview.json", marker)
+        except Exception:
+            apply_live(previous, force=True)
+            (RUNTIME / "preview.json").unlink(missing_ok=True)
+            raise
+        return token
+
+
+def revert(token=None):
+    with locked():
+        marker = read(RUNTIME / "preview.json")
+        if not marker or (token and marker["token"] != token):
+            return False
+        apply_live(validate(marker["previous"]), force=not marker.get("applied", False))
+        (RUNTIME / "preview.json").unlink(missing_ok=True)
+        return True
+
+
+def commit(settings):
+    settings = validate(settings)
+    with locked():
+        before = current()
+        try:
+            apply_live(settings)
+            write(SAVED, settings)
+        except Exception:
+            apply_live(before, force=True)
+            raise
+        (RUNTIME / "preview.json").unlink(missing_ok=True)
+
+
+def watch(token):
+    while True:
+        marker = read(RUNTIME / "preview.json")
+        if not marker or marker["token"] != token:
+            return
+        remaining = marker["deadline"] - time.time()
+        if remaining <= 0:
+            revert(token)
+            return
+        time.sleep(min(1, remaining))
+
+
+def gui(test_hook=None):
+    import concurrent.futures
+    import gi
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gtk, Gdk, GLib
+
+    class Panel(Gtk.ApplicationWindow):
+        def __init__(self, app, visible=True):
+            super().__init__(application=app, title="Apariencia")
+            self.set_wmclass("dotfiles-appearance", "DotfilesAppearance")
+            self.set_role("dotfiles-appearance")
+            self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+            self.set_position(Gtk.WindowPosition.CENTER)
+            self.set_default_size(750, 490)
+            self.set_name("appearance")
+            self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            self.widgets, self.token, self.working, self.closing = {}, None, False, False
+            self.original = current()
+            self.values = dict(self.original)
+            css = Gtk.CssProvider()
+            css.load_from_data(b"""
+                decoration { border: 0; box-shadow: none; margin: 0; background: transparent; border-radius: 0; }
+                menu, menuitem, popover, popover contents { background-color: #11151a;
+                    color: #b4b9d8; border-radius: 0; }
+                menuitem label { color: #b4b9d8; font-family: Iosevka Nerd Font, monospace; }
+                menuitem:hover { background-color: #26334d; }
+                #appearance { background: #0d1117; color: #b4b9d8;
+                    font-family: Iosevka Nerd Font, monospace; font-size: 13px;
+                    border: 0; border-radius: 0; box-shadow: none; }
+                #appearance label { color: #b4b9d8; }
+                #appearance headerbar { background: #0d1117; color: #b4b9d8;
+                    box-shadow: none; border: 0; border-radius: 0; min-height: 30px; }
+                #appearance .heading { font-size: 15px; font-weight: bold; color: #b4b9d8; }
+                #appearance .muted { color: #8b90ac; font-size: 12px; }
+                #appearance .card { background: #0e1113; border: 1px solid #303543;
+                    border-radius: 0; padding: 14px; }
+                #appearance .terminal-frame { border: 2px solid #3d4257; padding: 12px; }
+                #appearance .windows .setting-label { color: #89b4fa; }
+                #appearance .effects .setting-label { color: #cba6f7; }
+                #appearance .opacity .setting-label { color: #a6e3a1; }
+                #appearance .background .heading { color: #f9e2af; }
+                #appearance button, #appearance combobox button { background: #11151a;
+                    color: #b4b9d8; border: 1px solid #303543; border-radius: 0;
+                    padding: 5px 10px; box-shadow: none; text-shadow: none; min-height: 20px; }
+                #appearance button:hover { border-color: #7299f8; background: #19202c; }
+                #appearance button.suggested-action { background: #1a2335;
+                    border-color: #76b88a; color: #a6e3a1; font-weight: bold; }
+                #appearance button.preview-action { border-color: #6383b6; color: #89b4fa; }
+                #appearance button.cancel-action { color: #f38ba8; }
+                #appearance stackswitcher button { padding: 4px 12px; border-bottom: 0; }
+                #appearance stackswitcher button:checked { background: #171b24;
+                    border-top: 2px solid #7299f8; }
+                #appearance stackswitcher button.tab-windows label { color: #89b4fa; }
+                #appearance stackswitcher button.tab-effects label { color: #cba6f7; }
+                #appearance stackswitcher button.tab-opacity label { color: #a6e3a1; }
+                #appearance stackswitcher button.tab-background label { color: #f9e2af; }
+                #appearance spinbutton, #appearance entry { background: #0d1117;
+                    color: #89dceb; border: 1px solid #445477; border-radius: 0; min-height: 26px; }
+                #appearance spinbutton button { border: 0; padding: 0 5px; }
+                #appearance switch { background: #45485c; border: 1px solid #45485c;
+                    border-radius: 0; min-width: 58px; min-height: 23px; }
+                #appearance switch slider { background: #0d1117; border: 0; border-radius: 0;
+                    box-shadow: none; background-image: none; }
+                #appearance switch:checked { background: #628fec; border-color: #628fec; }
+                #appearance colorbutton { padding: 2px; }
+                #appearance colorswatch { border-radius: 0; }
+            """)
+            Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", True)
+            Gtk.StyleContext.add_provider_for_screen(self.get_screen(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            header = Gtk.HeaderBar(title="Appearance Editor", show_close_button=True)
+            self.set_titlebar(header)
+            root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=12)
+            root.get_style_context().add_class("terminal-frame")
+            self.add(root)
+            content = Gtk.Box(spacing=18)
+            sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            sidebar.set_size_request(164, -1)
+            logo = Gtk.Label()
+            logo.set_markup('<span font_desc="JetBrainsMono Nerd Font 54" foreground="#89b4fa"></span>')
+            logo.set_size_request(-1, 90)
+            sidebar.pack_start(logo, False, False, 0)
+            account = self.label(os.environ.get("USER", "user") + "@" + os.uname().nodename, "muted")
+            account.set_xalign(0.5)
+            sidebar.pack_start(account, False, False, 0)
+            sidebar.pack_start(self.label("PERFILES", "muted"), False, False, 0)
+            presets = Gtk.ComboBoxText()
+            self.presets = presets
+            presets.append_text("Personalizado")
+            for name in PRESETS:
+                presets.append_text(name)
+            presets.set_active(0)
+            presets.connect("changed", self.preset)
+            sidebar.pack_start(presets, False, False, 0)
+            self.canvas = Gtk.DrawingArea()
+            self.canvas.set_size_request(164, 72)
+            self.canvas.connect("draw", self.draw_preview)
+            sidebar.pack_start(self.canvas, False, False, 0)
+            help_text = self.label("Probar: 20 segundos.\nGuardar: conservar.\nCancelar: revertir.", "muted")
+            help_text.set_markup('<span foreground="#89b4fa">Probar</span>: 20 segundos.\n<span foreground="#a6e3a1">Guardar</span>: conservar.\n<span foreground="#f38ba8">Cancelar</span>: revertir.')
+            sidebar.pack_end(help_text, False, False, 0)
+            content.pack_start(sidebar, False, False, 0)
+            right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            heading = self.label("Appearance Editor : " + os.environ.get("USER", "personal"), "heading")
+            heading.set_markup('<span foreground="#89b4fa">Appearance Editor</span> : <span foreground="#f9e2af">'
+                               + GLib.markup_escape_text(os.environ.get("USER", "personal")) + '</span>')
+            heading.set_margin_bottom(16)
+            right.pack_start(heading, False, False, 0)
+            self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE)
+            switcher = Gtk.StackSwitcher(stack=self.stack, halign=Gtk.Align.START)
+            right.pack_start(switcher, False, False, 0)
+            right.pack_start(self.stack, True, True, 0)
+            content.pack_start(right, True, True, 0)
+            root.pack_start(content, True, True, 0)
+            windows = self.page("windows", "Awesome")
+            self.scale(windows, "gap", "Separación entre ventanas", "Espacio alrededor de las ventanas en mosaico.", "px")
+            self.scale(windows, "border", "Grosor de los bordes", "Usa 0 para ocultarlos.", "px")
+            color = Gtk.ColorButton()
+            color.set_use_alpha(False)
+            rgba = Gdk.RGBA(); rgba.parse(self.values["accent"]); color.set_rgba(rgba)
+            color.connect("color-set", self.color_changed)
+            self.widgets["accent"] = color
+            self.row(windows, "Color de la ventana activa", "El borde indica dónde estás trabajando.", color)
+            effects = self.page("effects", "Picom")
+            self.scale(effects, "corners", "Esquinas redondeadas", "0 deja las esquinas cuadradas.", "px")
+            self.switch(effects, "shadows", "Sombras", "Añade profundidad alrededor de las ventanas.")
+            self.scale(effects, "shadow_radius", "Tamaño de la sombra", "Suavidad y extensión.", "px")
+            self.scale(effects, "shadow_opacity", "Intensidad de la sombra", "Una sombra sutil mantiene la lectura limpia.", "%")
+            self.switch(effects, "fading", "Desvanecimiento", "Aparición y cierre suaves.")
+            opacity = self.page("opacity", "Transparencia")
+            self.scale(opacity, "inactive_opacity", "Opacidad de ventanas inactivas", "0% las oculta; 100% es opaco. La ventana activa conserva su opacidad.", "%")
+            opacity.pack_start(self.label("Las aplicaciones pueden tener su propia transparencia.\nEste ajuste no cambia su configuración interna.", "muted"), False, False, 8)
+            background = self.page("background", "Fondo")
+            background.pack_start(self.label("Un fondo que combine contigo", "heading"), False, False, 0)
+            background.pack_start(self.label("Usa tu selector habitual de fondos.\nEl fondo se guarda desde ese selector.", "muted"), False, False, 0)
+            wallpaper = Gtk.Button(label="Elegir fondo de pantalla")
+            self.wallpaper_button = wallpaper
+            wallpaper.connect("clicked", lambda _: subprocess.Popen([str(Path.home() / ".local/bin/dotfiles-wallpaper-picker")]))
+            background.pack_start(wallpaper, False, False, 6)
+            self.status = self.label("Los cambios no se guardan hasta pulsar Guardar.", "muted")
+            self.status.set_line_wrap(True)
+            root.pack_start(self.status, False, False, 0)
+            buttons = Gtk.Box(spacing=8)
+            reset = Gtk.Button(label="Restaurar valores")
+            reset.connect("clicked", lambda _: self.load(DEFAULTS))
+            buttons.pack_start(reset, False, False, 0)
+            cancel = Gtk.Button(label="Cancelar")
+            cancel.connect("clicked", lambda _: self.cancel())
+            self.try_button = Gtk.Button(label="Probar 20 s")
+            self.try_button.get_style_context().add_class("preview-action")
+            cancel.get_style_context().add_class("cancel-action")
+            self.try_button.connect("clicked", lambda _: self.try_changes())
+            save = Gtk.Button(label="Guardar")
+            save.get_style_context().add_class("suggested-action")
+            save.connect("clicked", lambda _: self.save())
+            for button in (save, self.try_button, cancel):
+                buttons.pack_end(button, False, False, 0)
+            self.actions = [reset, cancel, self.try_button, save, content, presets]
+            self.buttons = dict(reset=reset, cancel=cancel, preview=self.try_button, save=save)
+            for tab, name in zip(switcher.get_children(), ("windows", "effects", "opacity", "background")):
+                tab.get_style_context().add_class("tab-" + name)
+            root.pack_start(buttons, False, False, 0)
+            self.connect("delete-event", self.close)
+            if visible:
+                self.show_all()
+            GLib.timeout_add_seconds(1, self.tick)
+
+        def label(self, value, style=None):
+            label = Gtk.Label(label=value, xalign=0)
+            if style:
+                label.get_style_context().add_class(style)
+            return label
+
+        def page(self, name, title):
+            page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=19, margin=0)
+            page.get_style_context().add_class("card")
+            page.get_style_context().add_class(name)
+            scroll = Gtk.ScrolledWindow()
+            scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+            scroll.add(page)
+            self.stack.add_titled(scroll, name, title)
+            return page
+
+        def row(self, page, title, hint, control):
+            row = Gtk.Box(spacing=12)
+            words = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            title_label = self.label(title)
+            title_label.get_style_context().add_class("setting-label")
+            words.pack_start(title_label, False, False, 0)
+            row.set_tooltip_text(hint)
+            row.pack_start(words, True, True, 0)
+            row.pack_end(control, False, False, 0)
+            page.pack_start(row, False, False, 0)
+
+        def scale(self, page, key, title, hint, unit):
+            low, high = RANGES[key]
+            scale = Gtk.SpinButton.new_with_range(low, high, 1)
+            scale.set_size_request(86, -1)
+            scale.set_digits(0)
+            scale.set_width_chars(4)
+            scale.set_numeric(True)
+            scale.set_value(self.values[key])
+            scale.set_tooltip_text(hint + f" ({low}–{high} {unit})")
+            scale.connect("value-changed", lambda widget: self.changed(key, int(widget.get_value())))
+            self.widgets[key] = scale
+            self.row(page, title, hint, scale)
+
+        def switch(self, page, key, title, hint):
+            switch = Gtk.Switch(active=self.values[key], valign=Gtk.Align.CENTER)
+            switch.connect("notify::active", lambda widget, _: self.changed(key, widget.get_active()))
+            self.widgets[key] = switch
+            self.row(page, title, hint, switch)
+
+        def changed(self, key, value):
+            self.values[key] = value
+            self.canvas.queue_draw()
+
+        def color_changed(self, widget):
+            color = widget.get_rgba()
+            self.changed("accent", "#%02x%02x%02x" % tuple(round(v * 255) for v in (color.red, color.green, color.blue)))
+
+        def load(self, values):
+            for key, value in values.items():
+                widget = self.widgets[key]
+                if key == "accent":
+                    color = Gdk.RGBA(); color.parse(value); widget.set_rgba(color)
+                    self.changed(key, value)
+                elif key in ("shadows", "fading"):
+                    widget.set_active(value)
+                else:
+                    widget.set_value(value)
+
+        def preset(self, widget):
+            if widget.get_active_text() in PRESETS:
+                self.load(PRESETS[widget.get_active_text()])
+
+        def task(self, operation, done):
+            if self.working:
+                return
+            self.working = True
+            for widget in self.actions:
+                widget.set_sensitive(False)
+            self.status.set_text("Aplicando…")
+            future = self.pool.submit(operation)
+            def complete():
+                self.working = False
+                for widget in self.actions:
+                    widget.set_sensitive(True)
+                try:
+                    result = future.result()
+                except Exception as error:
+                    self.status.set_text("No se pudo aplicar: " + str(error))
+                    self.closing = False
+                    return False
+                done(result)
+                return False
+            future.add_done_callback(lambda _: GLib.idle_add(complete))
+
+        def try_changes(self):
+            if self.token:
+                self.cancel()
+                return
+            values = dict(self.values)
+            def done(token):
+                self.token = token
+                self.try_button.set_label("Deshacer prueba")
+                self.tick()
+            self.task(lambda: preview(values), done)
+
+        def cancel(self):
+            token = self.token
+            def done(_):
+                self.token = None
+                self.try_button.set_label("Probar 20 s")
+                self.load(current())
+                self.status.set_text("Cambios descartados. Conservas tu configuración anterior.")
+                if self.closing:
+                    self.destroy()
+            self.task(lambda: revert(token) if token else None, done)
+
+        def save(self):
+            values = dict(self.values)
+            def done(_):
+                self.original = values
+                self.token = None
+                self.try_button.set_label("Probar 20 s")
+                self.status.set_text("Apariencia guardada. Se conservará al iniciar sesión.")
+            self.task(lambda: commit(values), done)
+
+        def tick(self):
+            if self.token and not self.working:
+                marker = read(RUNTIME / "preview.json")
+                if not marker:
+                    self.token = None
+                    self.try_button.set_label("Probar 20 s")
+                    self.load(current())
+                    self.status.set_text("La prueba terminó. Se restauró tu apariencia anterior.")
+                else:
+                    seconds = max(0, math.ceil(marker["deadline"] - time.time()))
+                    self.status.set_text(f"Vista previa · {seconds} s restantes. Guarda para conservar estos cambios.")
+            return True
+
+        def close(self, *_):
+            if self.working:
+                self.status.set_text("Espera a que termine de aplicar los cambios.")
+                return True
+            if self.token:
+                self.closing = True
+                self.cancel()
+                return True
+            self.pool.shutdown(wait=False)
+            return False
+
+        def draw_preview(self, widget, cr):
+            width, height = widget.get_allocated_width(), widget.get_allocated_height()
+            cr.set_source_rgb(0.07, 0.07, 0.12); cr.paint()
+            gap = 9 + self.values["gap"] / 2
+            radius = self.values["corners"] / 2
+            color = Gdk.RGBA(); color.parse(self.values["accent"])
+            for i in range(2):
+                x = gap + i * (width / 2 - gap / 2)
+                y, w, h = 16, width / 2 - gap * 1.5, height - 30
+                def rounded(px, py):
+                    cr.new_sub_path()
+                    for cx, cy, start in ((px+w-radius, py+radius, -math.pi/2), (px+w-radius, py+h-radius, 0),
+                                          (px+radius, py+h-radius, math.pi/2), (px+radius, py+radius, math.pi)):
+                        cr.arc(cx, cy, radius, start, start+math.pi/2)
+                    cr.close_path()
+                if self.values["shadows"]:
+                    rounded(x+3, y+5); cr.set_source_rgba(0, 0, 0, self.values["shadow_opacity"]/100); cr.fill()
+                rounded(x, y)
+                alpha = 1 if i == 0 else self.values["inactive_opacity"]/100
+                cr.set_source_rgba(0.19, 0.19, 0.28, alpha); cr.fill_preserve()
+                cr.set_line_width(max(0.1, self.values["border"]))
+                cr.set_source_rgba(color.red, color.green, color.blue, 1 if i == 0 and self.values["border"] else 0)
+                cr.stroke()
+                for row in range(4):
+                    cr.rectangle(x+10, y+12+row*max(4, (h-20)/4), max(5, w-25-row*7), 3)
+                    cr.set_source_rgba(0.8, 0.84, 0.95, 0.4 if i == 0 else 0.22); cr.fill()
+            return False
+
+    class App(Gtk.Application):
+        def __init__(self):
+            super().__init__(application_id="com.dotfiles.AppearanceTest" if test_hook else "com.dotfiles.Appearance")
+        def do_activate(self):
+            window = self.get_active_window()
+            if window:
+                window.present()
+            else:
+                window = Panel(self, visible=test_hook is None)
+                if test_hook:
+                    GLib.idle_add(test_hook, window)
+    return App().run([sys.argv[0]])
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("--export", action="store_true")
+    action.add_argument("--start-compositor", action="store_true")
+    action.add_argument("--watch")
+    args = parser.parse_args()
+    if args.export:
+        for key, value in current().items():
+            print(key, str(value).lower(), sep="\t")
+    elif args.start_compositor:
+        with locked():
+            compositor(current())
+    elif args.watch:
+        watch(args.watch)
+    else:
+        return gui()
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

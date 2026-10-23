@@ -5,10 +5,13 @@ alacritty	config/xdg-terminals.list	.config/xdg-terminals.list
 alacritty	share/applications/Alacritty.desktop	.local/share/applications/Alacritty.desktop
 awesome	bin/dotfiles-app-launch	.local/bin/dotfiles-app-launch
 awesome	bin/dotfiles-display	.local/bin/dotfiles-display
+awesome	bin/dotfiles-appearance	.local/bin/dotfiles-appearance
+awesome	share/applications/dotfiles-appearance.desktop	.local/share/applications/dotfiles-appearance.desktop
 awesome	bin/dotfiles-htb-target	.local/bin/dotfiles-htb-target
 awesome	bin/dotfiles-htb-vpn-status	.local/bin/dotfiles-htb-vpn-status
 awesome	bin/dotfiles-keyboard-toggle	.local/bin/dotfiles-keyboard-toggle
 awesome	config/awesome/autostart.lua	.config/awesome/autostart.lua
+awesome	config/awesome/appearance.lua	.config/awesome/appearance.lua
 awesome	config/awesome/bar.lua	.config/awesome/bar.lua
 awesome	config/awesome/battery-alert.lua	.config/awesome/battery-alert.lua
 awesome	config/awesome/battery-menu.lua	.config/awesome/battery-menu.lua

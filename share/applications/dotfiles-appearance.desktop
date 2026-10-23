@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Apariencia
+Comment=Personaliza las ventanas y los efectos del escritorio
+Exec=dotfiles-appearance
+Icon=preferences-desktop-theme
+Terminal=false
+Categories=Settings;DesktopSettings;
+StartupWMClass=DotfilesAppearance

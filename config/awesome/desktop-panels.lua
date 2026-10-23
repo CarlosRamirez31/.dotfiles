@@ -172,7 +172,8 @@ local function render_system(data)
         spacing = 7, layout = wibox.layout.flex.horizontal }))
     local night = shortcut("󰌵", "NIGHT LIGHT", function() toggle_switch("nightlight") end, data.nightlight_on == "1")
     local terminal = shortcut("", "TERMINAL", launch({ home .. "/.local/bin/dotfiles-terminal" }))
-    body:add(wibox.widget({ night, terminal, wibox.widget.textbox(),
+    local appearance = shortcut("󰏘", "APARIENCIA", launch({ home .. "/.local/bin/dotfiles-appearance" }))
+    body:add(wibox.widget({ night, terminal, appearance,
         spacing = 7, layout = wibox.layout.flex.horizontal }))
     body:add(text(" " .. data.temperature, 9, colors.pink))
 end

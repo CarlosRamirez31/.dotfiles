@@ -52,6 +52,8 @@ en Wi-Fi enciende/apaga la radio y en Ethernet desconecta/reconecta el dispositi
 Modo avión bloquea las radios con rfkill y al salir restaura cuáles estaban
 habilitadas. Luz nocturna aplica una gamma cálida a las pantallas activas y
 restaura su gamma anterior al apagarla. La terminal conserva su acceso directo.
+El botón **Apariencia** abre el [editor del escritorio](appearance.md), con
+ajustes de ventanas y efectos y una prueba reversible de 20 segundos.
 Limusic se instala desde AUR con el módulo `desktop-extras`, incluido en la
 instalación completa. El panel guarda las portadas con un límite de 5 MiB y 64 imágenes en `$XDG_CACHE_HOME/dotfiles/music`.
 El clima se obtiene de wttr.in, se guarda durante 20 minutos y usa Santo Domingo

@@ -7,7 +7,7 @@ local function once(process, command)
     )
 end
 
-once("picom", "picom --config $HOME/.config/picom/picom.conf")
+once("picom", "$HOME/.local/bin/dotfiles-appearance --start-compositor")
 once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
 -- Record explicit copies only; tracking PRIMARY also records mouse selections.
 -- Clipmenu batches pruning after ten extra entries: 90 + 10 = 100 maximum.

@@ -148,6 +148,7 @@ dev-podman restart
 | [`voice-isolation`](docs/voice-isolation.md) **opcional** | Aislamiento de voz RNNoise con detección del micrófono y arranque automático |
 | [`workbench`](environments/workbench/README.md) | entornos rootless de desarrollo y pentesting |
 | [`desktop-extras`](docs/desktop-extras.md) | Firefox, Limusic, KeePassXC, Btop, color y papelera |
+| [Apariencia](docs/appearance.md) | editor del escritorio, efectos y pruebas reversibles; incluido con Awesome |
 | [`session`](docs/session.md) | bloqueo, inactividad, suspensión y energía |
 | [`desktop-tools`](docs/desktop-tools.md) | capturas e historial del portapapeles |
 | [`files`](docs/files.md) | Yazi, selector del sistema, Thunar, visores y asociaciones |

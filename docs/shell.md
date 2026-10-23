@@ -68,7 +68,6 @@ Los comandos interactivos de los dotfiles tienen nombres cortos, mientras los sc
 | `backup` | `dotfiles-backup` |
 | `lab-firewall` | `dotfiles-firewall` |
 | `htb-target` | `dotfiles-htb-target` |
-| `record` | `dotfiles-record` |
 | `screenshot` | `dotfiles-screenshot` |
 | `clip` / `clip-clear` | Historial y limpieza del portapapeles. |
 

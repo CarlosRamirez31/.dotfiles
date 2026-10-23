@@ -6,7 +6,7 @@ source "$component_root/../lib.sh"
 
 require_arch_user
 virtualization=$(systemd-detect-virt --vm 2>/dev/null || true)
-packages=(bluez bluez-utils blueman)
+packages=(bluez bluez-utils)
 if [[ $virtualization == none ]]; then
     packages+=(fwupd smartmontools)
 fi
@@ -26,4 +26,4 @@ if [[ $virtualization == none ]]; then
     printf 'Firmware refresh and disk health monitoring enabled.\n'
 fi
 
-printf 'Bluetooth tools installed; use the panel or blueman-manager to pair devices.\n'
+printf 'Bluetooth tools installed; use the desktop panel or bluetoothctl to pair devices.\n'

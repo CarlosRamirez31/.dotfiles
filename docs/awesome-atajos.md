@@ -58,14 +58,13 @@ las pantallas.
 | `Alt+1` a `Alt+4` | Ir al tag 1, 2, 3 o 4. |
 | `Alt+Shift+1` a `Alt+Shift+4` | Mover la ventana enfocada al tag indicado e ir a él. |
 
-## Capturas, color y grabación
+## Capturas y color
 
 | Atajo | Acción |
 | --- | --- |
 | `Impr Pant` | Captura de toda la pantalla. |
 | `Alt+Impr Pant` | Captura de un área. |
 | `Alt+Shift+S` | Captura de un área. |
-| `Alt+Shift+R` | Grabar un área de pantalla. |
 | `Alt+Shift+C` | Abrir selector de color. |
 
 ## Teclado, audio y multimedia

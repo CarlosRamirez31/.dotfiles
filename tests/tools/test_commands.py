@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
-import time
 import unittest
 
 REPO = Path(__file__).resolve().parents[2]
@@ -53,22 +52,6 @@ class Commands(unittest.TestCase):
                 result = subprocess.run([str(REPO / 'bin/dotfiles-backup'), 'restore', 'latest', str(target)], env=env, capture_output=True)
                 self.assertEqual(result.returncode, 2, target)
             self.assertEqual((filled / 'keep').read_text(), 'keep')
-
-    def test_full_recording_uses_all_monitors_and_pads_odd_regions(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory); commands, env = self.fixture(root)
-            self.command(commands, 'xrandr', "printf 'Screen 0: minimum 8 x 8, current 3840 x 1080, maximum 32767 x 32767\\nHDMI-1 connected\\n   1920x1080 60.00*\\n'")
-            self.command(commands, 'xdg-user-dir', 'printf "%s\\n" "$HOME/Videos"')
-            self.command(commands, 'notify-send', 'exit 0')
-            self.command(commands, 'ffmpeg', 'printf "%s\\n" "$@" > "$TEST_ARGS"')
-            result = subprocess.run([str(REPO / 'bin/dotfiles-record'), 'full'], env=dict(env, DISPLAY=':99'), capture_output=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            for _ in range(100):
-                if (root / 'arguments').exists(): break
-                time.sleep(.01)
-            args = (root / 'arguments').read_text().splitlines()
-            self.assertEqual(args[args.index('-video_size') + 1], '3840x1080')
-            self.assertIn('pad=ceil(iw/2)*2:ceil(ih/2)*2', args)
 
     def test_vpn_off_never_signals_a_reused_unrelated_pid(self):
         with tempfile.TemporaryDirectory() as directory:

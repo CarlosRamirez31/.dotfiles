@@ -100,7 +100,7 @@ primero la base completa para usar los componentes del escritorio por separado.
 Los opcionales de desarrollo requieren un `dev-podman` ya preparado;
 `./install.sh workbench` instala el proveedor, pero no crea ese contenedor.
 
-El aislamiento de voz con RNNoise es opcional y funciona en el host para OBS y otras aplicaciones:
+El aislamiento de voz con RNNoise es opcional y funciona en el host para aplicaciones de llamadas y grabación:
 
 ```bash
 ./install.sh voice-isolation
@@ -147,7 +147,7 @@ dev-podman restart
 | [`dbeaver`](docs/dbeaver.md) **opcional** | DBeaver Community en dev, con lanzador gráfico independiente |
 | [`voice-isolation`](docs/voice-isolation.md) **opcional** | Aislamiento de voz RNNoise con detección del micrófono y arranque automático |
 | [`workbench`](environments/workbench/README.md) | entornos rootless de desarrollo y pentesting |
-| [`desktop-extras`](docs/desktop-extras.md) | Firefox, KeePassXC, Btop, grabación, color y papelera |
+| [`desktop-extras`](docs/desktop-extras.md) | Firefox, KeePassXC, Btop, color y papelera |
 | [`session`](docs/session.md) | bloqueo, inactividad, suspensión y energía |
 | [`desktop-tools`](docs/desktop-tools.md) | capturas e historial del portapapeles |
 | [`files`](docs/files.md) | Yazi, selector del sistema, Thunar, visores y asociaciones |
@@ -202,7 +202,6 @@ Captura y utilidades:
 | `Print` | capturar pantalla completa |
 | `Alt+Print` | capturar región |
 | `Alt+Shift+S` | capturar región |
-| `Alt+Shift+R` | iniciar/detener grabación de región |
 | `Alt+Shift+C` | copiar color de la pantalla |
 
 Las teclas físicas controlan volumen, micrófono, brillo y reproducción incluso

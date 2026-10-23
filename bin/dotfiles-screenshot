@@ -18,12 +18,8 @@ case $mode in
         read -r x y width height <<<"$geometry"
         maim -g "${width}x${height}+${x}+${y}" "$output"
         ;;
-    edit)
-        flameshot gui --path "$output"
-        [[ -s $output ]] || exit 0
-        ;;
     *)
-        printf 'Usage: %s {full|area|edit}\n' "${0##*/}" >&2
+        printf 'Usage: %s {full|area}\n' "${0##*/}" >&2
         exit 2
         ;;
 esac

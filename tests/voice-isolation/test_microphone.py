@@ -32,11 +32,11 @@ class Microphone(unittest.TestCase):
         output = io.StringIO()
         with patch.object(m.subprocess, 'Popen', return_value=subscription), \
                 patch.object(m.signal, 'signal'), \
-                patch.object(m, 'bar_status', side_effect=['', 'OBS', 'OBS']) as status, \
+                patch.object(m, 'bar_status', side_effect=['', 'AudioApp', 'AudioApp']) as status, \
                 patch.object(m.sys, 'stdout', output):
             with self.assertRaisesRegex(RuntimeError, 'conexión de audio'):
                 m.bar_watch()
-        self.assertEqual(output.getvalue(), '\nOBS\n')
+        self.assertEqual(output.getvalue(), '\nAudioApp\n')
         self.assertEqual(status.call_count, 3)
 
     def test_bar_watch_stops_subscription_if_status_fails(self):
@@ -55,12 +55,12 @@ class Microphone(unittest.TestCase):
         streams = [
             {'index': 10, 'source': 1, 'properties': {'node.name': 'dotfiles_voice_capture'}},
             {'index': 11, 'source': 3, 'properties': {'application.name': 'dotfiles-microphone'}},
-            {'index': 12, 'source': 2, 'properties': {'application.name': 'OBS'}},
-            {'index': 13, 'source': 3, 'mute': False, 'properties': {'application.name': 'OBS', 'application.process.id': '42'}},
-            {'index': 14, 'source': 3, 'mute': True, 'properties': {'application.name': 'OBS', 'application.process.id': '42'}},
+            {'index': 12, 'source': 2, 'properties': {'application.name': 'AudioApp'}},
+            {'index': 13, 'source': 3, 'mute': False, 'properties': {'application.name': 'AudioApp', 'application.process.id': '42'}},
+            {'index': 14, 'source': 3, 'mute': True, 'properties': {'application.name': 'AudioApp', 'application.process.id': '42'}},
             {'index': 15, 'source': 1, 'corked': True, 'properties': {'application.name': 'Firefox'}},
         ]
-        self.assertEqual(m.recording_apps(items, streams), [{'name': 'OBS', 'streams': [13, 14], 'muted': False}])
+        self.assertEqual(m.recording_apps(items, streams), [{'name': 'AudioApp', 'streams': [13, 14], 'muted': False}])
 
     def test_global_mute_covers_physical_and_processed_sources_only(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(m, 'CONFIG', Path(directory)), patch.object(m, 'sources', return_value=[mic('laptop'), {'name': m.SOURCE}, {'name': 'speakers.monitor'}]), patch.object(m, 'pactl') as ctl:

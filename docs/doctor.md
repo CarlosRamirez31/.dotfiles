@@ -22,7 +22,7 @@ existan advertencias.
 ## Qué comprueba
 
 1. Awesome, Xorg, Picom, Mesa, terminal, lanzador, capturas, portapapeles,
-   grabación, wallpaper y bloqueo.
+   wallpaper y bloqueo.
 2. Ejecutables administrados en `~/.local/bin`, configuración de Awesome y
    Picom, y enlaces administrados críticos.
 3. JetBrainsMono Nerd Font, Noto Color Emoji y Lexend para los menús de Awesome.

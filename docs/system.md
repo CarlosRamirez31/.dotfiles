@@ -9,7 +9,7 @@ Este es el cimiento del escritorio. Instala servicios y utilidades que otros com
 | `networkmanager` | Red cableada, Wi-Fi y perfiles VPN; se habilita inmediatamente. |
 | `pipewire`, `pipewire-pulse`, `wireplumber` | Audio moderno y compatibilidad PulseAudio. |
 | `xdg-desktop-portal-gtk` | Selector de archivos y portal GTK complementario. |
-| `libnotify` | `notify-send` para capturas, grabación y avisos. |
+| `libnotify` | `notify-send` para capturas y avisos. |
 | `openvpn` | Cliente usado por NetworkManager y `vpn-on`. |
 | `brightnessctl` | Brillo desde teclas y gestión de inactividad. |
 | `playerctl` | Reproducción multimedia desde teclas físicas. |

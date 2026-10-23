@@ -4,7 +4,7 @@ Este componente habilita integración física que no pertenece al compositor: Bl
 
 ## Decisiones automáticas
 
-Siempre instala `bluez`, `bluez-utils` y `blueman`. Habilita `bluetooth.service` si el sistema es físico o si una VM expone un controlador `/sys/class/bluetooth/hci*`.
+Siempre instala `bluez` y `bluez-utils`. El panel Bluetooth de Awesome permite buscar, emparejar y conectar dispositivos mediante BlueZ. Habilita `bluetooth.service` si el sistema es físico o si una VM expone un controlador `/sys/class/bluetooth/hci*`.
 
 Cuando `systemd-detect-virt --vm` devuelve `none`, también instala:
 
@@ -17,7 +17,6 @@ En una VM sin Bluetooth no activa el servicio. `fwupd` y SMART se omiten porque 
 
 ```bash
 ./install.sh hardware
-blueman-manager
 bluetoothctl
 bluetoothctl show
 ```

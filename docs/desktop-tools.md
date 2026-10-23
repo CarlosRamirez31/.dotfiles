@@ -1,7 +1,7 @@
 # Desktop tools
 
 Implementa capturas e historial del portapapeles para X11. Maim captura, Slop
-selecciona regiones, Flameshot permite anotar, Xclip integra el portapapeles y
+selecciona regiones, Xclip integra el portapapeles y
 Clipmenu guarda el historial que Rofi presenta bajo demanda.
 
 ## Dependencias
@@ -9,11 +9,10 @@ Clipmenu guarda el historial que Rofi presenta bajo demanda.
 | Paquete | Función |
 | --- | --- |
 | `maim` | Captura completa o de una región X11. |
-| `slop` | Selecciona la región para captura y grabación. |
+| `slop` | Selecciona la región para captura. |
 | `xclip` | Copia imágenes y texto al portapapeles X11. |
 | `clipmenu` | Historial del portapapeles con `clipmenud` y Rofi. |
 | `python` | Menú con límite de historial y entradas fijadas. |
-| `flameshot` | Captura interactiva y anotación. |
 
 ## Capturas
 
@@ -21,17 +20,16 @@ Clipmenu guarda el historial que Rofi presenta bajo demanda.
 ./install.sh desktop-tools
 dotfiles-screenshot full
 dotfiles-screenshot area
-dotfiles-screenshot edit
 ```
 
 Las imágenes se guardan con fecha y hora en `$(xdg-user-dir PICTURES)/Screenshots`
-y se copian al portapapeles. `edit` abre Flameshot en modo X11.
+y se copian al portapapeles.
 
 | Atajo | Acción |
 | --- | --- |
 | `Print` | Pantalla completa. |
 | `Alt+Print` | Seleccionar región. |
-| `Alt+Shift+S` | Capturar una región; usa `dotfiles-screenshot edit` para anotar. |
+| `Alt+Shift+S` | Capturar una región. |
 
 ## Portapapeles
 
@@ -57,9 +55,9 @@ limpieza del historial. La limpieza exige confirmar en Rofi.
 ## Diagnóstico
 
 ```bash
-command -v maim slop xclip clipmenu clipmenud flameshot
+command -v maim slop xclip clipmenu clipmenud
 pgrep -a -u "$USER" -f '[c]lipmenud'
-journalctl --user -b | rg -i 'clipmenu|flameshot|maim'
+journalctl --user -b | rg -i 'clipmenu|maim'
 ```
 
 Todos sus procesos y dependencias pertenecen a la sesión X11.

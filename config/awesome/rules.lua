@@ -113,7 +113,7 @@ return {
     {
         rule_any = {
             type = { "dialog", "utility", "toolbar", "splash" },
-            class = { "Gpick", "flameshot" },
+            class = { "Gpick" },
         },
         properties = {
             floating = true,

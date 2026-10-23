@@ -31,9 +31,6 @@ semicírculos `` y ``. Los extremos usan Iosevka Regular a 17 pt con
 desplazamiento vertical 4 para una barra de 30 px a 96 DPI. El script de estilo
 escala esas medidas por monitor. Cambiar solamente la fuente o su desplazamiento
 puede dejar el fondo sobresaliendo como un cuadrado o recortar la curva.
-Los botones del panel principal y de música usan el mismo tratamiento en
-cápsula y la paleta de sus menús. La batería, el brillo y el volumen comparten
-el margen entre módulos; el icono de brillo usa 8 px antes del porcentaje.
 
 Clic en red, Bluetooth, batería o encendido abre los menús correspondientes.
 Las acciones de audio y brillo cambian el estado real al usarlas. La barra se

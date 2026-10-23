@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""Telemetry and bounded MPRIS calls for Awesome's desktop panels."""
+
+import argparse
+import hashlib
+import json
+import os
+import re
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import urllib.parse
+import urllib.request
+
+from gi.repository import Gio, GLib
+
+PREFIX = "org.mpris.MediaPlayer2."
+PATH = "/org/mpris/MediaPlayer2"
+PLAYER = "org.mpris.MediaPlayer2.Player"
+
+
+def emit(**values):
+    for key, value in values.items():
+        print(key + "\t" + " ".join(str(value).split()))
+
+
+def call(bus, name, interface, method, args=None):
+    return bus.call_sync(name, PATH, interface, method, args, None,
+                         Gio.DBusCallFlags.NONE, 1200, None)
+
+
+def properties(bus, name):
+    return call(bus, name, "org.freedesktop.DBus.Properties", "GetAll",
+                GLib.Variant("(s)", (PLAYER,))).unpack()[0]
+
+
+def cover(url):
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme == "file" and parsed.netloc in ("", "localhost"):
+        path = Path(urllib.request.url2pathname(parsed.path))
+        return str(path) if path.is_file() else ""
+    if parsed.scheme not in ("https", "http"):
+        return ""
+    directory = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "dotfiles/music"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / hashlib.sha256(url.encode()).hexdigest()
+    if path.exists():
+        return str(path)
+    try:
+        with urllib.request.urlopen(url, timeout=2) as response:
+            data = response.read(5 * 1024 * 1024 + 1)
+        if len(data) > 5 * 1024 * 1024:
+            return ""
+        temporary = path.with_suffix(".tmp")
+        temporary.write_bytes(data)
+        temporary.replace(path)
+        # Keep the cache small even after long listening sessions.
+        for old in sorted(directory.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)[64:]:
+            old.unlink(missing_ok=True)
+        return str(path)
+    except (OSError, ValueError):
+        return ""
+
+
+def music():
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    names = bus.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                          "org.freedesktop.DBus", "ListNames", None, None,
+                          Gio.DBusCallFlags.NONE, 1200, None).unpack()[0]
+    players = []
+    for name in sorted(names):
+        if name.startswith(PREFIX):
+            try:
+                props = properties(bus, name)
+                players.append((name, props))
+                if props.get("PlaybackStatus") == "Playing":
+                    break
+            except GLib.Error:
+                continue
+    if not players:
+        emit(state="empty")
+        return
+    name, props = next((p for p in players if p[1].get("PlaybackStatus") == "Playing"), players[0])
+    meta = props.get("Metadata", {})
+    emit(state=props.get("PlaybackStatus", "Stopped"), player=name,
+         title=meta.get("xesam:title", "Sin título"),
+         artist=", ".join(meta.get("xesam:artist", [])) or "Artista desconocido",
+         album=meta.get("xesam:album", ""),
+         position=props.get("Position", 0), length=meta.get("mpris:length", 0),
+         previous=int(props.get("CanGoPrevious", False)), next=int(props.get("CanGoNext", False)),
+         control=int(props.get("CanControl", False)),
+         play=int(props.get("CanPause" if props.get("PlaybackStatus") == "Playing" else "CanPlay", False)),
+         seek=int(props.get("CanSeek", False)),
+         shuffle=int(bool(props.get("Shuffle", False))), shuffle_supported=int("Shuffle" in props),
+         loop=props.get("LoopStatus", "None"), loop_supported=int("LoopStatus" in props),
+         cover=cover(meta.get("mpris:artUrl", "")))
+
+
+def action(name, method, seconds):
+    if not name.startswith(PREFIX):
+        raise ValueError("Reproductor no válido")
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    props = properties(bus, name)
+    if not props.get("CanControl", False):
+        return
+    if method in ("Shuffle", "Loop"):
+        key = "Shuffle" if method == "Shuffle" else "LoopStatus"
+        if key not in props:
+            return
+        value = GLib.Variant("b", not props[key]) if method == "Shuffle" else GLib.Variant(
+            "s", {"None": "Playlist", "Playlist": "Track", "Track": "None"}.get(props[key], "None"))
+        call(bus, name, "org.freedesktop.DBus.Properties", "Set", GLib.Variant("(ssv)", (PLAYER, key, value)))
+        return
+    capability = {"Previous": "CanGoPrevious", "Next": "CanGoNext", "PlayPause":
+                  "CanPause" if props.get("PlaybackStatus") == "Playing" else "CanPlay",
+                  "SetPosition": "CanSeek"}[method]
+    if not props.get(capability, False):
+        return
+    args = None
+    if method == "SetPosition":
+        track = props.get("Metadata", {}).get("mpris:trackid")
+        if not track or track == "/org/mpris/MediaPlayer2/TrackList/NoTrack":
+            return
+        length = props.get("Metadata", {}).get("mpris:length", 0)
+        position = max(0, min(int(seconds * 1000000), length))
+        args = GLib.Variant("(ox)", (track, position))
+    call(bus, name, PLAYER, method, args)
+
+
+def run(*args):
+    return subprocess.run(args, capture_output=True, text=True, check=True, timeout=8,
+                          env={**os.environ, "LC_ALL": "C"}).stdout.strip()
+
+
+def state_file(name):
+    directory = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/dotfiles-panel-{os.getuid()}")) / "dotfiles-panel"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    return directory / (name + ".json")
+
+
+def radios():
+    return json.loads(run("rfkill", "--json"))["rfkilldevices"]
+
+
+def connections():
+    devices = []
+    for line in run("nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device", "status").splitlines():
+        name, kind, state = line.split(":", 2)
+        if kind in ("ethernet", "wifi"):
+            devices.append(dict(name=name, kind=kind, connected=state == "connected", available=state != "unavailable"))
+    return devices
+
+
+def network_device(devices):
+    return next((d for d in devices if d["connected"] and d["kind"] == "ethernet"), None) or next(
+        (d for d in devices if d["connected"]), None) or next((d for d in devices if d["kind"] == "wifi"), None) or next(iter(devices), None)
+
+
+def switches():
+    devices = connections()
+    device = network_device(devices)
+    radio = radios()
+    flight = bool(radio) and all(d["soft"] == "blocked" for d in radio)
+    bluetooth = run(str(Path.home() / ".local/bin/dotfiles-polybar-bluetooth"), "--snapshot")
+    return dict(network_kind=device["kind"] if device else "wifi",
+                network=device["name"].upper() if device else "SIN RED",
+                network_on=int((run("nmcli", "radio", "wifi") == "enabled") if device and device["kind"] == "wifi" else bool(device and device["connected"])),
+                bluetooth_on=int("state\ton" in bluetooth), airplane_on=int(flight),
+                nightlight_on=int(state_file("nightlight").exists()))
+
+
+def gamma_outputs():
+    output, result = None, {}
+    for line in run("xrandr", "--verbose").splitlines():
+        match = re.match(r"^(\S+) connected (?:primary )?\d+x\d+", line)
+        if not line.startswith((" ", "\t")):
+            output = match[1] if match else None
+        if output and line.strip().startswith("Gamma:"):
+            # XRandR reports the inverse of the values accepted by --gamma.
+            values = line.split(":", 1)[1].strip().split(":")
+            result[output] = ":".join(f"{1 / float(value):.6g}" for value in values)
+    return result
+
+
+def toggle_switch(kind):
+    if kind == "network":
+        device = network_device(connections())
+        if not device:
+            raise ValueError("No hay adaptador de red")
+        if device["kind"] == "wifi":
+            run("nmcli", "radio", "wifi", "off" if run("nmcli", "radio", "wifi") == "enabled" else "on")
+        else:
+            run("nmcli", "device", "disconnect" if device["connected"] else "connect", device["name"])
+    elif kind == "bluetooth":
+        run(str(Path.home() / ".local/bin/dotfiles-polybar-bluetooth"), "--toggle")
+    elif kind == "airplane":
+        devices = radios()
+        path = state_file("airplane")
+        if devices and all(d["soft"] == "blocked" for d in devices):
+            if path.exists():
+                original = json.loads(path.read_text())
+                for device in devices:
+                    if str(device["id"]) in original and original[str(device["id"])] == "unblocked":
+                        run("rfkill", "unblock", str(device["id"]))
+                path.unlink()
+            else:
+                run("rfkill", "unblock", "all")
+        else:
+            path.write_text(json.dumps({str(d["id"]): d["soft"] for d in devices}))
+            run("rfkill", "block", "all")
+    elif kind == "nightlight":
+        path = state_file("nightlight")
+        outputs = gamma_outputs()
+        if not outputs:
+            raise ValueError("No hay pantallas activas con control de color")
+        original = json.loads(path.read_text()) if path.exists() else outputs
+        enabling = not path.exists()
+        applied = []
+        try:
+            for output in outputs:
+                run("xrandr", "--output", output, "--gamma", "1:0.82:0.64" if enabling else original.get(output, "1:1:1"))
+                applied.append(output)
+        except (OSError, subprocess.SubprocessError):
+            for output in applied:
+                run("xrandr", "--output", output, "--gamma", outputs[output])
+            raise
+        if enabling:
+            path.write_text(json.dumps(original))
+        else:
+            path.unlink()
+
+
+def system():
+    memory = {}
+    for line in Path("/proc/meminfo").read_text().splitlines():
+        key, value = line.split(":", 1)
+        memory[key] = int(value.strip().split()[0])
+    disk = shutil.disk_usage(Path.home())
+    release = {}
+    for line in Path("/etc/os-release").read_text().splitlines():
+        if "=" in line:
+            key, value = line.split("=", 1)
+            release[key] = value.strip('"')
+    uptime = int(float(Path("/proc/uptime").read_text().split()[0]))
+    cpu = Path("/proc/stat").read_text().splitlines()[0].split()[1:9]
+    temperatures = []
+    for zone in Path("/sys/class/thermal").glob("thermal_zone*"):
+        try:
+            if (zone / "type").read_text().strip() in ("x86_pkg_temp", "cpu-thermal", "k10temp"):
+                temperatures.append(int((zone / "temp").read_text()) / 1000)
+        except (OSError, ValueError):
+            pass
+    for chip in Path("/sys/class/hwmon").glob("hwmon*"):
+        try:
+            if (chip / "name").read_text().strip() in ("k10temp", "coretemp"):
+                temperatures.append(int((chip / "temp1_input").read_text()) / 1000)
+        except (OSError, ValueError):
+            pass
+    try:
+        updates = subprocess.run(["pacman", "-Qu"], capture_output=True, text=True, timeout=2).stdout
+        update_count = len(updates.splitlines())
+    except (OSError, subprocess.TimeoutExpired):
+        update_count = "—"
+    emit(user=os.environ.get("USER", ""), host=os.uname().nodename,
+         distro=release.get("PRETTY_NAME", "Linux"), uptime=f"{uptime // 3600} h {(uptime // 60) % 60} min",
+         cpu_total=sum(map(int, cpu)), cpu_idle=int(cpu[3]) + int(cpu[4]),
+         packages=len(list(Path("/var/lib/pacman/local").glob("*/desc"))), updates=update_count,
+         **switches(),
+         ram=round(100 * (1 - memory["MemAvailable"] / memory["MemTotal"])),
+         ram_detail=f"{(memory['MemTotal'] - memory['MemAvailable']) / 1048576:.1f} / {memory['MemTotal'] / 1048576:.1f} GiB",
+         disk=round(100 * disk.used / disk.total), disk_detail=f"{disk.free / 1073741824:.0f} GiB libres",
+         temperature=f"{max(temperatures):.0f} °C" if temperatures else "Temperatura no disponible")
+
+
+def weather():
+    import json
+    import time
+    city = os.environ.get("DOTFILES_WEATHER_CITY", "Santo Domingo")
+    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "dotfiles/weather.json"
+    try:
+        saved = json.loads(cache.read_text())
+        if saved.get("version") == 2 and saved.get("city") == city and time.time() - saved["time"] < 1200:
+            emit(**saved["data"])
+            return
+    except (OSError, ValueError, KeyError):
+        pass
+    try:
+        with urllib.request.urlopen("https://wttr.in/" + urllib.parse.quote(city) + "?format=j1&lang=es", timeout=3) as response:
+            current = json.load(response)["current_condition"][0]
+        description = current.get("lang_es", current["weatherDesc"])[0]["value"]
+        code = int(current.get("weatherCode", 0))
+        if code == 113:
+            description = "Despejado"
+        elif code in (116, 119, 122):
+            description = "Nublado"
+        elif code in (143, 248, 260):
+            description = "Niebla"
+        elif code >= 176:
+            description = "Lluvia" if code not in (200, 386, 389, 392, 395) else "Tormenta"
+        data = dict(city=city, temperature=current["temp_C"] + "°C", description=description)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(dict(version=2, city=city, time=time.time(), data=data)))
+        emit(**data)
+    except (OSError, ValueError, KeyError):
+        emit(city=city, temperature="—", description="Sin datos del clima")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("kind", choices=("system", "music", "action", "weather", "toggle"))
+    parser.add_argument("player", nargs="?")
+    parser.add_argument("method", nargs="?", choices=("Previous", "Next", "PlayPause", "SetPosition", "Shuffle", "Loop"))
+    parser.add_argument("seconds", nargs="?", type=float, default=0)
+    args = parser.parse_args()
+    if args.kind == "system":
+        system()
+    elif args.kind == "weather":
+        weather()
+    elif args.kind == "music":
+        music()
+    elif args.kind == "toggle" and args.player in ("network", "bluetooth", "airplane", "nightlight"):
+        toggle_switch(args.player)
+    elif args.player and args.method:
+        action(args.player, args.method, args.seconds)
+    else:
+        parser.error("action requiere reproductor y acción")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (GLib.Error, OSError, ValueError, subprocess.SubprocessError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

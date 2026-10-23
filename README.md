@@ -147,7 +147,7 @@ dev-podman restart
 | [`dbeaver`](docs/dbeaver.md) **opcional** | DBeaver Community en dev, con lanzador gráfico independiente |
 | [`voice-isolation`](docs/voice-isolation.md) **opcional** | Aislamiento de voz RNNoise con detección del micrófono y arranque automático |
 | [`workbench`](environments/workbench/README.md) | entornos rootless de desarrollo y pentesting |
-| [`desktop-extras`](docs/desktop-extras.md) | Firefox, KeePassXC, Btop, color y papelera |
+| [`desktop-extras`](docs/desktop-extras.md) | Firefox, Limusic, KeePassXC, Btop, color y papelera |
 | [`session`](docs/session.md) | bloqueo, inactividad, suspensión y energía |
 | [`desktop-tools`](docs/desktop-tools.md) | capturas e historial del portapapeles |
 | [`files`](docs/files.md) | Yazi, selector del sistema, Thunar, visores y asociaciones |

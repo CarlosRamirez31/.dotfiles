@@ -12,6 +12,8 @@ awesome	config/awesome/autostart.lua	.config/awesome/autostart.lua
 awesome	config/awesome/bar.lua	.config/awesome/bar.lua
 awesome	config/awesome/battery-alert.lua	.config/awesome/battery-alert.lua
 awesome	config/awesome/battery-menu.lua	.config/awesome/battery-menu.lua
+awesome	config/awesome/desktop-panels.lua	.config/awesome/desktop-panels.lua
+awesome	bin/dotfiles-desktop-panel	.local/bin/dotfiles-desktop-panel
 awesome	config/awesome/bindings.lua	.config/awesome/bindings.lua
 awesome	config/awesome/bluetoothmenu.lua	.config/awesome/bluetoothmenu.lua
 awesome	config/awesome/emulator-shape.lua	.config/awesome/emulator-shape.lua
@@ -103,6 +105,8 @@ polybar	bin/dotfiles-polybar	.local/bin/dotfiles-polybar
 polybar	bin/dotfiles-polybar-battery	.local/bin/dotfiles-polybar-battery
 polybar	bin/dotfiles-polybar-bluetooth	.local/bin/dotfiles-polybar-bluetooth
 polybar	bin/dotfiles-polybar-energy	.local/bin/dotfiles-polybar-energy
+polybar	bin/dotfiles-polybar-dashboard	.local/bin/dotfiles-polybar-dashboard
+polybar	bin/dotfiles-polybar-music	.local/bin/dotfiles-polybar-music
 polybar	bin/dotfiles-polybar-htb	.local/bin/dotfiles-polybar-htb
 polybar	bin/dotfiles-polybar-power	.local/bin/dotfiles-polybar-power
 polybar	bin/dotfiles-polybar-style	.local/bin/dotfiles-polybar-style

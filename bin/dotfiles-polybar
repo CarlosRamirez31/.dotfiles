@@ -76,7 +76,7 @@ if [[ ${1:-} == --volume ]]; then
             volume=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null) || volume=''
             awk '
                 /MUTED/ {print "󰖁"; next}
-                /^Volume: [0-9.]+/ {printf "%%{F#d35f5e}󰕾%%{F-} %d%%\n", $2 * 100 + 0.5; found=1; next}
+                /^Volume: [0-9.]+/ {printf "%%{F#f5c2e7}󰕾%%{F-} %d%%\n", $2 * 100 + 0.5; found=1; next}
                 END {if (!found && $0 !~ /MUTED/) print "󰕾 —"}' <<<"$volume"
             ;;
         *) exit 2 ;;

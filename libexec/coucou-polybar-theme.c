@@ -143,7 +143,10 @@ void gdk_window_input_shape_combine_region(GdkWindow *window, const cairo_region
     if (g_object_get_data(G_OBJECT(window), "coucou-pass-through")) {
         cairo_region_t *empty = cairo_region_create();
         original(window, empty, 0, 0); cairo_region_destroy(empty);
-    } else original(window, region, x, y);
+    } else {
+        const cairo_region_t *flow = g_object_get_data(G_OBJECT(window), "coucou-flow-region");
+        original(window, flow ? flow : region, flow ? 0 : x, flow ? 0 : y);
+    }
 }
 
 static void publish_geometry(WebKitWebView *view, GParamSpec *pspec, gpointer data) {
@@ -170,11 +173,44 @@ static void publish_geometry(WebKitWebView *view, GParamSpec *pspec, gpointer da
         }
     }
 }
+/* The Flow page is a separate 520x170 transparent window. Its native hot
+ * zone deliberately includes padding around the handle. Match both the visual
+ * bounds and input to the capsule/bubble instead, including during animation. */
+static void publish_flow_geometry(WebKitWebView *view, GParamSpec *pspec, gpointer data) {
+    const char *title = webkit_web_view_get_title(view);
+    int page_width = 0, page_height = 0, offset = 0;
+    if (!title || sscanf(title, "Coucou Flow | %d | %d | %n", &page_width, &page_height, &offset) != 2
+            || !offset || page_width <= 0 || page_height <= 0) return;
+    GtkWidget *top = gtk_widget_get_toplevel(GTK_WIDGET(view));
+    if (!GTK_IS_WINDOW(top)) return;
+    gtk_window_set_title(GTK_WINDOW(top), title);
+    GdkWindow *window = gtk_widget_get_window(top);
+    if (!window) return;
+    int width, height;
+    gtk_window_get_size(GTK_WINDOW(top), &width, &height);
+    cairo_region_t *region = cairo_region_create();
+    const char *next = title + offset;
+    int x, y, w, h, used;
+    while ((used = 0, sscanf(next, "%d,%d,%d,%d;%n", &x, &y, &w, &h, &used)) == 4 && used > 0) {
+        if (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= page_width && y + h <= page_height) {
+            cairo_rectangle_int_t rectangle = { x * width / page_width, y * height / page_height,
+                (w * width + page_width - 1) / page_width, (h * height + page_height - 1) / page_height };
+            cairo_region_union_rectangle(region, &rectangle);
+        }
+        next += used;
+    }
+    g_object_set_data_full(G_OBJECT(window), "coucou-flow-region", cairo_region_copy(region),
+        (GDestroyNotify)cairo_region_destroy);
+    gdk_window_shape_combine_region(window, region, 0, 0);
+    gdk_window_input_shape_combine_region(window, region, 0, 0);
+    cairo_region_destroy(region);
+}
 static void apply_theme(WebKitWebView *view) {
     start_hermes_transport();
     if (!g_object_get_data(G_OBJECT(view), "coucou-polybar-theme")) {
         g_object_set_data(G_OBJECT(view), "coucou-polybar-theme", GINT_TO_POINTER(1));
         g_signal_connect(view, "notify::title", G_CALLBACK(publish_geometry), NULL);
+        g_signal_connect(view, "notify::title", G_CALLBACK(publish_flow_geometry), NULL);
         WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(view);
         webkit_user_content_manager_register_script_message_handler_with_reply(manager,
             "coucouAgentHub", NULL);
@@ -205,7 +241,15 @@ static void apply_theme(WebKitWebView *view) {
             g_free(directory);
         }
         /* Expose only panel geometry to the window manager for hover dismissal. */
-        const char *js = "setInterval(()=>{const e=document.getElementById('island');if(!e)return;"
+        const char *js = "(()=>{if(location.pathname==='/pill.html'){const update=()=>{"
+            "const rects=[...document.querySelectorAll('#pill .capsule,#pill .bubble')].map(e=>{"
+            "const s=getComputedStyle(e),r=e.getBoundingClientRect();if(s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0)return '';"
+            "const x=Math.max(0,Math.floor(r.left)),y=Math.max(0,Math.floor(r.top));"
+            "const w=Math.min(innerWidth,Math.ceil(r.right))-x,h=Math.min(innerHeight,Math.ceil(r.bottom))-y;"
+            "return w>0&&h>0?[x,y,w,h].join(',')+';':''}).join('');"
+            "const title='Coucou Flow | '+innerWidth+' | '+innerHeight+' | '+rects;"
+            "if(document.title!==title)document.title=title;};const animate=()=>{update();requestAnimationFrame(animate)};animate();setInterval(update,100)}})();"
+            "setInterval(()=>{const e=document.getElementById('island');if(!e)return;"
             "const r=(document.querySelector('dialog[open]')||e).getBoundingClientRect();const mode=r.height<8?'hidden':r.height<90?'compact':'expanded';"
             "e.style.opacity=mode==='expanded'?'1':'0';const title='Coucou Island | '+mode+' | '+Math.round(r.width)+' | '+Math.round(r.height);"
             "if(document.title!==title)document.title=title;},150);";

@@ -102,3 +102,23 @@ almacenamiento de proyectos/tareas: solo invoca el CLI con argv separados.
 El código del motor permanece en su repositorio independiente. Estos dotfiles
 guardan únicamente el cliente y sus pruebas; `dotfiles-coucou-setup` restaura el
 archivo nuevo junto con el puente anterior. No se añaden API keys o servicios.
+
+## Rayita inferior de Flow
+
+Flow crea un dock independiente de la isla superior: su ventana transparente
+mide 520×170 aunque la rayita en reposo mide 44×8. Su zona nativa de hover es
+más grande que el dibujo, y Awesome añade otro marco que también recibe clics.
+
+La personalización publica los rectángulos visibles de `.capsule` y `.bubble`,
+actualizados durante las animaciones. Aplica el mismo contorno al input y a la
+forma visual tanto de GTK como del marco de Awesome. En reposo solo la rayita
+recibe clics; al abrirse, solo el control/burbuja visibles. Si desaparecen, la
+región queda vacía. Los ajustes tardíos del hover nativo no restauran el padding.
+No se desactiva Flow ni se modifica Agent Hub.
+
+`native_flow_shape.c` comprueba con WebKit/X11 reales la rayita 44×8, el rechazo
+de un reset nativo 96×26, la expansión del control y la región vacía. Usa un
+popup fuera de pantalla, sin mover el ratón ni iniciar agentes. La prueba Lua
+comprueba además la forma del marco de Awesome y el título vacío sin espacios
+finales, que Awesome normaliza. Restaurar con `dotfiles-coucou-setup` y reiniciar
+solo Coucou; el módulo Awesome se carga con la configuración habitual.

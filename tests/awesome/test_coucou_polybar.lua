@@ -87,3 +87,22 @@ clients = { recovered, bar }
 pointer = { x = 960, y = 20 };clock = 5;callback();clock = 5.31;callback()
 assert(#commands == count + 3, 'poll recovers an island even when manage was missed')
 print('Coucou hover: stale client recovery, late GTK identity and unrelated docks passed')
+
+-- The bottom Flow dock must occupy only the actual visible handle, not its
+-- entire 520x170 frame nor the larger native 96x26 hover padding.
+local flow = { class = 'Coucou', type = 'dock', valid = true, screen = s,
+    name = 'Coucou Flow | 520 | 170 | 238,160,44,8;',
+    geometry = function() return {x=700,y=906,width=520,height=170} end }
+clients = { recovered, bar, flow }
+signals['property::name'](flow)
+assert(flow.shape_input.rectangle[1] == 238 and flow.shape_input.rectangle[2] == 160)
+assert(flow.shape_input.rectangle[3] == 44 and flow.shape_input.rectangle[4] == 8,
+    'bottom frame input must match only the visible handle')
+assert(flow.shape_bounding == flow.shape_input, 'capture/visual shape must match its input shape')
+flow.name = 'Coucou Flow | 520 | 170 | 185,134,150,34;'
+callback()
+assert(flow.shape_input.rectangle[3] == 150, 'expanded Flow toolbar follows its actual bounds')
+flow.name = 'Coucou Flow | 520 | 170 |'
+callback()
+assert(not flow.shape_input.rectangle, 'no capsule means no bottom input zone')
+print('Coucou Flow: bottom client frame follows visible handle/toolbar and empties when absent')

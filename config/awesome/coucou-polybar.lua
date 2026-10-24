@@ -54,7 +54,36 @@ local function place(c)
     input_shape(c)
 end
 
+-- Flow has its own dock at the bottom, unrelated to the island. Shape its
+-- Awesome frame too: GTK input alone leaves a full transparent frame clickable.
+local flow_shapes = setmetatable({}, { __mode = "k" })
+local function flow_shape(c)
+    if not c.valid or c.class ~= "Coucou" then return end
+    local w, h, rectangles = (c.name or ""):match("^Coucou Flow | (%d+) | (%d+) |%s*(.*)$")
+    w, h = tonumber(w), tonumber(h)
+    if not w or not h or w <= 0 or h <= 0 then return end
+    local g = c:geometry()
+    local signature = table.concat({g.width, g.height, c.name}, ":")
+    if flow_shapes[c] == signature then return end
+    flow_shapes[c] = signature
+    c.border_width = 0
+    local cairo = require("lgi").cairo
+    local surface = cairo.ImageSurface(cairo.Format.A1, g.width, g.height)
+    local context = cairo.Context(surface)
+    context:set_source_rgba(1, 1, 1, 1)
+    for rx, ry, rw, rh in rectangles:gmatch("(%d+),(%d+),(%d+),(%d+);") do
+        local x, y, width, height = tonumber(rx), tonumber(ry), tonumber(rw), tonumber(rh)
+        if width > 0 and height > 0 and x + width <= w and y + height <= h then
+            context:rectangle(x * g.width / w, y * g.height / h, width * g.width / w, height * g.height / h)
+        end
+    end
+    context:fill()
+    c.shape_input, c.shape_bounding = surface._native, surface._native
+    surface:finish()
+end
+
 local function attach(c)
+    flow_shape(c)
     if not c.valid or c.class ~= "Coucou" or not mode(c) then return end
     if island == c then return end
     island = c
@@ -92,6 +121,7 @@ function M.start()
         if not island or not island.valid then
             for _, candidate in ipairs(client.get()) do attach(candidate) end
         end
+        for _, candidate in ipairs(client.get()) do flow_shape(candidate) end
         local c = island
         if not c or not c.valid then return end
         local bar = bar_for(c.screen)

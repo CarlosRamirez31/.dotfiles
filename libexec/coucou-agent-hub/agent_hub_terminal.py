@@ -298,6 +298,9 @@ class HubTerminal:
 
     def handle(self, request):
         action = request.get('action')
+        if action == 'work':
+            from work_control import control
+            return control(self, request)
         if action == 'chat-reset':
             agent = request.get('agent')
             if agent not in ('codex', 'hermes'):

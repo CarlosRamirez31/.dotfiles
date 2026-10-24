@@ -153,3 +153,27 @@ test('known adapter requests automatic background creation, with no association 
   assert.equal(f.requests[0].agent,'hermes');
   assert.equal(f.nodes.some(n=>n.tag==='dialog'),false);
 });
+
+test('Coucou prepares and queries Hub work without starting its native chat model', async () => {
+  const f = fixture(async request => ({ok:true,text:'RUN-001 · pending'}));
+  assert.equal((await f.ipc.invoke('chat_send',{query:'/tarea auto Revisar APA ñ'})).text,'RUN-001 · pending');
+  assert.equal(f.requests[0].action,'work');
+  assert.equal(f.requests[0].operation,'plan');
+  assert.equal(f.requests[0].agent,null);
+  assert.equal(f.requests[0].query,'Revisar APA ñ');
+  await f.ipc.invoke('chat_send',{query:'/estado RUN-001'});
+  assert.equal(f.requests[1].operation,'show');
+  assert.equal(f.requests[1].id,'RUN-001');
+  await f.ipc.invoke('chat_send',{query:'/tarea codex Implementar API'});
+  assert.equal(f.requests[2].agent,'codex');
+  assert.equal(f.requests.some(request=>request.action==='chat'),false);
+});
+
+test('an execution opens only through its explicit Hub execution identity', async () => {
+  const f=fixture(async request=>({ok:true,text:'opened'}));
+  await f.ipc.invoke('chat_send',{query:'/abrir EXEC-007'});
+  assert.equal(f.requests[0].action,'work');
+  assert.equal(f.requests[0].operation,'open-execution');
+  assert.equal(f.requests[0].id,'EXEC-007');
+  assert.equal(f.native.filter(([command])=>command==='chat_send'||command==='open_session').length,0);
+});

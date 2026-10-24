@@ -192,3 +192,4 @@ awesome	libexec/coucou-agent-hub/agent_hub_terminal.py	.local/opt/coucou/agent-h
 awesome	libexec/coucou-agent-hub/native_chat.py	.local/opt/coucou/agent-hub/native_chat.py
 awesome	libexec/coucou-agent-hub/terminal_session.py	.local/opt/coucou/agent-hub/terminal_session.py
 awesome	bin/dotfiles-coucou-setup	.local/bin/dotfiles-coucou-setup
+awesome	libexec/coucou-agent-hub/work_control.py	.local/opt/coucou/agent-hub/work_control.py

@@ -78,3 +78,27 @@ Los stubs verifican los argv exactos, IDs nativos, Codex/Hermes, alias new/hando
 Unicode/metacaracteres, bloqueos, errores, doble clic, cancelación y regreso al
 selector tras Ctrl+C. La prueba Lua incluye la máscara de entrada del marco de
 Awesome, además de la ventana GTK. No se envían prompts reales a los modelos.
+
+## Control de trabajo persistente en Agent Hub
+
+Con Agent Hub 0.5.0, el cliente local añade un botón **Tareas** al selector del
+chat. No convierte mensajes normales en tareas ni duplica SQLite. El estado lo
+guarda únicamente el motor de Agent Hub. Comandos opt-in desde el chat:
+
+- `/tarea codex Implementar X`: prepara un plan con agente fijo.
+- `/tarea hermes Revisar documento`: prepara un plan con Hermes fijo.
+- `/tarea auto Investigar X`: permite selección según perfiles configurados.
+- `/estado RUN-001` y `/tareas`: consultan estado sin usar un modelo.
+- `/ejecutar RUN-001`: solicita ejecutar un plan ya configurado/autorizado.
+- `/cancelar RUN-001`: cancela los procesos propios del run.
+- `/abrir EXEC-001`: abre por Agent Hub la conversación exacta de esa ejecución.
+
+Durante la ejecución aparece **Detener**, que utiliza el contrato de cancelación
+del Hub. El cliente no fuerza locks, no hace merges ni aprueba permisos del
+modelo. Las ejecuciones necesitan un repositorio, checks y permisos aprobados;
+un plan incompleto se muestra pendiente de humano. `work_control.py` no tiene
+almacenamiento de proyectos/tareas: solo invoca el CLI con argv separados.
+
+El código del motor permanece en su repositorio independiente. Estos dotfiles
+guardan únicamente el cliente y sus pruebas; `dotfiles-coucou-setup` restaura el
+archivo nuevo junto con el puente anterior. No se añaden API keys o servicios.

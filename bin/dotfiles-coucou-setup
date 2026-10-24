@@ -24,7 +24,7 @@ def main():
         configuration/'polybar.css': root/'config/coucou/polybar.css',
         coucou/'polybar-theme.c': root/'libexec/coucou-polybar-theme.c',
     }
-    for name in ('agent_hub_terminal.py', 'native_chat.py', 'terminal_session.py'):
+    for name in ('agent_hub_terminal.py', 'native_chat.py', 'terminal_session.py', 'work_control.py'):
         links[coucou/'agent-hub'/name] = root/'libexec/coucou-agent-hub'/name
     # Preserve files from previous manual installations before linking.
     backup = coucou/'setup-backups'

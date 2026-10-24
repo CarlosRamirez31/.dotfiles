@@ -15,7 +15,7 @@
     let chatAgent = 'codex';
     try { chatAgent = window.localStorage?.getItem('coucou-chat-agent') || 'codex'; } catch {}
     if (!['codex', 'hermes'].includes(chatAgent)) chatAgent = 'codex';
-    let chatBusy = false;
+    let chatBusy = false, activeRun = null;
     let modal = null, lastCollapsed = false, lastRect = null;
     const modalRect = () => { const r = modal.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
     const present = box => {
@@ -177,6 +177,25 @@
         return call({action:'chat-reset',agent:chatAgent}).then(() => invoke(command,args,options));
       }
       if (command === 'chat_send') {
+        const query = args?.query?.trim() || '';
+        const task = query.match(/^\/tarea(?:\s+(auto|codex|hermes))?\s+([\s\S]+)$/i);
+        const control = query.match(/^\/(estado|ejecutar|cancelar)\s+(RUN-[0-9]{3,12})$/i);
+        const openExecution = query.match(/^\/abrir\s+(EXEC-[0-9]{3,12})$/i);
+        if (task || control || openExecution || query === '/tareas') {
+          if (chatBusy) return Promise.reject(new Error('Ya hay una respuesta en curso.'));
+          chatBusy = true;
+          const operations = {estado:'show',ejecutar:'execute',cancelar:'cancel'};
+          const request = task ? {action:'work',operation:'plan',query:task[2],agent:task[1]?.toLowerCase()==='auto' ? null : task[1]?.toLowerCase() || chatAgent}
+            : openExecution ? {action:'work',operation:'open-execution',id:openExecution[1]}
+            : control ? {action:'work',operation:operations[control[1].toLowerCase()],id:control[2]}
+            : {action:'work',operation:'list'};
+          if (request.operation === 'execute') activeRun = request.id;
+          window.__coucouWorkRefresh?.();
+          return call(request).then(result => ({text:result.text})).finally(() => {
+            chatBusy = false; activeRun = null; window.__coucouWorkRefresh?.();
+          });
+        }
+
         if (chatBusy) return Promise.reject(new Error('El agente ya está respondiendo.'));
         chatBusy = true;
         return call({action:'chat', agent:chatAgent, query:args?.query, context:args?.context})
@@ -209,6 +228,19 @@
     if (typeof MutationObserver !== 'undefined') {
       let menu = null;
       const decorate = () => {
+        const bar = document.querySelector('.chat-bar');
+        let stop = document.querySelector('.coucou-stop-work');
+        if (activeRun && bar && !stop) {
+          stop = element('button', 'Detener', bar); stop.className = 'picker-chip coucou-stop-work';
+          stop.type = 'button'; stop.title = 'Cancelar este run de Agent Hub';
+          const cancelRun = activeRun;
+          stop.onclick = async () => {
+            stop.disabled = true;
+            try { await call({action:'work',operation:'cancel',id:cancelRun}); }
+            catch (error) { report(error); }
+            finally { stop.disabled = false; }
+          };
+        } else if (!activeRun && stop) stop.remove();
         const button = document.querySelector('.model-btn');
         if (!button) { menu?.remove(); menu = null; return; }
         const label = button.querySelector('.model-name');
@@ -233,9 +265,17 @@
               menu.remove(); menu = null; decorate();
             };
           }
+          const tasks = element('button', 'Tareas', chips); tasks.className = 'picker-chip';
+          tasks.title = 'Preparar una tarea en Agent Hub';
+          tasks.onclick = () => {
+            const input = document.querySelector('.chat-input');
+            if (input) { input.value = '/tarea '; input.focus(); }
+            menu.remove(); menu = null;
+          };
           button.closest('.chat-body')?.insertBefore(menu, button.closest('.model-row'));
         }, true);
       };
+      window.__coucouWorkRefresh = decorate;
       new MutationObserver(decorate).observe(document.body, {childList:true, subtree:true});
       decorate();
     }

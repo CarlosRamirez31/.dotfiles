@@ -7,6 +7,7 @@ import shlex
 import uuid
 from agent_hub_terminal import atomic_json, private_dir
 EVENTS=('SessionStart','PreToolUse','PostToolUse','PreInvocation','PostInvocation','Stop')
+TOOL_EVENTS=('PreToolUse','PostToolUse')
 
 
 def configure(path, observer):
@@ -15,8 +16,15 @@ def configure(path, observer):
     original=json.loads(path.read_text()) if path.exists() else {}
     if not isinstance(original,dict):raise ValueError('hooks.json debe ser un objeto.')
     updated=copy.deepcopy(original)
-    updated['coucou-cli-observer']={event:[{'matcher':'*','hooks':[{'type':'command',
-        'command':shlex.join(['python3','-B',str(observer),event]),'timeout':8}]}] for event in EVENTS}
+    observer_hooks={}
+    for event in EVENTS:
+        cmd=shlex.join(['python3','-B',str(observer),event])
+        handler={'type':'command','command':cmd,'timeout':8}
+        if event in TOOL_EVENTS:
+            observer_hooks[event]=[{'matcher':'*','hooks':[handler]}]
+        else:
+            observer_hooks[event]=[handler]
+    updated['coucou-cli-observer']=observer_hooks
     if updated==original:return False
     private_dir(path.parent)
     if path.exists():atomic_json(private_dir(path.parent/'coucou-backups')/('hooks-'+uuid.uuid4().hex+'.json'),original)

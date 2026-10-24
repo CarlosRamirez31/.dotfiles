@@ -17,7 +17,10 @@ class AntigravitySetupTests(unittest.TestCase):
             self.assertEqual(value['foreign'],foreign)
             self.assertEqual(set(value['coucou-cli-observer']),set(EVENTS))
             for event in EVENTS:
-                hook=value['coucou-cli-observer'][event][0]['hooks'][0]
+                if event in ('PreToolUse','PostToolUse'):
+                    hook=value['coucou-cli-observer'][event][0]['hooks'][0]
+                else:
+                    hook=value['coucou-cli-observer'][event][0]
                 self.assertEqual(shlex.split(hook['command']),['python3','-B',str(observer),event])
                 self.assertEqual(hook['timeout'],8)
             before=hooks.read_bytes();self.assertFalse(configure(hooks,observer))

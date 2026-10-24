@@ -19,6 +19,8 @@ def main():
         except (OSError,subprocess.TimeoutExpired):pass
         mapped={'PreInvocation':'UserPromptSubmit','PostInvocation':'PostToolUse'}.get(event,event)
         item['hook_event_name']=mapped
+        if 'conversationId' in item and 'session_id' not in item:
+            item['session_id']=item['conversationId']
         relay=Path.home()/'.local/share/coucou/bin/coucou-hook'
         reply=subprocess.run([str(relay),'--agent','antigravity',mapped],input=json.dumps(item),text=True,
             capture_output=True,timeout=3,check=False)

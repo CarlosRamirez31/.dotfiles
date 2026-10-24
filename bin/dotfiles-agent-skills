@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Install the shared programming skills without starting models or changing approvals."""
+import argparse
+import datetime
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+
+NAMES = ('surgical-edits', 'anti-overengineering', 'repo-scaffold', 'appsec-guardrail', 'software-architect')
+BEGIN, END = '<!-- dotfiles-programming:start -->', '<!-- dotfiles-programming:end -->'
+
+
+def merge_policy(existing, policy):
+    block = BEGIN + '\n' + policy.rstrip() + '\n' + END
+    if BEGIN in existing or END in existing:
+        if existing.count(BEGIN) != 1 or existing.count(END) != 1:
+            raise ValueError('Bloque de preferencias incompleto; conserva el archivo y revisa sus marcadores.')
+        before, rest = existing.split(BEGIN, 1)
+        _, after = rest.split(END, 1)
+        return before + block + after
+    return existing.rstrip() + ('\n\n' if existing.strip() else '') + block + '\n'
+
+
+def write_policy(path, policy, backups):
+    original = path.read_text() if path.exists() else ''
+    content = merge_policy(original, policy)
+    if content == original:
+        return
+    if path.exists():
+        backups.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, backups / (str(path).replace('/', '_') + '.bak'))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+
+
+def link(source, target):
+    if target.is_symlink() and target.resolve() == source.resolve():
+        return
+    if target.exists() or target.is_symlink():
+        raise ValueError('Ya existe una skill ajena; no se sobrescribe: ' + str(target))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.symlink_to(source.resolve(), target_is_directory=True)
+
+
+def hub_json(*args):
+    return json.loads(subprocess.check_output(['agent-hub', 'work', *args, '--json'], text=True))
+
+
+def install_hub(source, backups):
+    profiles = hub_json('profile', 'list')
+    backups.mkdir(parents=True, exist_ok=True)
+    (backups / 'hub-profiles.json').write_text(json.dumps(profiles, ensure_ascii=False, indent=2) + '\n')
+    for name in NAMES:
+        hub_json('skill', 'register', name, '--file', str(source / name / 'SKILL.md'), '--scope', 'global')
+    # Base commands, models, containers, approvals and permission ceilings are inherited.
+    by_id = {p['id']: p for p in profiles}
+    specifications = [('antigravity', 'antigravity-architect', 'Arquitectura pragmática: diseño y cambios estructurales', 'architecture', 'software-architect'),
+                      ('hermes-reviewer', 'hermes-appsec', 'Revisión AppSec del diff; sin edición', 'security', 'appsec-guardrail')]
+    allowed = {'version','id','provider','description','capabilities','specializations','skills','tools','priority_domains','context_max_chars','cost_class','roles','command','resume_command','format','model','enabled','container','adapter','permissions'}
+    for base, ident, description, domain, skill in specifications:
+        if base not in by_id:
+            print('Perfil base no instalado; omitido:', base)
+            continue
+        if ident in by_id:
+            print('Perfil existente conservado:', ident)
+            continue
+        profile = {k: v for k, v in by_id[base].items() if k in allowed}
+        profile.update(id=ident, description=description)
+        profile['skills'] = list(dict.fromkeys(profile.get('skills', []) + [skill]))
+        profile['specializations'] = list(dict.fromkeys(profile.get('specializations', []) + [domain]))
+        profile['priority_domains'] = list(dict.fromkeys(profile.get('priority_domains', []) + [domain]))
+        if ident == 'hermes-appsec':
+            profile['roles'] = ['reviewer']
+            profile['permissions'] = dict(profile.get('permissions', {}), filesystem='read', network=False, dependencies=False, git_commit=False, git_push=False)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json') as output:
+            json.dump(profile, output)
+            output.flush()
+            hub_json('profile', 'register', '--file', output.name)
+    print('Agent Hub: cinco skills globales y perfiles especializados registrados.')
+
+
+def install_hermes(source, container):
+    payload = {'skills': {name: (source / name / 'SKILL.md').read_text() for name in NAMES},
+               'policy': (source / 'AGENTS.md').read_text()}
+    # Executed inside the existing container; no model, shell interpolation or credential reads.
+    code = '''import json,sys,datetime
+from pathlib import Path
+p=json.load(sys.stdin); home=Path('/opt/hermes/.hermes')
+for name,content in p['skills'].items():
+    dest=home/'skills/programming'/name/'SKILL.md'
+    if dest.exists() and dest.read_text()!=content:
+        backup=home/'backups'/('programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))/name/'SKILL.md'
+        backup.parent.mkdir(parents=True,exist_ok=True);backup.write_bytes(dest.read_bytes())
+    dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(content)
+path=home/'SOUL.md'; old=path.read_text() if path.exists() else ''
+begin,end='<!-- dotfiles-programming:start -->','<!-- dotfiles-programming:end -->'
+block=begin+'\\n'+p['policy'].rstrip()+'\\n'+end
+if begin in old or end in old:
+    if old.count(begin)!=1 or old.count(end)!=1:raise ValueError('Bloque de preferencias incompleto')
+    before,rest=old.split(begin,1);_,after=rest.split(end,1);new=before+block+after
+else:new=old.rstrip()+('\\n\\n' if old.strip() else '')+block+'\\n'
+if new!=old:
+    if path.exists():
+        saved=home/'backups'/('SOUL-before-programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')+'.md')
+        saved.parent.mkdir(parents=True,exist_ok=True);saved.write_text(old)
+    path.write_text(new)
+print('Hermes: cinco skills disponibles y preferencias de código instaladas.')
+'''
+    subprocess.run(['podman', 'exec', '-i', container, 'python', '-c', code], input=json.dumps(payload), text=True, check=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', type=Path, default=Path.home() / '.config/agent-skills')
+    parser.add_argument('--hub', action='store_true', help='registrar skills y perfiles en Agent Hub')
+    parser.add_argument('--hermes', metavar='CONTAINER', help='instalar además en el Hermes de este contenedor existente')
+    args = parser.parse_args()
+    source = args.source.resolve()
+    for name in NAMES:
+        if not (source / name / 'SKILL.md').is_file():
+            parser.error('Skill no encontrada: ' + name)
+    home = Path.home()
+    # Check collisions before changing any native skill links.
+    for base in (home / '.agents/skills', home / '.gemini/config/skills'):
+        for name in NAMES:
+            dest = base / name
+            if (dest.exists() or dest.is_symlink()) and dest.resolve() != (source / name).resolve():
+                parser.error('Skill existente conservada: ' + str(dest))
+    for base in (home / '.agents/skills', home / '.gemini/config/skills'):
+        for name in NAMES:
+            link(source / name, base / name)
+    backups = Path(os.environ.get('XDG_STATE_HOME', str(home / '.local/state'))) / 'dotfiles/agent-skills' / datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+    policy = (source / 'AGENTS.md').read_text()
+    for dest in (Path(os.environ.get('CODEX_HOME', str(home / '.codex'))) / 'AGENTS.md', home / '.gemini/config/AGENTS.md'):
+        write_policy(dest, policy, backups)
+    if args.hub:
+        install_hub(source, backups)
+    if args.hermes:
+        install_hermes(source, args.hermes)
+    print('Codex y Antigravity: cinco skills y preferencias de programación instaladas.')
+
+
+if __name__ == '__main__':
+    main()

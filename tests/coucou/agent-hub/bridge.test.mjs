@@ -169,6 +169,16 @@ test('Coucou prepares and queries Hub work without starting its native chat mode
   assert.equal(f.requests.some(request=>request.action==='chat'),false);
 });
 
+test('architecture tasks target the registered worker without starting a model', async () => {
+  const f=fixture(async request=>({ok:true,text:'RUN-001 · pending'}));
+  await f.ipc.invoke('chat_send',{query:'/tarea architect Diseñar el módulo'});
+  assert.equal(f.requests[0].agent,'antigravity-architect');
+  assert.equal(f.requests[0].query,'Diseñar el módulo');
+  await f.ipc.invoke('chat_send',{query:'/tarea antigravity-architect Diseñar API'});
+  assert.equal(f.requests[1].agent,'antigravity-architect');
+  assert.equal(f.requests.some(request=>request.action==='chat'),false);
+});
+
 test('an execution opens only through its explicit Hub execution identity', async () => {
   const f=fixture(async request=>({ok:true,text:'opened'}));
   await f.ipc.invoke('chat_send',{query:'/abrir EXEC-007'});

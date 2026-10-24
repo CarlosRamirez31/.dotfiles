@@ -193,3 +193,16 @@ awesome	libexec/coucou-agent-hub/native_chat.py	.local/opt/coucou/agent-hub/nati
 awesome	libexec/coucou-agent-hub/terminal_session.py	.local/opt/coucou/agent-hub/terminal_session.py
 awesome	bin/dotfiles-coucou-setup	.local/bin/dotfiles-coucou-setup
 awesome	libexec/coucou-agent-hub/work_control.py	.local/opt/coucou/agent-hub/work_control.py
+agent-skills	bin/dotfiles-agent-skills	.local/bin/dotfiles-agent-skills
+agent-skills	config/agent-skills/AGENTS.md	.config/agent-skills/AGENTS.md
+agent-skills	config/agent-skills/surgical-edits/SKILL.md	.config/agent-skills/surgical-edits/SKILL.md
+agent-skills	config/agent-skills/anti-overengineering/SKILL.md	.config/agent-skills/anti-overengineering/SKILL.md
+agent-skills	config/agent-skills/repo-scaffold/SKILL.md	.config/agent-skills/repo-scaffold/SKILL.md
+agent-skills	config/agent-skills/appsec-guardrail/SKILL.md	.config/agent-skills/appsec-guardrail/SKILL.md
+agent-skills	config/agent-skills/software-architect/SKILL.md	.config/agent-skills/software-architect/SKILL.md
+awesome	config/coucou/agent-hub.json.example	.config/coucou/agent-hub.json.example
+awesome	libexec/coucou-agent-hub/antigravity_hook.py	.local/opt/coucou/agent-hub/antigravity_hook.py
+awesome	libexec/coucou-agent-hub/antigravity_setup.py	.local/opt/coucou/agent-hub/antigravity_setup.py
+awesome	share/coucou/hermes-plugin/__init__.py	.local/share/coucou/hermes-plugin/__init__.py
+awesome	share/coucou/hermes-plugin/plugin.yaml	.local/share/coucou/hermes-plugin/plugin.yaml
+agent-skills	bin/dotfiles-project-context	.local/bin/dotfiles-project-context

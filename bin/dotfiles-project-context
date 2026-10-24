@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""Shared agent notes keyed by a filesystem directory, independently of Git."""
+import argparse
+from contextlib import contextmanager
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import sys
+import tempfile
+
+DOCUMENTS = ('architecture', 'decisions', 'security')
+
+
+def project_path(path):
+    path = Path(path).expanduser().resolve(strict=True)
+    if not path.is_dir():
+        raise ValueError('El proyecto debe ser un directorio existente.')
+    return path
+
+
+def canonical(path):
+    # The same host directory is exposed under /host-home in Hermes.
+    if path.is_relative_to('/host-home'):
+        return str(Path.home() / path.relative_to('/host-home'))
+    return str(path)
+
+
+def default_root(project):
+    home = Path('/host-home') if project.is_relative_to('/host-home') else Path.home()
+    return home / 'Documents/Agentes/proyectos'
+
+
+def location(project, root):
+    # Reject a store inside the code tree, including aliases through symlinks.
+    root = root.expanduser().resolve()
+    if root.is_relative_to(project):
+        raise ValueError('La memoria debe estar fuera del directorio del proyecto.')
+    ident = canonical(project)
+    slug = re.sub(r'[^a-z0-9_-]+', '-', project.name.casefold()).strip('-')[:40] or 'project'
+    digest = hashlib.sha256(os.fsencode(ident)).hexdigest()[:16]
+    return root / (slug + '-' + digest)
+
+
+def existing(project, root):
+    direct = location(project, root)
+    if (direct / 'project.json').is_file():
+        return direct
+    candidates = []
+    # A session opened in src/services reuses the registered parent project.
+    for metadata in root.glob('*/project.json'):
+        try:
+            data = json.loads(metadata.read_text())
+            known = Path(data['directory'])
+            if Path(canonical(project)).is_relative_to(known):
+                candidates.append((len(known.parts), metadata.parent))
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    if not candidates:
+        raise ValueError('Directorio no registrado. Ejecuta init desde la raíz del proyecto.')
+    return max(candidates, key=lambda item: item[0])[1]
+
+
+@contextmanager
+def locked(folder):
+    with (folder / '.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
+def atomic_write(path, content):
+    with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False) as output:
+        temporary = Path(output.name)
+        try:
+            output.write(content)
+            output.flush()
+            os.fsync(output.fileno())
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
+    try:
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def initialize(project, root):
+    folder = location(project, root)
+    folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with locked(folder):
+        metadata = folder / 'project.json'
+        if metadata.exists():
+            if json.loads(metadata.read_text()).get('directory') != canonical(project):
+                raise ValueError('La memoria existente pertenece a otro directorio.')
+        else:
+            atomic_write(metadata, json.dumps({'version': 1, 'directory': canonical(project), 'name': project.name}, ensure_ascii=False, indent=2) + '\n')
+    return folder
+
+
+def revision(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else 'missing'
+
+
+def describe(folder):
+    metadata = json.loads((folder / 'project.json').read_text())
+    return {**metadata, 'context_directory': str(folder), 'documents': {
+        name: {'path': str(folder / (name + '.md')), 'revision': revision(folder / (name + '.md'))}
+        for name in DOCUMENTS}}
+
+
+def save(folder, document, content, expected):
+    if document not in DOCUMENTS:
+        raise ValueError('Documento de contexto desconocido.')
+    if not content.strip() or len(content) > 200000:
+        raise ValueError('El documento debe contener texto y no superar 200000 caracteres.')
+    path = folder / (document + '.md')
+    with locked(folder):
+        if revision(path) != expected:
+            raise ValueError('Otra conversación actualizó este documento. Lee la versión actual y combina los cambios antes de guardar.')
+        atomic_write(path, content)
+    return describe(folder)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=('show', 'init', 'write'))
+    parser.add_argument('--project', type=Path, default=Path.cwd(), help='directorio del proyecto; init registra exactamente este directorio')
+    parser.add_argument('--root', type=Path, help='carpeta externa de memoria compartida')
+    parser.add_argument('--document', choices=DOCUMENTS)
+    parser.add_argument('--expected', help='revisión de show, o missing para un documento nuevo')
+    args = parser.parse_args()
+    try:
+        project = project_path(args.project)
+        root = (args.root or default_root(project)).expanduser().resolve()
+        folder = initialize(project, root) if args.action == 'init' else existing(project, root)
+        if args.action == 'write':
+            if not args.document or not args.expected:
+                parser.error('write requiere --document y --expected; recibe el texto por stdin')
+            result = save(folder, args.document, sys.stdin.read(200001), args.expected)
+        else:
+            result = describe(folder)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    except (OSError, ValueError) as error:
+        print(json.dumps({'error': str(error)}, ensure_ascii=False), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

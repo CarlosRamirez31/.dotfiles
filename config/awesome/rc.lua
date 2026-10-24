@@ -17,6 +17,7 @@ awful.rules.rules = require("rules")
 require("appearance").start()
 require("polybar-workarea").start()
 require("polybar-tags").start()
+require("window-memory").start()
 client.connect_signal("manage", function(c) if awesome.startup and not c.size_hints.user_position and not c.size_hints.program_position then awful.placement.no_offscreen(c) end end)
 
 -- Some EWMH clients mark themselves sticky together with fullscreen. Prevent
@@ -49,6 +50,7 @@ local function sync_fullscreen_tag_visibility(c)
     end
 end
 
+client.connect_signal("tagged", sync_fullscreen_tag_visibility)
 client.connect_signal("property::fullscreen", sync_fullscreen_tag_visibility)
 client.connect_signal("property::sticky", sync_fullscreen_tag_visibility)
 tag.connect_signal("property::selected", function(t)
@@ -67,3 +69,6 @@ require("autostart")
 
 -- Fullscreen and hover visibility are independent for each output.
 require("polybar-visibility").start()
+
+-- Deliberate centre hover opens Coucou, anchored to Polybar.
+require("coucou-polybar").start()

@@ -181,3 +181,14 @@ fonts	assets/fonts/DotfilesIcons/LICENSE.md	.local/share/fonts/DotfilesIcons/LIC
 fonts	assets/fonts/DotfilesIcons/README.md	.local/share/fonts/DotfilesIcons/README.md
 fonts	assets/fonts/DotfilesIcons/build.py	.local/share/fonts/DotfilesIcons/build.py
 fonts	assets/fonts/DotfilesIcons/hackthebox.svg	.local/share/fonts/DotfilesIcons/hackthebox.svg
+awesome	config/awesome/window-memory.lua	.config/awesome/window-memory.lua
+awesome	config/awesome/coucou-polybar.lua	.config/awesome/coucou-polybar.lua
+awesome	config/coucou/polybar.css	.config/coucou/polybar.css
+awesome	bin/dotfiles-coucou	.local/bin/coucou
+awesome	libexec/coucou-polybar-theme.c	.local/opt/coucou/polybar-theme.c
+awesome	config/coucou/open-session.js	.config/coucou/open-session.js
+awesome	bin/dotfiles-coucou-open-session	.local/bin/dotfiles-coucou-open-session
+awesome	libexec/coucou-agent-hub/agent_hub_terminal.py	.local/opt/coucou/agent-hub/agent_hub_terminal.py
+awesome	libexec/coucou-agent-hub/native_chat.py	.local/opt/coucou/agent-hub/native_chat.py
+awesome	libexec/coucou-agent-hub/terminal_session.py	.local/opt/coucou/agent-hub/terminal_session.py
+awesome	bin/dotfiles-coucou-setup	.local/bin/dotfiles-coucou-setup

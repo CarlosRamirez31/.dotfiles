@@ -121,3 +121,50 @@ Acerca el cursor al borde superior durante un momento para mostrarla temporalmen
 Instalador: [`setup/modules/awesome.sh`](../setup/modules/awesome.sh). Los archivos y destinos administrados
 se declaran por módulo en [`setup/links.tsv`](../setup/links.tsv); las rutas
 `.config/` y `.local/` de esta guía se refieren al home instalado.
+
+## Ventanas al desconectar monitores
+
+Al desconectar una pantalla, sus ventanas pasan a la principal disponible,
+conservando los números de escritorio y sin seleccionar otro escritorio ni
+robar el foco. Si una ventana llega al escritorio que estás usando, queda
+minimizada temporalmente para no alterar el mosaico. Al seleccionar ese
+escritorio (incluso pulsando otra vez su número), vuelve a mostrarse.
+
+Al reconectar la misma salida, regresan las ventanas que todavía no has usado
+en el monitor de destino. Mostrar su escritorio, recuperar la ventana, darle
+el foco o moverla manualmente cancela su retorno automático. Las ventanas que
+ya estaban minimizadas conservan ese estado. Esta memoria dura durante la
+sesión de Awesome; no reabre aplicaciones después de cerrar sesión.
+
+## Coucou sobre las métricas de Polybar
+
+Cuando Coucou está instalado en `~/.local/opt/coucou/squashfs-root`, el lanzador
+`~/.local/bin/coucou` usa WebKitGTK, GTK y GStreamer del sistema Arch. La pila
+incluida en el AppImage provocaba retrasos de entrada y fotogramas desactualizados
+en esta sesión; no se cambia el backend GLX ni la configuración de Picom.
+
+La isla abre después de 0,3 segundos sobre las métricas centrales y cierra tras
+0,6 segundos fuera de ella, conservándose abierta mientras tiene el foco del
+teclado. El panel mantiene su posición al expandirse y sus controles reciben
+el clic en el botón, independientemente de la animación de sus iconos.
+
+El tema está en `config/coucou/polybar.css`. El puente WebKit de
+`libexec/coucou-polybar-theme.c` publica la geometría visible y aplica ese tema.
+Se compila, cuando se instala o modifica el puente, con:
+
+```sh
+cc -shared -fPIC -O2 ~/.local/opt/coucou/polybar-theme.c \
+  -o ~/.local/opt/coucou/polybar-theme.so.new \
+  $(pkg-config --cflags --libs webkit2gtk-4.1) -ldl
+mv ~/.local/opt/coucou/polybar-theme.so.new ~/.local/opt/coucou/polybar-theme.so
+```
+
+La configuración completa y su restauración se describen en
+[`docs/coucou.md`](coucou.md). El chat usa los CLI nativos de Codex y Hermes
+con su autenticación existente. La apertura de terminal valida el descriptor
+exacto mediante Agent Hub y vuelve a su selector al salir del CLI.
+
+La ventana GTK y el marco de Awesome tienen máscaras de entrada vacías cuando
+Coucou está oculto: no reservan una zona que bloquee las pestañas del navegador.
+El antiguo `dotfiles-coucou-open-session` se conserva solo como compatibilidad;
+el lanzador actual no lo registra ni lo utiliza para abrir conversaciones.

@@ -15,6 +15,8 @@ function M.icon(symbol, size, color, width, height)
     widget.forced_width, widget.forced_height = width, height
     widget.fit = function() return width, height end
     widget.draw = function(_, _, cr, w, h)
+        -- Transitions can briefly allocate zero space; Cairo cannot invert a zero scale.
+        if w <= 2 or h <= 2 then return end
         local layout = lgi.PangoCairo.create_layout(cr)
         layout:set_font_description(lgi.Pango.FontDescription.from_string("JetBrainsMono Nerd Font " .. size))
         layout:set_text(symbol, -1)

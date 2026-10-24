@@ -1,0 +1,22 @@
+:root {
+  --font: "JetBrainsMono Nerd Font", sans-serif !important;
+  --mono: "JetBrainsMono Nerd Font", monospace !important;
+  --ink: #cdd6f4 !important; --ink-2: #cdd6f4 !important;
+  --dim: #a6adc8 !important; --dim-2: #a6adc8 !important;
+  --dim-3: #7f849c !important; --dim-4: #6c7086 !important;
+  --card: #242438 !important; --card-flat: #181825 !important;
+  --tab-on: #313244 !important; --hairline: #313244 !important;
+  --red: #f38ba8 !important; --red-text: #f38ba8 !important;
+  --green: #a6e3a1 !important; --green-2: #a6e3a1 !important;
+  --amber: #fab387 !important; --cyan: #89dceb !important;
+  --indigo: #89b4fa !important; --pink: #cba6f7 !important;
+}
+#island { background: #1e1e2e !important; }
+
+/* Header icons are rebuilt while animating. Target the stable button instead
+   of an SVG node that may disappear between press and release. */
+#header button * { pointer-events: none !important; }
+
+/* Keep Coucou's original text node stable, with an accurate label for Codex. */
+button[data-dotfiles-session="codex"] > span { display: none; }
+button[data-dotfiles-session="codex"]::after { content: "Volver a la terminal"; }

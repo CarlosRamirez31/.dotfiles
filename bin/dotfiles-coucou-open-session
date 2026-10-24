@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""Connect Coucou to existing Codex CLI sessions, preserving hook replies."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+import sys
+import tempfile
+
+THREAD = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
+TERMINALS = {'alacritty', 'kitty', 'wezterm-gui', 'gnome-terminal-', 'konsole', 'xterm', 'foot', 'tilix', 'terminator', 'st'}
+
+
+def process(pid):
+    text = Path(f'/proc/{pid}/stat').read_text()
+    end = text.rindex(')')
+    fields = text[end + 2:].split()
+    return text[text.index('(') + 1:end], int(fields[1]), fields[19]
+
+
+def terminal_owner():
+    pid = os.getppid()
+    for _ in range(40):
+        if pid <= 1:
+            break
+        try:
+            name, parent, started = process(pid)
+        except (OSError, ValueError):
+            break
+        if name in TERMINALS:
+            return {'pid': pid, 'started': started}
+        if parent == pid:
+            break
+        pid = parent
+    return None
+
+
+def state_dir():
+    path = Path(os.environ.get('XDG_RUNTIME_DIR', str(Path.home() / '.cache'))) / 'coucou-codex-sessions'
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    return path
+
+
+def record(session, owner, cwd):
+    if not THREAD.fullmatch(session):
+        return
+    directory = state_dir()
+    with tempfile.NamedTemporaryFile(mode='w', dir=directory, delete=False) as output:
+        json.dump(dict(owner, cwd=cwd), output)
+    os.replace(output.name, directory / (session + '.json'))
+
+
+def hook():
+    raw = sys.stdin.buffer.read()
+    try:
+        payload = json.loads(raw)
+        owner = terminal_owner()
+        # Desktop app events must not replace the terminal session's card.
+        if not owner:
+            return 0
+        record(payload.get('session_id', ''), owner, payload.get('cwd', ''))
+    except (ValueError, OSError, TypeError, AttributeError):
+        # Preserve original protocol even if optional bookkeeping fails.
+        pass
+    binary = Path.home() / '.local/share/coucou/bin/coucou-hook'
+    return subprocess.run([str(binary), '--agent', 'codex'], input=raw).returncode
+
+
+def install_hooks():
+    path = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))) / 'hooks.json'
+    if not path.exists():
+        return
+    data = json.loads(path.read_text())
+    original = str(Path.home() / '.local/share/coucou/bin/coucou-hook')
+    replacement = shlex.quote(str(Path.home() / '.local/bin/dotfiles-coucou-open-session')) + ' --hook'
+    changed = False
+    for groups in data.get('hooks', {}).values():
+        for group in groups:
+            for entry in group.get('hooks', []):
+                try:
+                    args = shlex.split(entry.get('command', ''))
+                except ValueError:
+                    continue
+                if args == [original, '--agent', 'codex']:
+                    entry['command'] = replacement
+                    changed = True
+    if changed:
+        backup = path.with_name('hooks.json.before-coucou-terminal')
+        if not backup.exists():
+            backup.write_bytes(path.read_bytes())
+        with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False) as output:
+            json.dump(data, output, indent=2)
+            output.write('\n')
+        os.replace(output.name, path)
+
+
+def open_session(session):
+    if session and not THREAD.fullmatch(session):
+        raise ValueError('Identificador de sesión Codex no válido')
+    saved = {}
+    if session:
+        try:
+            saved = json.loads((state_dir() / (session + '.json')).read_text())
+        except (OSError, ValueError):
+            pass
+    try:
+        pid = int(saved['pid'])
+        name, _, started = process(pid)
+        if name in TERMINALS and started == saved['started']:
+            result = subprocess.run(['awesome-client', f'''for _,c in ipairs(client.get()) do
+                if c.pid == {pid} then c.minimized = false; c:jump_to(); return true end
+            end
+            return false'''], check=True, capture_output=True, text=True, timeout=5)
+            if 'boolean true' in result.stdout:
+                return
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+        pass
+    # Only resume the exact recorded terminal session; never guess an app chat.
+    command = ['codex', 'resume', session] if saved and session else ['codex', 'resume', '--all']
+    terminal = [str(Path.home() / '.local/bin/dotfiles-terminal')]
+    cwd = saved.get('cwd')
+    if isinstance(cwd, str) and Path(cwd).is_dir():
+        terminal += ['--working-directory', cwd]
+    subprocess.Popen(terminal + ['-e'] + command, start_new_session=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--session', default='')
+    parser.add_argument('--hook', action='store_true')
+    parser.add_argument('--install-hooks', action='store_true')
+    args = parser.parse_args()
+    if args.hook:
+        return hook()
+    if args.install_hooks:
+        install_hooks()
+        return 0
+    open_session(args.session)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=${COUCOU_HOME:-"$HOME/.local/opt/coucou"}
+executable="$root/squashfs-root/usr/bin/coucou"
+if [[ ! -x $executable ]]; then
+    printf 'Coucou no está instalado en %s\n' "$root" >&2
+    exit 127
+fi
+
+# Prefer Arch's WebKit/GTK/GStreamer over the AppImage's bundled stack. Its
+# RUNPATH still supplies optional libraries absent from the system. This avoids
+# slow input and stale frames without changing the desktop compositor/backend.
+export LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export COUCOU_HERMES_BRIDGE=1
+export COUCOU_POLYBAR_CSS="${XDG_CONFIG_HOME:-$HOME/.config}/coucou/polybar.css"
+if [[ -f $root/polybar-theme.so ]]; then
+    export LD_PRELOAD="$root/polybar-theme.so${LD_PRELOAD:+:$LD_PRELOAD}"
+fi
+exec "$executable" "$@"

@@ -39,3 +39,6 @@ awful.spawn.with_shell(
         "systemctl --user import-environment DISPLAY XAUTHORITY; " ..
         "systemctl --user start dotfiles-touchpad-typing.service"
 )
+
+-- The island is attached to Polybar by coucou-polybar.lua.
+once("coucou", "$HOME/.local/bin/coucou --autostart")

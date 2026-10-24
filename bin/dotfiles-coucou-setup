@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Restore the private Coucou overlay; never download or patch upstream apps."""
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--hermes-container', help='Also restore the observer plugin in this existing Podman container')
+    args = parser.parse_args()
+    root = Path(__file__).resolve().parents[1]
+    home = Path.home()
+    coucou = Path(os.environ.get('COUCOU_HOME', home / '.local/opt/coucou'))
+    configuration = Path(os.environ.get('XDG_CONFIG_HOME', home / '.config')) / 'coucou'
+    coucou.mkdir(parents=True, exist_ok=True)
+    configuration.mkdir(parents=True, exist_ok=True)
+    links = {
+        configuration/'open-session.js': root/'config/coucou/open-session.js',
+        configuration/'polybar.css': root/'config/coucou/polybar.css',
+        coucou/'polybar-theme.c': root/'libexec/coucou-polybar-theme.c',
+    }
+    for name in ('agent_hub_terminal.py', 'native_chat.py', 'terminal_session.py'):
+        links[coucou/'agent-hub'/name] = root/'libexec/coucou-agent-hub'/name
+    # Preserve files from previous manual installations before linking.
+    backup = coucou/'setup-backups'
+    for target, source in links.items():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.is_symlink() and target.resolve() == source: continue
+        if target.exists() or target.is_symlink():
+            backup.mkdir(mode=0o700, exist_ok=True)
+            fd, name = tempfile.mkstemp(prefix=target.name+'-', dir=backup)
+            os.close(fd)
+            os.replace(target, name)
+        target.symlink_to(source)
+    config = configuration/'agent-hub.json'
+    if not config.exists():
+        descriptor = os.open(config, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, 'w') as output:
+            output.write((root/'config/coucou/agent-hub.json.example').read_text())
+    flags = subprocess.check_output(['pkg-config','--cflags','--libs','webkit2gtk-4.1'],text=True).split()
+    fd, name = tempfile.mkstemp(prefix='.polybar-theme-',suffix='.so',dir=coucou)
+    os.close(fd)
+    try:
+        subprocess.run(['cc','-shared','-fPIC','-O2',str(coucou/'polybar-theme.c'),'-o',name,*flags,'-ldl'],check=True)
+        os.chmod(name,0o755)
+        os.replace(name,coucou/'polybar-theme.so')
+    finally:
+        Path(name).unlink(missing_ok=True)
+    if args.hermes_container:
+        container=args.hermes_container
+        subprocess.run(['podman','exec',container,'mkdir','-p','/opt/hermes/.hermes/plugins/coucou'],check=True)
+        for file in ('__init__.py','plugin.yaml'):
+            subprocess.run(['podman','cp',str(root/'share/coucou/hermes-plugin'/file),
+                            container+':/opt/hermes/.hermes/plugins/coucou/'+file],check=True)
+        subprocess.run(['podman','exec',container,'/usr/local/bin/hermes','plugins','enable','coucou','--no-allow-tool-override'],check=True)
+    print('Coucou overlay restored. Existing settings and API credentials were not changed.')
+    print('Restart only Coucou to load the rebuilt library; no desktop restart is needed.')
+
+if __name__ == '__main__':
+    main()

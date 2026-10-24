@@ -25,7 +25,7 @@ class ChatTests(unittest.TestCase):
         self.bridge.validate = lambda route: (Path(self.temp.name)/'route', self.temp.name)
     def hub(self, *argv):
         if argv[0] == 'agents':
-            return [{'id':'codex','installed':True}, {'id':'hermes','installed':True,'container':'dev-podman'}]
+            return [{'id':'codex','installed':True}, {'id':'gemini','installed':True}, {'id':'hermes','installed':True,'container':'dev-podman'}]
         if argv[0] == 'conversations':
             return [{'id':self.native,'route':self.route}]
         raise AssertionError(argv)
@@ -59,6 +59,37 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(argv[:3], ['podman','exec','-i'])
         self.assertIn('/usr/local/bin/hermes', argv)
         self.assertEqual(argv[-2:], ['--resume',self.native])
+    def gemini_events(self):
+        self.agent = 'gemini'; self.route['agente'] = 'gemini'
+        self.events = [{'type':'init','session_id':self.native},
+                       {'type':'message','role':'user','content':'do not display'},
+                       {'type':'message','role':'assistant','content':'respuesta ','delta':True},
+                       {'type':'message','role':'assistant','content':'exacta','delta':True},
+                       {'type':'result','status':'success'}]
+    def test_gemini_native_init_chunks_resume_and_reset(self):
+        self.gemini_events()
+        self.assertEqual(send(self.bridge, {'agent':'gemini','query':'日本語 ; $(no)'})['text'],'respuesta exacta')
+        send(self.bridge, {'agent':'gemini','query':'continúa'})
+        self.assertEqual(self.commands[0][0],['gemini','--output-format','stream-json','--prompt','Respond to the user message supplied on stdin.'])
+        self.assertEqual(self.commands[0][1],'日本語 ; $(no)')
+        self.assertEqual(self.commands[1][0][-2:],['--resume',self.native])
+        self.assertEqual(read_json(Path(self.temp.name)/'chat/gemini.json')['route'],self.route)
+        self.assertTrue(self.bridge.handle({'action':'chat-reset','agent':'gemini'})['ok'])
+        self.assertFalse((Path(self.temp.name)/'chat/gemini.json').exists())
+    def test_gemini_failure_preserves_verified_native_id(self):
+        self.gemini_events(); self.fail=True
+        self.events[-1]={'type':'result','status':'error','error':{'message':'quota'}}
+        with self.assertRaises(BridgeError):send(self.bridge,{'agent':'gemini','query':'one'})
+        self.assertEqual(read_json(Path(self.temp.name)/'chat/gemini.json')['nativeId'],self.native)
+        self.gemini_events();self.fail=False
+        send(self.bridge,{'agent':'gemini','query':'retry'})
+        self.assertEqual(self.commands[-1][0][-2:],['--resume',self.native])
+    def test_gemini_changed_session_never_replaces_selected_identity(self):
+        self.gemini_events();send(self.bridge,{'agent':'gemini','query':'one'})
+        self.events[0]['session_id']='wrong-session'
+        with self.assertRaisesRegex(BridgeError,'otra identidad'):
+            send(self.bridge,{'agent':'gemini','query':'two'})
+        self.assertEqual(read_json(Path(self.temp.name)/'chat/gemini.json')['nativeId'],self.native)
     def test_alias_resolves_only_exact_public_route(self):
         self.route['idMessage'] = 'handoff-exact'
         send(self.bridge, {'agent':'codex','query':'continúa','route':self.route})

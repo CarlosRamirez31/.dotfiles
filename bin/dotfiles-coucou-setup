@@ -12,6 +12,7 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--hermes-container', help='Also restore the observer plugin in this existing Podman container')
+    parser.add_argument('--gemini', action='store_true', help='Restore Gemini CLI observer hooks and privacy settings')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     home = Path.home()
@@ -58,6 +59,10 @@ def main():
             subprocess.run(['podman','cp',str(root/'share/coucou/hermes-plugin'/file),
                             container+':/opt/hermes/.hermes/plugins/coucou/'+file],check=True)
         subprocess.run(['podman','exec',container,'/usr/local/bin/hermes','plugins','enable','coucou','--no-allow-tool-override'],check=True)
+    if args.gemini:
+        subprocess.run(['python3','-B',str(root/'libexec/coucou-agent-hub/gemini_setup.py'),
+                        '--settings',str(home/'.gemini/settings.json'),
+                        '--relay',str(home/'.local/share/coucou/bin/coucou-hook')],check=True)
     print('Coucou overlay restored. Existing settings and API credentials were not changed.')
     print('Restart only Coucou to load the rebuilt library; no desktop restart is needed.')
 

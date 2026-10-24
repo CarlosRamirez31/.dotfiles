@@ -122,3 +122,39 @@ popup fuera de pantalla, sin mover el ratón ni iniciar agentes. La prueba Lua
 comprueba además la forma del marco de Awesome y el título vacío sin espacios
 finales, que Awesome normaliza. Restaurar con `dotfiles-coucou-setup` y reiniciar
 solo Coucou; el módulo Awesome se carga con la configuración habitual.
+
+## Gemini CLI
+
+Instalar solamente la CLI oficial (Node.js 20+), en el prefijo del usuario:
+
+```sh
+npm install --global --prefix "$HOME/.local" @google/gemini-cli@0.65.0 --no-audit --no-fund
+agent-hub work init --json
+~/.dotfiles/bin/dotfiles-coucou-setup --gemini
+```
+
+No requiere el editor de Google ni una API key añadida a Coucou. `gemini` aparece
+en el selector de chat, acepta `/tarea gemini ...` y conserva su asociación por
+separado en `chat/gemini.json`. Captura `init.session_id` y concatena los fragmentos
+assistant sin saltos añadidos. Reanuda con `--resume ID_EXACTO`, nunca `latest`.
+Las fallas conservan la identidad y no abren otro agente.
+
+El flag `--gemini` instala seis observers mediante el relay existente
+`~/.local/share/coucou/bin/coucou-hook`: SessionStart/End, Before/AfterTool y
+Before/AfterAgent. Devuelven `{}` y no conceden permisos. Preserva otros hooks,
+autenticación y modelo; hace backup privado si cambia settings.json. Desactiva
+`privacy.usageStatisticsEnabled`, `telemetry.enabled` y `telemetry.logPrompts`.
+El instalador no lee los archivos de credenciales ni instala la CLI por su cuenta.
+
+Para iniciar sesión, ejecutar `gemini` en la terminal. Revisar la confianza de
+la carpeta si la pregunta, seleccionar **Sign in with Google** (puede aparecer
+como **Login with Google**) y completar el acceso en el navegador con la cuenta
+propia. Si ya está en el prompt de Gemini, `/auth` permite elegir autenticación.
+No pegar contraseñas, códigos ni claves en el chat de Coucou o de Codex.
+Después se puede abrir Gemini desde Agent Hub o usar su selector en Coucou.
+
+Los perfiles `gemini` y `gemini-reviewer` usan el CLI instalado y las políticas
+existentes. Prepararlos no autoriza automáticamente red, shell, worktrees o
+acciones Git de una tarea. Esas aprobaciones se mantienen como en Codex/Hermes.
+Las pruebas con fixtures no evalúan un turno del modelo; se requiere login para
+verificar una conversación real con Google.

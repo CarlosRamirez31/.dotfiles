@@ -10,8 +10,8 @@ from agent_hub_terminal import BridgeError, atomic_json, private_dir, read_json,
 
 def send(bridge, request):
     agent = request.get('agent')
-    if agent not in ('codex', 'hermes'):
-        raise BridgeError('Elige Codex o Hermes.')
+    if agent not in ('codex', 'hermes', 'gemini'):
+        raise BridgeError('Elige Codex, Hermes o Gemini.')
     query = request.get('query')
     if not isinstance(query, str) or not query.strip() or len(query) > 200000:
         raise BridgeError('Escribe un mensaje válido.')
@@ -61,13 +61,18 @@ def send(bridge, request):
             if native:
                 argv += ['resume', native]
             argv += ['--json', '--skip-git-repo-check', '-']
-        else:
+        elif agent == 'hermes':
             argv = ['hermes', 'chat', '--oneshot', '--format', 'stream-json', '--query-file', '-']
             if native:
                 argv += ['--resume', native]
             if adapter.get('container'):
                 argv = ['podman', 'exec', '-i', '--workdir', '/host-home' + cwd.removeprefix(str(Path.home())),
                         adapter['container'], '/usr/local/bin/hermes', *argv[1:]]
+        else:
+            argv = ['gemini', '--output-format', 'stream-json', '--prompt',
+                    'Respond to the user message supplied on stdin.']
+            if native:
+                argv += ['--resume', native]
         item.update(cwd=cwd, starting=True)
         atomic_json(path, item)  # Unknown native identity must never cause an automatic duplicate.
         environment = dict(os.environ)
@@ -89,7 +94,8 @@ def send(bridge, request):
                 except ValueError:
                     continue
                 event_native = (event.get('thread_id') if event.get('type') == 'thread.started' else
-                                event.get('session_id') if event.get('type') in ('system', 'result') else None)
+                                event.get('session_id') if event.get('type') in ('system', 'result') else
+                                event.get('session_id') if agent == 'gemini' and event.get('type') == 'init' else None)
                 if event_native:
                     if item.get('nativeId') and event_native != item['nativeId']:
                         failure = 'El agente devolvió otra identidad de conversación.'
@@ -99,10 +105,13 @@ def send(bridge, request):
                         atomic_json(path, item)
                 if event.get('type') == 'item.completed' and event.get('item', {}).get('type') == 'agent_message':
                     answer.append(event['item'].get('text', ''))
+                if agent == 'gemini' and event.get('type') == 'message' and event.get('role') == 'assistant' and isinstance(event.get('content'), str):
+                    answer.append(event['content'])
                 if event.get('type') == 'result':
-                    answer = [event.get('text', '')]
-                    if event.get('exit_code') or event.get('error'):
-                        failure = event.get('error') or 'Hermes no pudo completar el turno.'
+                    if agent != 'gemini':
+                        answer = [event.get('text', '')]
+                    if event.get('exit_code') or event.get('error') or event.get('status') == 'error':
+                        failure = str(event.get('error') or 'El agente no pudo completar el turno.')
                 if event.get('type') in ('error', 'turn.failed'):
                     failure = event.get('message') or str(event.get('error', 'El agente no completó el turno.'))
             code = process.wait()
@@ -125,4 +134,4 @@ def send(bridge, request):
             raise BridgeError('El agente no devolvió el ID nativo. No se creará otra sesión al reintentar.')
         if not answer or not ''.join(answer).strip():
             raise BridgeError('El agente terminó sin una respuesta de texto.')
-        return {'ok': True, 'text': '\n\n'.join(answer), 'route': item.get('route'), 'nativeId': item['nativeId']}
+        return {'ok': True, 'text': ('' if agent == 'gemini' else '\n\n').join(answer), 'route': item.get('route'), 'nativeId': item['nativeId']}

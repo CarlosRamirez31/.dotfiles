@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 const source = readFileSync(new URL('../../../config/coucou/open-session.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function fixture(reply = async () => ({ ok: true }), connected = true, immutable = false) {
+function fixture(reply = async () => ({ ok: true }), connected = true, immutable = false, selectedAgent = 'codex') {
   const requests = [], native = [], nodes = [];
   let hook;
   class Element {
@@ -28,7 +28,7 @@ function fixture(reply = async () => ({ ok: true }), connected = true, immutable
       return true;
     },
   };
-  const window = { __TAURI_INTERNALS__: ipc, webkit: { messageHandlers: {
+  const window = { localStorage:{getItem:()=>selectedAgent}, __TAURI_INTERNALS__: ipc, webkit: { messageHandlers: {
     coucouAgentHub: { postMessage: async request => { requests.push(request); return reply(request); } },
   } } };
   if (immutable) {
@@ -176,4 +176,22 @@ test('an execution opens only through its explicit Hub execution identity', asyn
   assert.equal(f.requests[0].operation,'open-execution');
   assert.equal(f.requests[0].id,'EXEC-007');
   assert.equal(f.native.filter(([command])=>command==='chat_send'||command==='open_session').length,0);
+});
+
+test('Gemini uses the same work and terminal contracts as the existing agents', async () => {
+  const f=fixture(async request=>({ok:true,text:'prepared'}),true,false,'gemini');
+  await f.ipc.invoke('chat_send',{query:'/tarea gemini Revisar cambios ñ'});
+  assert.equal(f.requests[0].action,'work');
+  assert.equal(f.requests[0].agent,'gemini');
+  assert.equal(f.requests[0].query,'Revisar cambios ñ');
+  await f.ipc.invoke('open_session',{agent:'gemini',sessionId:'exact-gemini-id'});
+  assert.equal(f.requests[1].agent,'gemini');
+  assert.equal(f.requests[1].sessionId,'exact-gemini-id');
+  assert.equal(f.native.filter(([cmd])=>cmd==='open_session').length,0);
+  await f.ipc.invoke('chat_send',{query:'Hola Gemini'});
+  assert.equal(f.requests[2].action,'chat');
+  assert.equal(f.requests[2].agent,'gemini');
+  await f.ipc.invoke('chat_reset',{});
+  assert.equal(f.requests[3].action,'chat-reset');
+  assert.equal(f.requests[3].agent,'gemini');
 });

@@ -178,20 +178,20 @@ test('an execution opens only through its explicit Hub execution identity', asyn
   assert.equal(f.native.filter(([command])=>command==='chat_send'||command==='open_session').length,0);
 });
 
-test('Gemini uses the same work and terminal contracts as the existing agents', async () => {
-  const f=fixture(async request=>({ok:true,text:'prepared'}),true,false,'gemini');
-  await f.ipc.invoke('chat_send',{query:'/tarea gemini Revisar cambios ñ'});
+test('Antigravity uses the same work and terminal contracts as the existing agents', async () => {
+  const f=fixture(async request=>({ok:true,text:'prepared'}),true,false,'antigravity');
+  await f.ipc.invoke('chat_send',{query:'/tarea antigravity Revisar cambios ñ'});
   assert.equal(f.requests[0].action,'work');
-  assert.equal(f.requests[0].agent,'gemini');
+  assert.equal(f.requests[0].agent,'antigravity');
   assert.equal(f.requests[0].query,'Revisar cambios ñ');
-  await f.ipc.invoke('open_session',{agent:'gemini',sessionId:'exact-gemini-id'});
-  assert.equal(f.requests[1].agent,'gemini');
-  assert.equal(f.requests[1].sessionId,'exact-gemini-id');
+  await f.ipc.invoke('open_session',{agent:'antigravity',sessionId:'exact-antigravity-id'});
+  assert.equal(f.requests[1].agent,'antigravity');
+  assert.equal(f.requests[1].sessionId,'exact-antigravity-id');
   assert.equal(f.native.filter(([cmd])=>cmd==='open_session').length,0);
-  await f.ipc.invoke('chat_send',{query:'Hola Gemini'});
+  await f.ipc.invoke('chat_send',{query:'Hola Antigravity'});
   assert.equal(f.requests[2].action,'chat');
-  assert.equal(f.requests[2].agent,'gemini');
+  assert.equal(f.requests[2].agent,'antigravity');
   await f.ipc.invoke('chat_reset',{});
   assert.equal(f.requests[3].action,'chat-reset');
-  assert.equal(f.requests[3].agent,'gemini');
+  assert.equal(f.requests[3].agent,'antigravity');
 });

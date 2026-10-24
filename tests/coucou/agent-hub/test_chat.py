@@ -17,7 +17,7 @@ class ChatTests(unittest.TestCase):
         self.commands = []
         self.agent = 'codex'
         self.native = 'exact-native'
-        self.fail = False
+        self.cli_failure = False
         self.events = None
         self.route = {'version':1,'agente':'codex','idCarpeta':'opaque folder','idMessage':self.native}
         self.bridge.hub = self.hub
@@ -25,7 +25,7 @@ class ChatTests(unittest.TestCase):
         self.bridge.validate = lambda route: (Path(self.temp.name)/'route', self.temp.name)
     def hub(self, *argv):
         if argv[0] == 'agents':
-            return [{'id':'codex','installed':True}, {'id':'gemini','installed':True}, {'id':'hermes','installed':True,'container':'dev-podman'}]
+            return [{'id':'codex','installed':True}, {'id':'antigravity','installed':True}, {'id':'hermes','installed':True,'container':'dev-podman'}]
         if argv[0] == 'conversations':
             return [{'id':self.native,'route':self.route}]
         raise AssertionError(argv)
@@ -40,7 +40,7 @@ class ChatTests(unittest.TestCase):
                       [{'type':'system','subtype':'init','session_id':self.native},
                        {'type':'result','session_id':self.native,'exit_code':0,'text':'respuesta exacta'}])
         return type('Process', (), {'stdout':io.StringIO(''.join(json.dumps(e)+'\n' for e in events)),
-                                   'wait':lambda p: 1 if self.fail else 0})()
+                                   'wait':lambda p: 1 if self.cli_failure else 0})()
     def test_new_and_resume_exact_codex_id_stdin_no_shell(self):
         query = 'Hola 日本語 " ; $(not-run) `no`'
         self.assertEqual(send(self.bridge, {'agent':'codex','query':query})['text'], 'respuesta exacta')
@@ -59,37 +59,33 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(argv[:3], ['podman','exec','-i'])
         self.assertIn('/usr/local/bin/hermes', argv)
         self.assertEqual(argv[-2:], ['--resume',self.native])
-    def gemini_events(self):
-        self.agent = 'gemini'; self.route['agente'] = 'gemini'
-        self.events = [{'type':'init','session_id':self.native},
-                       {'type':'message','role':'user','content':'do not display'},
-                       {'type':'message','role':'assistant','content':'respuesta ','delta':True},
-                       {'type':'message','role':'assistant','content':'exacta','delta':True},
-                       {'type':'result','status':'success'}]
-    def test_gemini_native_init_chunks_resume_and_reset(self):
-        self.gemini_events()
-        self.assertEqual(send(self.bridge, {'agent':'gemini','query':'日本語 ; $(no)'})['text'],'respuesta exacta')
-        send(self.bridge, {'agent':'gemini','query':'continúa'})
-        self.assertEqual(self.commands[0][0],['gemini','--output-format','stream-json','--prompt','Respond to the user message supplied on stdin.'])
+    def antigravity_events(self):
+        self.agent = 'antigravity'; self.route['agente'] = 'antigravity'
+        self.events = [{'text':'respuesta exacta','native_id':self.native}]
+    def test_antigravity_native_init_chunks_resume_and_reset(self):
+        self.antigravity_events()
+        self.assertEqual(send(self.bridge, {'agent':'antigravity','query':'日本語 ; $(no)'})['text'],'respuesta exacta')
+        send(self.bridge, {'agent':'antigravity','query':'continúa'})
+        self.assertEqual(self.commands[0][0],['agent-hub','agy-run','--json'])
         self.assertEqual(self.commands[0][1],'日本語 ; $(no)')
-        self.assertEqual(self.commands[1][0][-2:],['--resume',self.native])
-        self.assertEqual(read_json(Path(self.temp.name)/'chat/gemini.json')['route'],self.route)
-        self.assertTrue(self.bridge.handle({'action':'chat-reset','agent':'gemini'})['ok'])
-        self.assertFalse((Path(self.temp.name)/'chat/gemini.json').exists())
-    def test_gemini_failure_preserves_verified_native_id(self):
-        self.gemini_events(); self.fail=True
-        self.events[-1]={'type':'result','status':'error','error':{'message':'quota'}}
-        with self.assertRaises(BridgeError):send(self.bridge,{'agent':'gemini','query':'one'})
-        self.assertEqual(read_json(Path(self.temp.name)/'chat/gemini.json')['nativeId'],self.native)
-        self.gemini_events();self.fail=False
-        send(self.bridge,{'agent':'gemini','query':'retry'})
-        self.assertEqual(self.commands[-1][0][-2:],['--resume',self.native])
-    def test_gemini_changed_session_never_replaces_selected_identity(self):
-        self.gemini_events();send(self.bridge,{'agent':'gemini','query':'one'})
-        self.events[0]['session_id']='wrong-session'
+        self.assertEqual(self.commands[1][0][-2:],['--conversation',self.native])
+        self.assertEqual(read_json(Path(self.temp.name)/'chat/antigravity.json')['route'],self.route)
+        self.assertTrue(self.bridge.handle({'action':'chat-reset','agent':'antigravity'})['ok'])
+        self.assertFalse((Path(self.temp.name)/'chat/antigravity.json').exists())
+    def test_antigravity_failure_preserves_verified_native_id(self):
+        self.antigravity_events(); self.cli_failure=True
+        self.events[-1]={'text':'','native_id':self.native,'error':'quota'}
+        with self.assertRaises(BridgeError):send(self.bridge,{'agent':'antigravity','query':'one'})
+        self.assertEqual(read_json(Path(self.temp.name)/'chat/antigravity.json')['nativeId'],self.native)
+        self.antigravity_events();self.cli_failure=False
+        send(self.bridge,{'agent':'antigravity','query':'retry'})
+        self.assertEqual(self.commands[-1][0][-2:],['--conversation',self.native])
+    def test_antigravity_changed_session_never_replaces_selected_identity(self):
+        self.antigravity_events();send(self.bridge,{'agent':'antigravity','query':'one'})
+        self.events[0]['native_id']='wrong-session'
         with self.assertRaisesRegex(BridgeError,'otra identidad'):
-            send(self.bridge,{'agent':'gemini','query':'two'})
-        self.assertEqual(read_json(Path(self.temp.name)/'chat/gemini.json')['nativeId'],self.native)
+            send(self.bridge,{'agent':'antigravity','query':'two'})
+        self.assertEqual(read_json(Path(self.temp.name)/'chat/antigravity.json')['nativeId'],self.native)
     def test_alias_resolves_only_exact_public_route(self):
         self.route['idMessage'] = 'handoff-exact'
         send(self.bridge, {'agent':'codex','query':'continúa','route':self.route})
@@ -101,14 +97,14 @@ class ChatTests(unittest.TestCase):
             send(self.bridge, {'agent':'codex','query':'hola','route':other})
         self.assertEqual(self.commands,[])
     def test_unknown_start_identity_does_not_repeat_creation(self):
-        self.events = []; self.fail = True
+        self.events = []; self.cli_failure = True
         with self.assertRaises(BridgeError): send(self.bridge, {'agent':'codex','query':'uno'})
         with self.assertRaisesRegex(BridgeError,'ID verificable'): send(self.bridge, {'agent':'codex','query':'dos'})
         self.assertEqual(len(self.commands),1)
     def test_failed_turn_keeps_native_identity(self):
-        self.fail = True
+        self.cli_failure = True
         with self.assertRaises(BridgeError): send(self.bridge, {'agent':'codex','query':'uno'})
-        self.fail = False
+        self.cli_failure = False
         send(self.bridge, {'agent':'codex','query':'dos'})
         self.assertIn('resume',self.commands[-1][0])
     def test_active_lock_and_double_send(self):

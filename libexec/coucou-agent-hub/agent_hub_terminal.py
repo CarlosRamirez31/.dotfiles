@@ -303,7 +303,7 @@ class HubTerminal:
             return control(self, request)
         if action == 'chat-reset':
             agent = request.get('agent')
-            if agent not in ('codex', 'hermes', 'gemini'):
+            if agent not in ('codex', 'hermes', 'antigravity'):
                 raise BridgeError('Agente de chat no válido.')
             directory = private_dir(self.state / 'chat')
             with open(directory / (agent + '.lock'), 'a+') as guard:

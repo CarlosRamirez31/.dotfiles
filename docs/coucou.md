@@ -123,38 +123,60 @@ comprueba además la forma del marco de Awesome y el título vacío sin espacios
 finales, que Awesome normaliza. Restaurar con `dotfiles-coucou-setup` y reiniciar
 solo Coucou; el módulo Awesome se carga con la configuración habitual.
 
-## Gemini CLI
+## Antigravity CLI: sustitución de Gemini CLI
 
-Instalar solamente la CLI oficial (Node.js 20+), en el prefijo del usuario:
+Google retiró el acceso de cuentas personales en Gemini CLI el 18 de junio de
+2026. El paquete npm de Gemini CLI se desinstaló y su adaptador local se desactivó;
+los perfiles anteriores siguen desactivados como referencia histórica. No se
+convirtieron sus IDs en IDs de Antigravity ni se borraron credenciales o historiales.
+Antigravity también usa el directorio `~/.gemini/`, que debe conservarse.
+
+Antigravity CLI 1.4.7 se instaló como `~/.local/bin/agy` desde el manifiesto oficial,
+verificando SHA512. No se instaló editor, daemon remoto ni proveedor de API. El
+motor de Agent Hub permanece independiente de estos dotfiles.
 
 ```sh
-npm install --global --prefix "$HOME/.local" @google/gemini-cli@0.65.0 --no-audit --no-fund
+agy
 agent-hub work init --json
-~/.dotfiles/bin/dotfiles-coucou-setup --gemini
+~/.dotfiles/bin/dotfiles-coucou-setup --antigravity
 ```
 
-No requiere el editor de Google ni una API key añadida a Coucou. `gemini` aparece
-en el selector de chat, acepta `/tarea gemini ...` y conserva su asociación por
-separado en `chat/gemini.json`. Captura `init.session_id` y concatena los fragmentos
-assistant sin saltos añadidos. Reanuda con `--resume ID_EXACTO`, nunca `latest`.
-Las fallas conservan la identidad y no abren otro agente.
+`agy` inicia el acceso con cuenta de Google en el navegador. Completar allí la
+cuenta personal, volver a la terminal y revisar la confianza de la carpeta. Para
+salir de una sesión anterior del CLI retirado, usar Ctrl+C en esa terminal antes
+de ejecutar `agy`. No compartir códigos de acceso ni contraseñas en un chat.
+Para desconectar la cuenta de Antigravity se usa `/logout`, no el `/auth` de Gemini.
 
-El flag `--gemini` instala seis observers mediante el relay existente
-`~/.local/share/coucou/bin/coucou-hook`: SessionStart/End, Before/AfterTool y
-Before/AfterAgent. Devuelven `{}` y no conceden permisos. Preserva otros hooks,
-autenticación y modelo; hace backup privado si cambia settings.json. Desactiva
-`privacy.usageStatisticsEnabled`, `telemetry.enabled` y `telemetry.logPrompts`.
-El instalador no lee los archivos de credenciales ni instala la CLI por su cuenta.
+El selector de Coucou ofrece Antigravity y acepta `/tarea antigravity ...`.
+Captura `init.conversation_id` del protocolo público y espera verificar la
+identidad antes de enviar el prompt por stdin JSON. Nunca utiliza `--continue`,
+latest ni flags para saltar permisos. La asociación de chat vive en
+`chat/antigravity.json`, separada de los chats antiguos.
 
-Para iniciar sesión, ejecutar `gemini` en la terminal. Revisar la confianza de
-la carpeta si la pregunta, seleccionar **Sign in with Google** (puede aparecer
-como **Login with Google**) y completar el acceso en el navegador con la cuenta
-propia. Si ya está en el prompt de Gemini, `/auth` permite elegir autenticación.
-No pegar contraseñas, códigos ni claves en el chat de Coucou o de Codex.
-Después se puede abrir Gemini desde Agent Hub o usar su selector en Coucou.
+Los perfiles `antigravity` y `antigravity-reviewer` llaman al driver público
+`agent-hub agy-run`. El reviewer usa el esquema estructurado del Hub. Los mensajes,
+resultados, rutas y metadatos observados se guardan únicamente en el índice propio
+de Agent Hub, `~/.local/state/agent-hub/adapters/antigravity/index.json`. No se
+leen SQLite, keyrings, credenciales ni transcripts internos de Antigravity.
+La referencia `transcriptPath` del hook puede conservarse sin abrir el archivo.
+Las conversaciones abiertas fuera del Hub se incorporan cuando emiten sus hooks;
+no se importa automáticamente todo el historial privado preexistente.
 
-Los perfiles `gemini` y `gemini-reviewer` usan el CLI instalado y las políticas
-existentes. Prepararlos no autoriza automáticamente red, shell, worktrees o
-acciones Git de una tarea. Esas aprobaciones se mantienen como en Codex/Hermes.
-Las pruebas con fixtures no evalúan un turno del modelo; se requiere login para
-verificar una conversación real con Google.
+Antes de abrir una conversación existente en terminal, Hub hace un probe del
+stream público sin enviar un turno; verifica el ID y después pasa exactamente
+`agy --conversation ID`. El CLI debe estar autenticado para ese probe. Si falta
+la identidad, falla la autenticación o se devuelve otro ID, no se envía el prompt.
+Las ejecuciones siguen necesitando repositorio, checks y permisos explícitos.
+
+`--antigravity` restaura seis hooks bajo el nombre `coucou-cli-observer` en
+`~/.gemini/config/hooks.json`, preservando otros grupos: SessionStart, PreToolUse,
+PostToolUse, PreInvocation, PostInvocation y Stop. El observer registra los IDs
+por el CLI público del Hub y reenvía los eventos al relay nativo de Coucou. Antes
+de una herramienta devuelve `ask`, que conserva las aprobaciones del CLI, y nunca
+`auto_approve`. No modifica modelos ni autenticación.
+
+**Privacidad pendiente de tu cuenta:** en Antigravity, la opción **Enable
+Telemetry** de `/config` se guarda en la cuenta, no en settings.json. Después del
+login, desactivarla allí si se desea. No se inventó una clave local ni se afirmó
+que ya estaba desactivada. El driver del Hub desactiva el auto-update durante sus
+procesos con `AGY_CLI_DISABLE_AUTO_UPDATE=true`; no inicia servicios remotos.

@@ -14,7 +14,8 @@
     const invoke = (window.__coucouNativeInvoke || ipc.invoke).bind(ipc);
     let chatAgent = 'codex';
     try { chatAgent = window.localStorage?.getItem('coucou-chat-agent') || 'codex'; } catch {}
-    if (!['codex', 'hermes', 'gemini'].includes(chatAgent)) chatAgent = 'codex';
+    if (chatAgent === 'gemini') chatAgent = 'antigravity';
+    if (!['codex', 'hermes', 'antigravity'].includes(chatAgent)) chatAgent = 'codex';
     let chatBusy = false, activeRun = null;
     let modal = null, lastCollapsed = false, lastRect = null;
     const modalRect = () => { const r = modal.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
@@ -178,7 +179,7 @@
       }
       if (command === 'chat_send') {
         const query = args?.query?.trim() || '';
-        const task = query.match(/^\/tarea(?:\s+(auto|codex|hermes|gemini))?\s+([\s\S]+)$/i);
+        const task = query.match(/^\/tarea(?:\s+(auto|codex|hermes|antigravity))?\s+([\s\S]+)$/i);
         const control = query.match(/^\/(estado|ejecutar|cancelar)\s+(RUN-[0-9]{3,12})$/i);
         const openExecution = query.match(/^\/abrir\s+(EXEC-[0-9]{3,12})$/i);
         if (task || control || openExecution || query === '/tareas') {
@@ -244,7 +245,7 @@
         const button = document.querySelector('.model-btn');
         if (!button) { menu?.remove(); menu = null; return; }
         const label = button.querySelector('.model-name');
-        const title = ({codex:'Codex',hermes:'Hermes',gemini:'Gemini'})[chatAgent];
+        const title = ({codex:'Codex',hermes:'Hermes',antigravity:'Antigravity'})[chatAgent];
         if (label && label.textContent !== title) label.textContent = title;
         button.title = 'Agente · sesión general de Coucou';
         if (button.dataset.coucouAgentPicker) return;
@@ -256,8 +257,8 @@
           menu = element('div'); menu.className = 'picker on';
           menu.style.cssText = 'display:flex;flex:none;background:var(--card-flat,#181825);color:var(--ink,#cdd6f4)';
           const chips = element('div', undefined, menu); chips.className = 'picker-chips';
-          for (const agent of ['codex', 'hermes', 'gemini']) {
-            const chip = element('button', ({codex:'Codex',hermes:'Hermes',gemini:'Gemini'})[agent], chips);
+          for (const agent of ['codex', 'hermes', 'antigravity']) {
+            const chip = element('button', ({codex:'Codex',hermes:'Hermes',antigravity:'Antigravity'})[agent], chips);
             chip.className = 'picker-chip' + (chatAgent === agent ? ' on' : '');
             chip.onclick = () => {
               chatAgent = agent;

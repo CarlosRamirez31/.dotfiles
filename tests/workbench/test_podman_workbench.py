@@ -16,6 +16,24 @@ spec.loader.exec_module(w)
 
 
 class WorkbenchTests(unittest.TestCase):
+    def test_camera_is_shared_only_with_dev_and_only_when_missing(self):
+        with patch.object(w.Path, 'is_char_device', return_value=True), \
+             patch.object(w.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)), \
+             patch.object(w, 'managed', return_value={'State': {'Pid': 1234}}), \
+             patch.object(w, 'pod') as pod:
+            w.refresh_camera('kali-podman')
+            pod.assert_not_called()
+            w.refresh_camera('dev-podman')
+            self.assertEqual(pod.call_args_list[0].args,
+                             ('exec', '--user', '0', 'dev-podman', 'touch', '/dev/video0', '/dev/video1'))
+            self.assertEqual(pod.call_args_list[1].args,
+                             ('unshare', sys.executable, w.ROOT / 'share_camera.py', '1234', '/dev/video0', '/dev/video1'))
+        with patch.object(w.Path, 'is_char_device', return_value=True), \
+             patch.object(w.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)), \
+             patch.object(w, 'pod') as pod:
+            w.refresh_camera('dev-podman')
+            pod.assert_not_called()
+
     def test_lab_network_failure_restores_original(self):
         info = self.info('parrotos-podman')
         info['HostConfig'] = {'NetworkMode': 'pasta'}

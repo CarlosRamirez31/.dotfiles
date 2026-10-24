@@ -74,6 +74,26 @@ def start(name):
     info = managed(name)
     if not info['State']['Running']:
         pod('start', name)
+    refresh_camera(name)
+
+
+def refresh_camera(name):
+    if name != PROFILES['dev']['name']:
+        return
+    missing = []
+    for device in ('/dev/video0', '/dev/video1'):
+        if not Path(device).is_char_device():
+            continue
+        result = subprocess.run([*PODMAN, 'exec', name, 'test', '-c', device])
+        if result.returncode == 1:
+            missing.append(device)
+        elif result.returncode:
+            raise RuntimeError(f'No se pudo comprobar la cámara en {name}.')
+    if missing:
+        info = managed(name)
+        pod('exec', '--user', '0', name, 'touch', *missing)
+        pod('unshare', sys.executable, ROOT / 'share_camera.py',
+            str(info['State']['Pid']), *missing)
 
 
 def execute(name, *command, root=False, data=None, capture=False):
@@ -449,6 +469,8 @@ def lifecycle(action, key, options=()):
         pod('ps', '-a', '--filter', 'name=^' + name + '$')
     else:
         pod(action, *options, info['Id'])
+        if action == 'restart':
+            refresh_camera(name)
 
 
 def main():

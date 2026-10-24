@@ -17,6 +17,12 @@ try:
             size=tuple(map(int,match.groups()))
             if size!=last:
                 w,h=size
+                # Xephyr updates the root framebuffer before its legacy RandR
+                # output. Poll the output before publishing monitor geometry.
+                refresh=subprocess.run(['xrandr','--query'],capture_output=True)
+                if refresh.returncode:
+                    stop.wait(.6)
+                    continue
                 subprocess.run(['xrandr','--delmonitor','Virtual'],capture_output=True)
                 result=subprocess.run(['xrandr','--setmonitor','Virtual',f'{w}/{round(w*25.4/96)}x{h}/{round(h*25.4/96)}+0+0','default'],capture_output=True)
                 if result.returncode:

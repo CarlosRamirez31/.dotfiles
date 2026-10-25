@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """Install the shared programming skills without starting models or changing approvals."""
 import argparse
+import base64
 import datetime
 import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import tempfile
 
-NAMES = ('surgical-edits', 'anti-overengineering', 'repo-scaffold', 'appsec-guardrail', 'software-architect')
+NAMES = ('surgical-edits', 'anti-overengineering', 'repo-scaffold', 'appsec-guardrail', 'software-architect', 'context-efficiency')
+NATIVE_NAMES = NAMES + ('oil-ui',)
 BEGIN, END = '<!-- dotfiles-programming:start -->', '<!-- dotfiles-programming:end -->'
 
 
@@ -79,14 +82,122 @@ def install_hub(source, backups):
             json.dump(profile, output)
             output.flush()
             hub_json('profile', 'register', '--file', output.name)
-    print('Agent Hub: cinco skills globales y perfiles especializados registrados.')
+    print('Agent Hub: seis skills globales y perfiles especializados registrados.')
+
+
+def install_cursor_context(home, backups):
+    path = home / '.cursor/hooks.json'
+    data = json.loads(path.read_text()) if path.exists() else {'version': 1, 'hooks': {}}
+    command = shlex.join([str(Path(__file__).resolve().with_name('dotfiles-cursor-context'))])
+    entries = data.setdefault('hooks', {}).setdefault('sessionStart', [])
+    entry = {'command': command}
+    if entry in entries:
+        return
+    if path.exists():
+        backups.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, backups / 'cursor-hooks.json.bak')
+    entries.append(entry)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+    path.chmod(0o600)
+
+
+def install_architecture_guards(home, backups):
+    guard = str(Path(__file__).resolve().with_name('dotfiles-architecture-guard'))
+    for agent, path in (
+        ('codex', Path(os.environ.get('CODEX_HOME', str(home/'.codex')))/'hooks.json'),
+        ('cursor', home/'.cursor/hooks.json'),
+        ('antigravity', home/'.gemini/config/hooks.json')):
+        data = json.loads(path.read_text()) if path.exists() else {}
+        command = shlex.join([guard, '--agent', agent])
+        if agent == 'antigravity':
+            entries = data.setdefault('dotfiles-architecture', {}).setdefault('PreToolUse', [])
+        else:
+            entries = data.setdefault('hooks', {}).setdefault('preToolUse' if agent == 'cursor' else 'PreToolUse', [])
+        entry = {'command': command} if agent == 'cursor' else {'matcher': '*', 'hooks': [{'type': 'command', 'command': command, 'timeout': 5}]}
+        if entry in entries:
+            continue
+        if path.exists():
+            backups.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, backups/(agent+'-before-architecture.json.bak'))
+        if agent == 'cursor':
+            data.setdefault('version', 1)
+        entries.append(entry)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2)+'\n')
+        path.chmod(0o600)
+
+
+def install_session_context(home, backups):
+    helper = str(Path(__file__).resolve().with_name('dotfiles-session-context'))
+    for agent, path in (
+        ('codex', Path(os.environ.get('CODEX_HOME', str(home/'.codex')))/'hooks.json'),
+        ('antigravity', home/'.gemini/config/hooks.json')):
+        data = json.loads(path.read_text()) if path.exists() else {}
+        hooks = data.setdefault('hooks', {}) if agent == 'codex' else data.setdefault('dotfiles-context-efficiency', {})
+        handler = {'type': 'command', 'command': shlex.join([helper, '--agent', agent]), 'timeout': 5}
+        entry = {'hooks': [handler]} if agent == 'codex' else handler
+        if agent == 'codex':
+            handler['additionalContextLimit'] = 5000
+        entries = hooks.setdefault('SessionStart', [])
+        if entry in entries:
+            continue
+        if path.exists():
+            backups.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, backups/(agent+'-before-session-context.json.bak'))
+        entries.append(entry)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2)+'\n')
+        path.chmod(0o600)
+
+
+def hermes_context_plugin():
+    # Hermes freezes native plugin sections into each session's system prompt.
+    return '''from pathlib import Path
+import runpy
+
+def register(ctx):
+    def content(session_info):
+        helper=runpy.run_path('/host-home/.dotfiles/bin/dotfiles-session-context')
+        text=helper['skill_context'](Path('/opt/hermes/.hermes/skills/programming/context-efficiency/SKILL.md'))
+        if len(text)>4000:raise ValueError('context-efficiency supera el límite nativo de Hermes (4000 caracteres)')
+        return text
+    ctx.register_system_prompt_section('dotfiles.context-efficiency',content,max_chars=4000)
+'''
+
+
+def install_hermes_context(container):
+    manifest = 'name: dotfiles-context-efficiency\nversion: 1.0.0\ndescription: Context efficiency loaded into each session prompt\nprovides_tools: []\n'
+    writer = "import json,sys;from pathlib import Path;p=json.load(sys.stdin);d=Path('/opt/hermes/.hermes/plugins/dotfiles-context-efficiency');d.mkdir(parents=True,exist_ok=True);(d/'__init__.py').write_text(p['code']);(d/'plugin.yaml').write_text(p['manifest'])"
+    subprocess.run(['podman','exec','-i',container,'python3','-c',writer],input=json.dumps({'code':hermes_context_plugin(),'manifest':manifest}),text=True,check=True)
+    subprocess.run(['podman','exec',container,'/usr/local/bin/hermes','plugins','enable','dotfiles-context-efficiency'],check=True)
+
+
+def install_hermes_architecture(container):
+    guard = '/host-home/.dotfiles/bin/dotfiles-architecture-guard'
+    code = f'''import importlib.machinery,importlib.util,os
+loader=importlib.machinery.SourceFileLoader('architecture_guard',{guard!r})
+spec=importlib.util.spec_from_loader(loader.name,loader)
+guard=importlib.util.module_from_spec(spec);loader.exec_module(guard)
+def register(ctx):
+    def before(**kw):
+        message=guard.check({{'tool_name':kw.get('tool_name'),'tool_input':kw.get('args') or {{}},'cwd':os.getcwd(),'session_id':kw.get('session_id') or kw.get('task_id')}},'hermes')
+        if message:return {{'action':'block','message':message}}
+    ctx.register_hook('pre_tool_call',before)
+'''
+    manifest='name: dotfiles-architecture\nversion: 1.0.0\ndescription: Architecture required before code changes\nprovides_tools: []\nprovides_hooks:\n  - pre_tool_call\n'
+    writer="import json,sys;from pathlib import Path;p=json.load(sys.stdin);d=Path('/opt/hermes/.hermes/plugins/dotfiles-architecture');d.mkdir(parents=True,exist_ok=True);(d/'__init__.py').write_text(p['code']);(d/'plugin.yaml').write_text(p['manifest'])"
+    subprocess.run(['podman','exec','-i',container,'python3','-c',writer],input=json.dumps({'code':code,'manifest':manifest}),text=True,check=True)
+    subprocess.run(['podman','exec',container,'/usr/local/bin/hermes','plugins','enable','dotfiles-architecture'],check=True)
 
 
 def install_hermes(source, container):
     payload = {'skills': {name: (source / name / 'SKILL.md').read_text() for name in NAMES},
+               'oil_ui': {str(path.relative_to(source / 'oil-ui')): base64.b64encode(path.read_bytes()).decode('ascii')
+                          for path in sorted((source / 'oil-ui').rglob('*')) if path.is_file()},
                'policy': (source / 'AGENTS.md').read_text()}
     # Executed inside the existing container; no model, shell interpolation or credential reads.
-    code = '''import json,sys,datetime
+    code = '''import base64,json,sys,datetime
 from pathlib import Path
 p=json.load(sys.stdin); home=Path('/opt/hermes/.hermes')
 for name,content in p['skills'].items():
@@ -95,6 +206,13 @@ for name,content in p['skills'].items():
         backup=home/'backups'/('programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))/name/'SKILL.md'
         backup.parent.mkdir(parents=True,exist_ok=True);backup.write_bytes(dest.read_bytes())
     dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(content)
+for relative,encoded in p['oil_ui'].items():
+    dest=home/'skills/programming/oil-ui'/relative
+    content=base64.b64decode(encoded)
+    if dest.exists() and dest.read_bytes()!=content:
+        backup=home/'backups'/('programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))/'oil-ui'/relative
+        backup.parent.mkdir(parents=True,exist_ok=True);backup.write_bytes(dest.read_bytes())
+    dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(content)
 path=home/'SOUL.md'; old=path.read_text() if path.exists() else ''
 begin,end='<!-- dotfiles-programming:start -->','<!-- dotfiles-programming:end -->'
 block=begin+'\\n'+p['policy'].rstrip()+'\\n'+end
@@ -107,7 +225,7 @@ if new!=old:
         saved=home/'backups'/('SOUL-before-programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')+'.md')
         saved.parent.mkdir(parents=True,exist_ok=True);saved.write_text(old)
     path.write_text(new)
-print('Hermes: cinco skills disponibles y preferencias de código instaladas.')
+print('Hermes: seis skills de programación y Oil UI instaladas.')
 '''
     subprocess.run(['podman', 'exec', '-i', container, 'python', '-c', code], input=json.dumps(payload), text=True, check=True)
 
@@ -119,28 +237,33 @@ def main():
     parser.add_argument('--hermes', metavar='CONTAINER', help='instalar además en el Hermes de este contenedor existente')
     args = parser.parse_args()
     source = args.source.resolve()
-    for name in NAMES:
+    for name in NATIVE_NAMES:
         if not (source / name / 'SKILL.md').is_file():
             parser.error('Skill no encontrada: ' + name)
     home = Path.home()
     # Check collisions before changing any native skill links.
-    for base in (home / '.agents/skills', home / '.gemini/config/skills'):
-        for name in NAMES:
+    for base in (home / '.agents/skills', home / '.gemini/config/skills', home / '.cursor/skills'):
+        for name in NATIVE_NAMES:
             dest = base / name
             if (dest.exists() or dest.is_symlink()) and dest.resolve() != (source / name).resolve():
                 parser.error('Skill existente conservada: ' + str(dest))
-    for base in (home / '.agents/skills', home / '.gemini/config/skills'):
-        for name in NAMES:
+    for base in (home / '.agents/skills', home / '.gemini/config/skills', home / '.cursor/skills'):
+        for name in NATIVE_NAMES:
             link(source / name, base / name)
     backups = Path(os.environ.get('XDG_STATE_HOME', str(home / '.local/state'))) / 'dotfiles/agent-skills' / datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')
     policy = (source / 'AGENTS.md').read_text()
     for dest in (Path(os.environ.get('CODEX_HOME', str(home / '.codex'))) / 'AGENTS.md', home / '.gemini/config/AGENTS.md'):
         write_policy(dest, policy, backups)
+    install_cursor_context(home, backups)
+    install_session_context(home, backups)
+    install_architecture_guards(home, backups)
     if args.hub:
         install_hub(source, backups)
     if args.hermes:
         install_hermes(source, args.hermes)
-    print('Codex y Antigravity: cinco skills y preferencias de programación instaladas.')
+        install_hermes_context(args.hermes)
+        install_hermes_architecture(args.hermes)
+    print('Codex, Cursor y Antigravity: seis skills de programación, Oil UI y preferencias instaladas.')
 
 
 if __name__ == '__main__':

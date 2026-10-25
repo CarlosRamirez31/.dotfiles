@@ -44,10 +44,25 @@ def location(project, root):
     return root / (slug + '-' + digest)
 
 
+def follow(folder, root):
+    seen=set()
+    while True:
+        if folder in seen or len(seen)>16:
+            raise ValueError('Asociación circular de directorios.')
+        seen.add(folder)
+        data=json.loads((folder/'project.json').read_text())
+        source=data.get('context_source')
+        if not source:return folder
+        if not isinstance(source,str) or Path(source).name!=source:
+            raise ValueError('Asociación externa inválida.')
+        folder=(root/source).resolve()
+        if not folder.is_relative_to(root.resolve()):raise ValueError('Asociación fuera de la memoria externa.')
+
+
 def existing(project, root):
     direct = location(project, root)
     if (direct / 'project.json').is_file():
-        return direct
+        return follow(direct,root)
     candidates = []
     # A session opened in src/services reuses the registered parent project.
     for metadata in root.glob('*/project.json'):
@@ -60,7 +75,7 @@ def existing(project, root):
             continue
     if not candidates:
         raise ValueError('Directorio no registrado. Ejecuta init desde la raíz del proyecto.')
-    return max(candidates, key=lambda item: item[0])[1]
+    return follow(max(candidates, key=lambda item: item[0])[1],root)
 
 
 @contextmanager
@@ -95,8 +110,22 @@ def initialize(project, root):
             if json.loads(metadata.read_text()).get('directory') != canonical(project):
                 raise ValueError('La memoria existente pertenece a otro directorio.')
         else:
-            atomic_write(metadata, json.dumps({'version': 1, 'directory': canonical(project), 'name': project.name}, ensure_ascii=False, indent=2) + '\n')
+            atomic_write(metadata, json.dumps({'version': 1, 'directory': canonical(project), 'name': project.name, 'architecture': {'status':'missing','revision':'missing'}}, ensure_ascii=False, indent=2) + '\n')
     return folder
+
+
+def associate(project, source, root):
+    target=existing(source,root)
+    folder=initialize(project,root)
+    if folder==target:raise ValueError('El directorio ya identifica la memoria de origen.')
+    with locked(folder):
+        path=folder/'project.json';data=json.loads(path.read_text())
+        if (folder/'architecture.md').exists():
+            raise ValueError('El directorio ya tiene arquitectura propia; no se sustituye por otra.')
+        data['context_source']=target.name
+        data['association']='explicit-task-directory'
+        atomic_write(path,json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+    return target
 
 
 def revision(path):
@@ -105,12 +134,12 @@ def revision(path):
 
 def describe(folder):
     metadata = json.loads((folder / 'project.json').read_text())
-    return {**metadata, 'context_directory': str(folder), 'documents': {
+    return {**metadata, 'architecture_status': metadata.get('architecture', {}).get('status', 'draft' if (folder/'architecture.md').exists() else 'missing'), 'context_directory': str(folder), 'documents': {
         name: {'path': str(folder / (name + '.md')), 'revision': revision(folder / (name + '.md'))}
         for name in DOCUMENTS}}
 
 
-def save(folder, document, content, expected):
+def save(folder, document, content, expected, status=None):
     if document not in DOCUMENTS:
         raise ValueError('Documento de contexto desconocido.')
     if not content.strip() or len(content) > 200000:
@@ -119,26 +148,44 @@ def save(folder, document, content, expected):
     with locked(folder):
         if revision(path) != expected:
             raise ValueError('Otra conversación actualizó este documento. Lee la versión actual y combina los cambios antes de guardar.')
+        if document == 'architecture':
+            interim = json.loads((folder/'project.json').read_text())
+            interim['architecture'] = {'status':'draft','revision':revision(path)}
+            atomic_write(folder/'project.json', json.dumps(interim,ensure_ascii=False,indent=2)+'\n')
         atomic_write(path, content)
+        if document == 'architecture':
+            metadata = json.loads((folder/'project.json').read_text())
+            metadata['architecture'] = {'status': status or 'defined', 'revision': revision(path)}
+            atomic_write(folder/'project.json', json.dumps(metadata, ensure_ascii=False, indent=2)+'\n')
     return describe(folder)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('show', 'init', 'write'))
+    parser.add_argument('action', choices=('show', 'init', 'write', 'link'))
     parser.add_argument('--project', type=Path, default=Path.cwd(), help='directorio del proyecto; init registra exactamente este directorio')
+    parser.add_argument('--source', type=Path, help='origen de una asociación explícita de snapshot')
     parser.add_argument('--root', type=Path, help='carpeta externa de memoria compartida')
     parser.add_argument('--document', choices=DOCUMENTS)
+    parser.add_argument('--status', choices=('draft', 'defined'), help='estado de la arquitectura: draft impide implementar')
+    parser.add_argument('--content-file', type=Path, help='documento UTF-8 externo; alternativa a stdin')
     parser.add_argument('--expected', help='revisión de show, o missing para un documento nuevo')
     args = parser.parse_args()
     try:
         project = project_path(args.project)
         root = (args.root or default_root(project)).expanduser().resolve()
-        folder = initialize(project, root) if args.action == 'init' else existing(project, root)
+        if args.action=='link':
+            if not args.source:parser.error('link requiere --source')
+            folder=associate(project,project_path(args.source),root)
+        else:
+            folder = initialize(project, root) if args.action == 'init' else existing(project, root)
         if args.action == 'write':
             if not args.document or not args.expected:
                 parser.error('write requiere --document y --expected; recibe el texto por stdin')
-            result = save(folder, args.document, sys.stdin.read(200001), args.expected)
+            if args.content_file and args.content_file.stat().st_size > 200000:
+                raise ValueError('Documento demasiado grande.')
+            content = args.content_file.read_text() if args.content_file else sys.stdin.read(200001)
+            result = save(folder, args.document, content, args.expected, args.status)
         else:
             result = describe(folder)
         print(json.dumps(result, ensure_ascii=False, indent=2))

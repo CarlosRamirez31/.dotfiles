@@ -12,8 +12,8 @@
 /* Same-user, local-only container transport; lives and stops with Coucou. */
 static gboolean hermes_event(GThreadedSocketService *service, GSocketConnection *incoming,
         GObject *object, gpointer data) {
-    gchar message[16384]; gsize used = 0; GError *error = NULL;
-    g_socket_set_timeout(g_socket_connection_get_socket(incoming), 1);
+    gchar message[65536 + 32]; gsize used = 0; GError *error = NULL;
+    g_socket_set_timeout(g_socket_connection_get_socket(incoming), 110);
     GInputStream *input = g_io_stream_get_input_stream(G_IO_STREAM(incoming));
     while (used < sizeof(message)) {
         gssize n = g_input_stream_read(input, message + used, sizeof(message) - used, NULL, &error);
@@ -22,20 +22,40 @@ static gboolean hermes_event(GThreadedSocketService *service, GSocketConnection 
         if (memchr(message, '\n', used)) break;
     }
     g_clear_error(&error);
-    if (used && used < sizeof(message) && memchr(message, '\n', used)) {
+    gboolean approval = used >= 16 && memcmp(message, "COUCOU_APPROVAL\n", 16) == 0;
+    gchar *payload = message + (approval ? 16 : 0);
+    gsize payload_len = used - (approval ? 16 : 0);
+    if (payload_len && payload_len < sizeof(message) && memchr(payload, '\n', payload_len)) {
         gchar *path = g_build_filename(g_get_user_runtime_dir(), "coucou.sock", NULL);
         GSocketClient *client = g_socket_client_new();
-        g_socket_client_set_timeout(client, 1);
+        g_socket_client_set_timeout(client, approval ? 110 : 1);
         GSocketAddress *address = g_unix_socket_address_new(path);
         GSocketConnection *native = g_socket_client_connect(client, G_SOCKET_CONNECTABLE(address), NULL, &error);
         if (native) {
             g_output_stream_write_all(g_io_stream_get_output_stream(G_IO_STREAM(native)),
-                message, used, NULL, NULL, &error);
+                payload, payload_len, NULL, NULL, &error);
             g_clear_error(&error);
-            gchar ack;
-            /* Native non-approval events finish only after emission: preserve event order. */
-            g_input_stream_read(g_io_stream_get_input_stream(G_IO_STREAM(native)), &ack, 1, NULL, &error);
-            g_clear_error(&error);
+            GInputStream *native_input = g_io_stream_get_input_stream(G_IO_STREAM(native));
+            if (approval) {
+                gchar response[17]; gsize count = 0;
+                while (count < sizeof(response) - 1) {
+                    gssize n = g_input_stream_read(native_input, response + count, 1, NULL, &error);
+                    if (n <= 0 || response[count] == '\n') break;
+                    count += (gsize)n;
+                }
+                g_clear_error(&error);
+                if ((count == 5 && memcmp(response, "allow", 5) == 0) ||
+                    (count == 4 && memcmp(response, "deny", 4) == 0)) {
+                    GOutputStream *reply = g_io_stream_get_output_stream(G_IO_STREAM(incoming));
+                    g_output_stream_write_all(reply, response, count, NULL, NULL, NULL);
+                    g_output_stream_write_all(reply, "\n", 1, NULL, NULL, NULL);
+                }
+            } else {
+                gchar ack;
+                /* Observer events finish only after emission: preserve event order. */
+                g_input_stream_read(native_input, &ack, 1, NULL, &error);
+                g_clear_error(&error);
+            }
             g_io_stream_close(G_IO_STREAM(native), NULL, NULL); g_object_unref(native);
         }
         g_clear_error(&error); g_object_unref(address); g_object_unref(client); g_free(path);
@@ -59,7 +79,7 @@ static void start_hermes_transport(void) {
     }
     GError *error = NULL;
     GSocketAddress *address = g_unix_socket_address_new(path);
-    service = g_threaded_socket_service_new(1);
+    service = g_threaded_socket_service_new(8);
     if (!g_socket_listener_add_address(G_SOCKET_LISTENER(service), address, G_SOCKET_TYPE_STREAM,
             G_SOCKET_PROTOCOL_DEFAULT, NULL, NULL, &error)) {
         g_warning("Coucou Hermes bridge: %s", error->message); g_clear_error(&error);

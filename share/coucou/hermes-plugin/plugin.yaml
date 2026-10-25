@@ -1,6 +1,6 @@
 name: coucou
 version: 1.0.0
-description: Local Coucou observer for Hermes sessions in dev-podman
+description: Local Coucou events and request-bound one-shot Hermes approvals
 provides_tools: []
 provides_hooks:
   - on_session_start

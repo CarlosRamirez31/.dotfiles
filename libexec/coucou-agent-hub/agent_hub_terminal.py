@@ -318,6 +318,10 @@ class HubTerminal:
                     os.replace(path, archive / (agent + '-' + uuid.uuid4().hex + '.json'))
             return {'ok': True}
         if action == 'chat':
+            clarification = re.fullmatch(r'/definir\s+(RUN-[0-9]{3,12})\s+([\s\S]+)', str(request.get('query') or '').strip(), re.I)
+            if clarification:
+                from work_control import control
+                return control(self, {'operation':'refine','id':clarification[1].upper(),'query':clarification[2],'automatic':True})
             from native_chat import send
             return send(self, request)
         if action == 'observe':

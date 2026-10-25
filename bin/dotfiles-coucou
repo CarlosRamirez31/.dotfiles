@@ -8,10 +8,10 @@ if [[ ! -x $executable ]]; then
     exit 127
 fi
 
-# Prefer Arch's WebKit/GTK/GStreamer over the AppImage's bundled stack. Its
-# RUNPATH still supplies optional libraries absent from the system. This avoids
-# slow input and stale frames without changing the desktop compositor/backend.
-export LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# Prefer Arch's WebKit/GTK/GStreamer, then fall back to libraries bundled with
+# the AppImage. The executable is launched directly, so reproduce AppRun's
+# library search path for dependencies such as libgtk-layer-shell.
+export LD_LIBRARY_PATH="/usr/lib:$root/squashfs-root/usr/lib:$root/squashfs-root/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export COUCOU_HERMES_BRIDGE=1
 export COUCOU_POLYBAR_CSS="${XDG_CONFIG_HOME:-$HOME/.config}/coucou/polybar.css"
 if [[ -f $root/polybar-theme.so ]]; then

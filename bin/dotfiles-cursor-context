@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Load shared programming preferences into Cursor without project-local files."""
+from pathlib import Path
+import runpy
+import sys
+
+
+def main():
+    helper = runpy.run_path(str(Path(__file__).resolve().with_name('dotfiles-session-context')))
+    return helper['main'](['--agent', 'cursor'])
+
+
+if __name__ == '__main__':
+    sys.exit(main())

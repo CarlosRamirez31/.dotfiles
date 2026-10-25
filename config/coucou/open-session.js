@@ -179,14 +179,14 @@
       }
       if (command === 'chat_send') {
         const query = args?.query?.trim() || '';
-        const task = query.match(/^\/tarea(?:\s+(auto|codex|hermes|antigravity|architect|antigravity-architect))?\s+([\s\S]+)$/i);
+        const task = query.match(/^\/tarea(?:\s+(auto|codex|cursor|hermes|antigravity|architect|antigravity-architect))?\s+([\s\S]+)$/i);
         const control = query.match(/^\/(estado|ejecutar|cancelar)\s+(RUN-[0-9]{3,12})$/i);
         const openExecution = query.match(/^\/abrir\s+(EXEC-[0-9]{3,12})$/i);
         if (task || control || openExecution || query === '/tareas') {
           if (chatBusy) return Promise.reject(new Error('Ya hay una respuesta en curso.'));
           chatBusy = true;
           const operations = {estado:'show',ejecutar:'execute',cancelar:'cancel'};
-          const request = task ? {action:'work',operation:'plan',query:task[2],agent:task[1]?.toLowerCase()==='auto' ? null : task[1]?.toLowerCase()==='architect' ? 'antigravity-architect' : task[1]?.toLowerCase() || chatAgent}
+          const request = task ? {action:'work',operation:'plan',query:task[2],automatic:task[1]?.toLowerCase()==='auto',agent:task[1]?.toLowerCase()==='auto' ? null : task[1]?.toLowerCase()==='architect' ? 'antigravity-architect' : task[1]?.toLowerCase() || chatAgent}
             : openExecution ? {action:'work',operation:'open-execution',id:openExecution[1]}
             : control ? {action:'work',operation:operations[control[1].toLowerCase()],id:control[2]}
             : {action:'work',operation:'list'};

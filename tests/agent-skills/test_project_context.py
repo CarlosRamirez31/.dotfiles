@@ -63,6 +63,16 @@ class DirectoryMemoryTests(unittest.TestCase):
         self.assertEqual((folder / 'architecture.md').read_text(), 'Version B\n')
         self.assertFalse((folder / 'decisions.md').exists())
 
+    def test_explicit_snapshot_association_reuses_notes_without_git_inference(self):
+        original=context.initialize(self.project,self.store)
+        context.save(original,'architecture','Verified directory architecture\n','missing','defined')
+        snapshot=self.root/'task-workspace';snapshot.mkdir()
+        self.assertNotEqual(context.initialize(snapshot,self.store),original)
+        context.associate(snapshot,self.project,self.store)
+        self.assertEqual(context.existing(snapshot,self.store),original)
+        self.assertEqual(context.describe(context.existing(snapshot,self.store))['directory'],str(self.project))
+        self.assertFalse((snapshot/'architecture.md').exists());self.assertFalse((snapshot/'.git').exists())
+
     def test_store_cannot_be_inside_the_project(self):
         with self.assertRaises(ValueError):
             context.initialize(self.project, self.project / 'agent-notes')

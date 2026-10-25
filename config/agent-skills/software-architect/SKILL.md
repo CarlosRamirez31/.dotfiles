@@ -18,3 +18,20 @@ description: Design a new application, substantial feature, integration, or stru
 - Cuando haya un diseño real, guarda un resumen breve de responsabilidades, estructura, contratos y comandos de validación en `architecture.md`; decisiones no obvias en `decisions.md`; límites de confianza y requisitos de seguridad en `security.md`. No fabriques una arquitectura ni crees tres documentos por un cambio cosmético. Indica los archivos y fecha de la comprobación; una revisión parcial no verifica todo el proyecto.
 - Guarda mediante `dotfiles-project-context write --project <ruta> --document architecture --expected <revisión>` con el texto por stdin (lo mismo para decisions/security). Usa `missing` solo al crear un documento. Si otra conversación lo actualizó, relee y combina los cambios; no sobrescribas su trabajo. Resume el estado confirmado, nunca conversaciones completas, credenciales o razonamiento interno.
 - Estos documentos pertenecen al almacén externo, no al código: no generes `AGENTS.md`, planes ni documentación interna del agente en el proyecto. Conserva los README y documentos propios de la aplicación. Si la memoria externa queda fuera de los permisos de la tarea, consúltala solo si se permite y entrega los cambios pendientes sin ampliar el sandbox.
+
+
+## Requisito antes de implementar
+
+- Antes de escribir código, lee la arquitectura externa y contrasta el bloque que
+  tocarás. Su existencia por sí sola no es evidencia de que se consultó.
+- Sin arquitectura, realiza primero un análisis acotado del proyecto real y guarda
+  responsabilidades, estructura, entradas, dependencias, validación y límites.
+  No marques como comprobado un componente que no inspeccionaste.
+- Si la definición es incompleta, explica qué se puede hacer y qué no, presenta
+  una propuesta y las decisiones pendientes. Guarda con `--status draft`; no
+  implementes hasta resolver esas decisiones y guardar con `--status defined`.
+- Para un proyecto nuevo sin stack definido, propone opciones proporcionadas y
+  aclara la decisión que afecte al diseño. Con stack y requisitos suficientes,
+  define la estructura mínima antes del scaffold; no requieras Git.
+- Los documentos llevan fecha, archivos consultados y alcance de la revisión.
+  Tras un cambio estructural, actualiza solo el área pertinente mediante CAS.

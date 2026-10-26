@@ -2,7 +2,14 @@
 local awful = require("awful")
 local gears = require("gears")
 local function seconds() return require("lgi").GLib.get_monotonic_time() / 1000000 end
-local M = { hover_delay = 0.3, leave_delay = 0.6, half_width = 140 }
+local M = {
+    hover_delay = 0.3,
+    leave_delay = 0.6,
+    panel_width = 720,
+    panel_height = 320,
+    dock_width = 640,
+    hit_margin = 14,
+}
 M.pointer = function() return mouse.coords() end
 M.seconds = seconds
 local island, entered_at, left_at, opened_here, pending, dismissed, triggered
@@ -26,14 +33,17 @@ local function input_shape(c)
     local expanded = mode(c) == "expanded"
     local w, h = (c.name or ""):match("| (%d+) | (%d+)$")
     w, h = tonumber(w) or g.width, tonumber(h) or g.height
-    local signature = expanded and table.concat({g.width, g.height, w, h}, ":") or "empty"
+    local signature = table.concat({expanded and "expanded" or "pass-through", g.width, g.height, w, h}, ":")
     if input_shapes[c] == signature then return end
     local cairo = require("lgi").cairo
     local surface = cairo.ImageSurface(cairo.Format.A1, expanded and g.width or 0, expanded and g.height or 0)
     if expanded then
+        local sx, sy = g.width / M.panel_width, g.height / M.panel_height
+        local width = math.min(g.width, math.floor(w * sx + 0.5))
+        local height = math.min(g.height, math.floor(h * sy + 0.5))
         local context = cairo.Context(surface)
         context:set_source_rgba(1, 1, 1, 1)
-        context:rectangle(math.max(0, (g.width - w) / 2), 0, w, h)
+        context:rectangle((g.width - width) / 2, 0, width, height)
         context:fill()
     end
     c.shape_input = surface._native
@@ -129,7 +139,10 @@ function M.start()
         place(c)
         local b, p = bar:geometry(), M.pointer()
         local centre = b.x + b.width / 2
-        local hotspot = p.x >= centre - M.half_width and p.x <= centre + M.half_width
+        local g = c:geometry()
+        local sx = g.width / M.panel_width
+        local hotspot_half = (M.dock_width / 2 + M.hit_margin) * sx
+        local hotspot = p.x >= centre - hotspot_half and p.x <= centre + hotspot_half
             and p.y >= b.y and p.y <= b.y + b.height
         local now = M.seconds()
         M.debug = { mode = mode(c), opened_here = opened_here, hotspot = hotspot, left_at = left_at, now = now }
@@ -156,9 +169,11 @@ function M.start()
             if opened_here and mode(c) == "expanded" then
                 local g = c:geometry()
                 local w, h = (c.name or ""):match("| (%d+) | (%d+)$")
-                w, h = tonumber(w) or 400, tonumber(h) or 250
-                local inside = p.x >= centre - w / 2 - 8 and p.x <= centre + w / 2 + 8
-                    and p.y >= b.y and p.y <= g.y + h + 8
+                w, h = tonumber(w) or M.dock_width, tonumber(h) or M.panel_height
+                local sy = g.height / M.panel_height
+                local inside = p.x >= centre - (w / 2 + M.hit_margin) * sx
+                    and p.x <= centre + (w / 2 + M.hit_margin) * sx
+                    and p.y >= b.y and p.y <= g.y + h * sy + M.hit_margin * sy
                 if inside or client.focus == c then left_at = nil else
                     left_at = left_at or now
                     if now - left_at >= M.leave_delay then

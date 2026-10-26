@@ -3,7 +3,7 @@ local island = { class = 'Coucou', type = 'dock', valid = true, name = 'Coucou I
     hidden = false, opacity = 1 }
 local s = {}
 island.screen = s
-local geometry = { x = 599, y = 48, width = 720, height = 320 }
+local geometry = { x = 455, y = 48, width = 1008, height = 448 }
 function island:geometry(value)
     if value then for k, v in pairs(value) do geometry[k] = v end; writes = writes + 1 end
     return geometry
@@ -43,11 +43,13 @@ callback();clock = .2;callback();assert(#commands == 0)
 clock = .31;callback();assert(#commands == 1, 'open after a short deliberate hover')
 for i = 1, 5 do clock = .31 + i * .05; callback() end
 assert(#commands == 1, 'never spam toggle while waiting for the app')
-island.name = 'Coucou Island | expanded | 640 | 160'
+island.name = 'Coucou Island | expanded | 640 | 316'
 pointer = { x = 100, y = 600 }
 clock = .6; callback();
 assert(island.shape_input.width == geometry.width, 'expanded frame restores input')
-assert(island.shape_input.rectangle[3] == 640, 'expanded input follows the visible panel only')
+assert(island.shape_input.rectangle[1] == 56, 'expanded input is centred inside the scaled native panel')
+assert(island.shape_input.rectangle[3] == 896, 'expanded input scales the 640px dock by 1.4')
+assert(island.shape_input.rectangle[4] == 442, 'expanded input scales dock height by 1.4')
 clock = 1.21; callback()
 assert(#commands == 2, 'acknowledgement removes fixed 1.5 second dead time')
 island.name = 'Coucou Island | compact | 288 | 32'

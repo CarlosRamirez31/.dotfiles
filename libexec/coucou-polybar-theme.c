@@ -182,7 +182,13 @@ static void publish_geometry(WebKitWebView *view, GParamSpec *pspec, gpointer da
         int width = 0, height = 0, outer_width = 0, outer_height = 0;
         if (!hidden && sscanf(title, "Coucou Island | expanded | %d | %d", &width, &height) == 2) {
             gtk_window_get_size(GTK_WINDOW(top), &outer_width, &outer_height);
-            cairo_rectangle_int_t rectangle = { MAX(0, (outer_width-width)/2), 0, width, height };
+            /* The page reports CSS geometry while this commit scales the native
+             * panel from 720x320. Map it into GTK coordinates before setting input. */
+            double sx = outer_width / 720.0, sy = outer_height / 320.0;
+            int input_width = CLAMP((int)(width * sx + 0.5), 0, outer_width);
+            int input_height = CLAMP((int)(height * sy + 0.5), 0, outer_height);
+            cairo_rectangle_int_t rectangle = { MAX(0, (outer_width-input_width)/2), 0,
+                input_width, input_height };
             cairo_region_t *region = cairo_region_create_rectangle(&rectangle);
             gdk_window_input_shape_combine_region(window, region, 0, 0);
             cairo_region_destroy(region);

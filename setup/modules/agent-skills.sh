@@ -6,4 +6,4 @@ require_arch_user
 install_packages python
 link_component "agent-skills"
 "$DOTFILES_ROOT/bin/dotfiles-agent-skills"
-printf 'Skills compartidas instaladas. Usa --hub y --hermes dev-podman para las integraciones opcionales.\n'
+printf 'Skills compartidas instaladas. Usa --hub para la integración opcional. Hermes se mantiene solo académico.\n'

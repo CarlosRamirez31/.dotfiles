@@ -1,0 +1,14 @@
+# Managed workbench mount list. Copy installed as root: /etc/workbench-mounts/fstab
+# Add only trusted sources. Targets must be immediate subdirectories of:
+# /srv/workbench-mounts/NAME (letters, numbers, underscores and hyphens).
+# Use credentials files owned by root (0600), never inline passwords.
+# Spaces in source paths must be escaped as \040.
+#
+# SMB (requires cifs-utils on the host):
+# //SERVER/Company\040Data /srv/workbench-mounts/company cifs noauto,credentials=/etc/workbench-mounts/smb.credentials,uid=1000,gid=1000,nosuid,nodev 0 0
+# NFS (requires nfs-utils on Arch / nfs-common on Debian):
+# SERVER:/export/data /srv/workbench-mounts/nfs nfs noauto,nosuid,nodev 0 0
+# ISO image (read-only, source must be administrator-controlled):
+# /srv/images/lab.iso /srv/workbench-mounts/iso iso9660 noauto,loop,ro,nosuid,nodev 0 0
+# USB partition (check its actual UUID and filesystem first):
+# UUID=REPLACE_ME /srv/workbench-mounts/usb ext4 noauto,nosuid,nodev 0 0

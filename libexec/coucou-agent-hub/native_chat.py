@@ -56,6 +56,9 @@ def send(bridge, request):
         if len(installed) != 1:
             raise BridgeError('El agente no está instalado o su adaptador es ambiguo.')
         adapter = installed[0]
+        environment = dict(os.environ)
+        for name in ('LD_PRELOAD', 'LD_LIBRARY_PATH', 'COUCOU_POLYBAR_CSS'):
+            environment.pop(name, None)
         if agent == 'codex':
             argv = ['codex', 'exec']
             if native:
@@ -66,6 +69,15 @@ def send(bridge, request):
             if native:
                 argv += ['--resume', native]
             if adapter.get('container'):
+                try:
+                    result = bridge.run(['podman', 'start', '--', adapter['container']],
+                                        capture_output=True, text=True, encoding='utf-8',
+                                        timeout=60, check=False, env=environment)
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    raise BridgeError('No se pudo iniciar el contenedor de Hermes: ' + str(error)) from error
+                if result.returncode:
+                    raise BridgeError('No se pudo iniciar el contenedor de Hermes: ' +
+                                      (result.stderr.strip()[:4000] or 'Podman rechazó el arranque.'))
                 argv = ['podman', 'exec', '-i', '--workdir', '/host-home' + cwd.removeprefix(str(Path.home())),
                         adapter['container'], '/usr/local/bin/hermes', *argv[1:]]
         else:
@@ -74,9 +86,6 @@ def send(bridge, request):
                 argv += ['--conversation', native]
         item.update(cwd=cwd, starting=True)
         atomic_json(path, item)  # Unknown native identity must never cause an automatic duplicate.
-        environment = dict(os.environ)
-        for name in ('LD_PRELOAD', 'LD_LIBRARY_PATH', 'COUCOU_POLYBAR_CSS'):
-            environment.pop(name, None)
         answer, failure = [], None
         # A tempfile avoids stderr backpressure and never persists credentials or prompts.
         with tempfile.TemporaryFile() as errors, tempfile.TemporaryFile() as prompt:

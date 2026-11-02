@@ -135,6 +135,110 @@ Si antes había un Documents interno, se conserva dentro del contenedor en `~/.l
 
 Lo guardado en `/host-home` modifica archivos reales y permanece al borrar el contenedor, incluyendo dependencias y compilaciones que se creen dentro de proyectos. Para mantener también los resultados de compilación dentro del contenedor, trabaja en una copia interna del proyecto y exporta solo los resultados que quieras conservar.
 
+## 2.3. Montajes opcionales en Kali y Parrot
+
+La función está desactivada por defecto. Desde el **anfitrión**, como usuario normal:
+
+```bash
+lab-mount enable       # Activar/actualizar para Kali y Parrot; prepara el host con sudo.
+lab-mount status
+lab-mount disable
+```
+
+El lanzador se instala con el componente `workbench`; también puedes ejecutar
+`~/.dotfiles/bin/lab-mount`. La activación configura los dos perfiles, sin modificar dev
+ni Distrobox. Si ya activaste una versión anterior, repite `lab-mount enable` para instalar
+el puente actualizado en ambos. No hace falta registrar cada origen ni editar fstab.
+
+Después de activar, **dentro de Kali o Parrot**, usa los comandos habituales:
+
+```bash
+# SMB/CIFS: solicita la contraseña en la terminal.
+sudo mount -t cifs '//IP_DEL_TARGET/Company Data' /mnt/montajes/company \
+  -o username=htb-student
+
+# NFS.
+sudo mount -t nfs SERVIDOR:/export/data /mnt/montajes/nfs -o vers=4
+
+# ISO guardada en el home compartido del anfitrión; siempre se monta en solo lectura.
+sudo mount -o loop /host-home/Downloads/lab.iso /mnt/montajes/iso
+
+# USB: usa el nombre real del dispositivo del anfitrión (compruébalo allí con lsblk -f).
+sudo mount -t exfat /dev/sdb1 /mnt/montajes/usb
+
+ls /mnt/montajes/company
+sudo umount /mnt/montajes/company
+lab-mount list
+```
+
+El puente crea el destino automáticamente: debe ser una **subcarpeta directa** de
+`/mnt/montajes`, con letras, números, guiones o guiones bajos. No uses Desktop, `/`,
+`/mnt/montajes` a secas ni destinos anidados. El anfitrión monta realmente el recurso en
+`/srv/workbench-mounts/NOMBRE`; Kali y Parrot ven el mismo montaje. Desmontarlo en uno lo
+retira de ambos. Las credenciales y permisos del servidor siguen siendo necesarios.
+
+Se admiten `cifs`, `nfs`, `nfs4`, `iso9660`, `udf`, `ext4`, `vfat`, `exfat`, `ntfs3` y
+`auto` para dispositivos extraíbles. El tipo puede inferirse para `//servidor/recurso`,
+`servidor:/recurso`, archivos `.iso` y dispositivos. Las imágenes locales deben estar en
+`/host-home/`: el home privado del contenedor no es el home del anfitrión. Los dispositivos
+se comprueban en el anfitrión y deben ser extraíbles/USB; se rechazan discos internos y
+cualquier dispositivo ya montado fuera de la carpeta autorizada.
+
+Las herramientas del sistema de archivos deben existir **en el anfitrión**, por ejemplo
+en Arch: `sudo pacman -S --needed cifs-utils nfs-utils` para SMB y NFS. El kernel del host
+debe admitir el tipo de sistema de archivos; esto no convierte cualquier protocolo en
+un montaje soportado. SSHFS, por ejemplo, utiliza su propio cliente y no se incluye aquí.
+
+Los wrappers se instalan en `/usr/local/sbin/mount` y `/usr/local/sbin/umount` dentro del
+contenedor, y una regla `secure_path` permite que `sudo mount` los encuentre. Las operaciones
+fuera de `/mnt/montajes` y el listado normal sin argumentos se pasan a las herramientas
+nativas del contenedor, sin otorgarles permisos del host. Invocar `/usr/bin/mount` o
+`/bin/mount` explícitamente también usa la herramienta nativa, sin el puente.
+
+El puente acepta `-t`, `-o`, `-r`, `-w`, `-v` y dos argumentos para montar; para desmontar,
+acepta el destino y `-v`. Valida cada opción según el tipo, fuerza `nosuid,nodev`, y rechaza
+`bind`, `remount`, cambios de propagación, ayudantes arbitrarios y desmontajes forzados o
+diferidos. No añade `--privileged`, `SYS_ADMIN` ni un socket de Podman/Docker.
+
+En CIFS se aceptan `username=`, `password=`, `domain=` y sus alias, o un archivo
+`credentials=` que pueda leer tu usuario dentro del contenedor. Si falta contraseña y
+no usas `guest`, la pide por terminal. La contraseña se transmite por el socket local y
+por stdin al helper, y se guarda temporalmente en un archivo root 0600 mientras monta;
+no se añade a los argumentos del proceso privilegiado ni a la lista persistente.
+Si tú escribes `password=` en el comando original, puede quedar en el historial y en los
+argumentos de ese comando; usa el prompt o un archivo de credenciales protegido.
+
+El anfitrión mantiene un subárbol compartido y los contenedores lo reciben con `rslave`.
+El broker systemd del usuario verifica `SO_PEERCRED` y solo delega solicitudes validadas
+al helper root; este repite la validación y mantiene los destinos bajo control de root.
+El wrapper baja al UID del usuario que invocó sudo antes de conectar. Las imágenes se
+abren con los permisos de ese usuario y el dispositivo loop se configura directamente
+con ese descriptor, en solo lectura y con liberación automática. Esto requiere Linux 5.8
+o posterior y soporte loop en el host (`sudo modprobe loop` si no está cargado).
+La autorización pertenece al usuario del host: sus programas pueden
+solicitar las mismas operaciones. El fstab separado de versiones anteriores se conserva
+como función opcional para nombres registrados con `lab-mount mount NOMBRE`; no es
+necesario para los comandos normales.
+
+Cambiar el bind mount requiere detener brevemente y recrear cada contenedor, conservando
+su rootfs y home interno. Los originales se guardan detenidos como
+`NOMBRE-before-mounts-ID`, junto con imágenes de respaldo; no se eliminan. Se conserva su
+estado encendido/apagado. Cierra las tareas activas antes de cambiar el interruptor: los
+procesos en ejecución no forman parte del snapshot. Se rechazan homes, volúmenes externos
+y binds personalizados que no puedan conservarse automáticamente. Una actualización del
+puente con el bind ya presente no requiere crear otro snapshot.
+
+`disable` desmonta los recursos, desactiva los servicios y retira el bind y los wrappers
+de ambos contenedores. Si un montaje está ocupado, cierra los archivos o terminales que
+lo usan y repite el comando; no se fuerza el desmontaje. Conserva la configuración opcional
+y los respaldos. Si falla una migración, conserva el original y muestra el diagnóstico;
+revisa `lab-mount status` antes de reintentar.
+
+Requiere Podman local y systemd. Referencias: [propagación en Podman](https://docs.podman.io/en/stable/markdown/podman-run.1.html),
+[opciones de mount](https://man7.org/linux/man-pages/man8/mount.8.html) y
+[credenciales CIFS](https://docs.kernel.org/admin-guide/cifs/usage.html).
+Las pruebas no realizan montajes reales ni sustituyen la comprobación posterior a activar.
+
 ## 3. Iniciar y entrar
 
 Estos son los comandos originales para los tres entornos ya creados y configurados:

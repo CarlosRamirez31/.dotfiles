@@ -1,5 +1,6 @@
 import io
 import json
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
@@ -49,16 +50,44 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.commands[0][1], query)
         self.assertEqual(self.commands[1][0], ['codex','exec','resume',self.native,'--json','--skip-git-repo-check','-'])
         self.assertEqual(read_json(Path(self.temp.name)/'chat/codex.json')['route'],self.route)
+    def test_chat_handle_dispatches_messages_for_each_agent(self):
+        for agent in ('codex', 'hermes', 'antigravity'):
+            with self.subTest(agent=agent), patch('native_chat.send', return_value={'ok':True}) as send_chat:
+                request = {'action':'chat', 'agent':agent, 'query':'hola'}
+                self.assertEqual(self.bridge.handle(request), {'ok':True})
+                send_chat.assert_called_once_with(self.bridge, request)
+    def test_chat_handle_dispatches_definition_command(self):
+        with patch('work_control.control', return_value={'ok':True}) as control:
+            result = self.bridge.handle({'action':'chat', 'query':'/definir run-001 Usa Python\ny SQLite'})
+            self.assertEqual(result, {'ok':True})
+            control.assert_called_once_with(self.bridge, {
+                'operation':'refine', 'id':'RUN-001', 'query':'Usa Python\ny SQLite', 'automatic':True})
     def test_hermes_native_events_container_and_resume(self):
         self.agent = 'hermes'; self.route['agente'] = 'hermes'
         # Installed state is in host home; arbitrary test dirs need not be mounted.
-        with patch('native_chat.private_dir', side_effect=lambda p: Path(p).mkdir(parents=True,exist_ok=True) or Path(p)):
+        with patch('native_chat.private_dir', side_effect=lambda p: Path(p).mkdir(parents=True,exist_ok=True) or Path(p)), \
+                patch.object(self.bridge, 'run', return_value=subprocess.CompletedProcess([], 0, '', '')) as start:
             send(self.bridge, {'agent':'hermes','query':'primero'})
             send(self.bridge, {'agent':'hermes','query':'segundo'})
+        self.assertEqual(start.call_count, 2)
+        self.assertEqual(start.call_args.args[0], ['podman', 'start', '--', 'dev-podman'])
         argv = self.commands[-1][0]
         self.assertEqual(argv[:3], ['podman','exec','-i'])
         self.assertIn('/usr/local/bin/hermes', argv)
         self.assertEqual(argv[-2:], ['--resume',self.native])
+    def test_hermes_start_failure_does_not_launch_or_mark_chat_started(self):
+        for outcome in (subprocess.CompletedProcess([], 125, '', 'arranque rechazado'),
+                        subprocess.TimeoutExpired(['podman', 'start'], 60)):
+            with self.subTest(outcome=type(outcome).__name__), \
+                    patch.object(self.bridge, 'run') as start:
+                if isinstance(outcome, Exception):
+                    start.side_effect = outcome
+                else:
+                    start.return_value = outcome
+                with self.assertRaisesRegex(BridgeError, 'contenedor de Hermes'):
+                    send(self.bridge, {'agent':'hermes','query':'hola'})
+                self.assertEqual(self.commands, [])
+                self.assertFalse((Path(self.temp.name)/'chat/hermes.json').exists())
     def antigravity_events(self):
         self.agent = 'antigravity'; self.route['agente'] = 'antigravity'
         self.events = [{'text':'respuesta exacta','native_id':self.native}]

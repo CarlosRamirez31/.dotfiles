@@ -28,10 +28,9 @@ sustituyen los permisos, sandbox, scope o presupuesto del contrato.
 - **Cursor:** `~/.cursor/skills/<nombre>/SKILL.md`; Codex también usa el directorio
   compartido `~/.agents/skills/`. Agent Hub lanza los CLIs nativos y estos usan
   sus skills locales.
-- **Hermes:** skills en `/opt/hermes/.hermes/skills/programming/` dentro de
-  `dev-podman`. Se añadió un bloque acotado de preferencias de código a su `SOUL.md`,
-  conservando su identidad y otras instrucciones. `hermes skills list` las muestra
-  como locales y habilitadas.
+- **Hermes:** queda reservado al trabajo académico, con sus skills e identidad
+  propias. Este instalador ya no distribuye programación a Hermes. Para retirar
+  una instalación anterior, véase la limpieza selectiva más abajo.
 
 Las skills nativas se descubren por nombre/descripción; se carga el cuerpo al
 necesitarlo. De `context-efficiency` solo se incorpora un resumen breve al inicio;
@@ -52,15 +51,13 @@ para cambios pequeños y AppSec para red o dominio security. `repo-scaffold` lle
 cuando lo solicita el contrato (el planificador lo hace para proyectos nuevos).
 Las skills explícitas del contrato/perfil siempre se conservan, con los controles
 de privacidad existentes. Las globales personalizadas siguen incluyéndose siempre.
-Los cuerpos seleccionados siguen sujetos al presupuesto del context pack. La lectura
-de arquitectura definida continúa siendo obligatoria para cualquier edición, también
-cuando no se inyecta el cuerpo completo de software-architect.
+Los cuerpos seleccionados siguen sujetos al presupuesto del context pack. La
+arquitectura es orientativa: los pendientes generan un aviso y se puede continuar
+o definirla primero, sin exigir confirmación por rutina.
 
 Perfiles nuevos, heredando comandos, contenedores y configuración de modelo:
 
 - `antigravity-architect`: worker de arquitectura, con `software-architect`.
-- `hermes-appsec`: reviewer de seguridad, con `appsec-guardrail`, filesystem de
-  lectura, sin red, instalación de dependencias, commits ni push.
 
 No se alteran los perfiles originales ni las policies, aprobaciones o asignaciones
 fijas existentes. El registro no ejecuta agentes ni consume cuota. Desde Coucou:
@@ -71,37 +68,46 @@ fijas existentes. El registro no ejecuta agentes ni consume cuota. Desde Coucou:
 ```
 
 Ambos preparan un plan de Hub con asignación fija al arquitecto. La ejecución
-conserva los controles del Hub sobre repositorio, permisos y checks. El perfil
-`hermes-appsec` se selecciona como reviewer de seguridad en la configuración del
-run; no se ofrece como worker de implementación.
+conserva los controles del Hub sobre repositorio, permisos y checks. Hermes no recibe
+perfiles nuevos de programación desde este instalador. Los perfiles de Hub ya existentes se conservan; no equivalen a sincronizar Hermes.
 
 ## Reinstalar o actualizar
 
 ```sh
 ./install.sh agent-skills
 # Además de los enlaces y reglas nativas:
-dotfiles-agent-skills --hub --hermes dev-podman
+dotfiles-agent-skills --hub
+# Solo preferencias y contexto de arquitectura locales, sin instalar otros componentes:
+dotfiles-agent-skills --architecture-only
+# Retirar programación administrada de Hermes, sin tocar sus skills académicas:
+dotfiles-agent-skills --remove-hermes-programming dev-podman
 ```
 
 La instalación es repetible. Conserva reglas personales fuera de sus marcadores;
 no sobrescribe skills nativas ajenas con el mismo nombre. Copias de reglas y
-perfiles previos en `~/.local/state/dotfiles/agent-skills/`; Hermes guarda sus
-copias dentro de `/opt/hermes/.hermes/backups/`. Los perfiles especializados que
-ya existan se conservan; las seis skills de programación globales del Hub se actualizan desde
+perfiles previos en `~/.local/state/dotfiles/agent-skills/`. La limpieza de Hermes
+retira las siete skills administradas de `skills/programming/`, los plugins
+`dotfiles-architecture` y `dotfiles-context-efficiency`, y solo el bloque
+`dotfiles-programming` de SOUL.md. Conserva el resto y mueve lo retirado a
+`/opt/hermes/.hermes/backups/remove-programming-<fecha>/`, fuera del descubrimiento
+de skills/plugins. Requiere acceso al contenedor; no amplía permisos si falla.
+La opción antigua `--hermes` da error y no reinstala programación. Los perfiles
+especializados que ya existan se conservan; las seis skills de programación globales del Hub se actualizan desde
 su fuente al repetir `--hub`.
 
 Oil UI conserva sus referencias y recursos locales. No consulta versiones ni
 envía telemetría; búsqueda o servicios externos requieren autorización expresa.
 
-Validación: frontmatter de las skills, descubrimiento real de Hermes,
+Validación: frontmatter de las skills, limpieza selectiva de Hermes con fixtures,
 instalación repetida, preservación de reglas/skills ajenas, alias de Coucou y
 context pack real en un worktree temporal sin modelos.
 
 ## Memoria externa por directorio, sin Git
 
 Los documentos internos del agente no van en el árbol de código. El almacén es
-`~/Documents/Agentes/proyectos/<nombre>-<id>/`, compartido por Codex, Antigravity y
-Hermes. El ID se calcula a partir de la ruta real del directorio, no de `.git`,
+`~/Documents/Agentes/proyectos/<nombre>-<id>/`, compartido por Codex, Cursor y
+Antigravity; Hermes académico queda excluido de estas reglas. El ID se calcula a
+partir de la ruta real del directorio, no de `.git`,
 la conversación, el nombre del proyecto ni un remoto. No crea repositorios Git.
 
 ```text
@@ -141,13 +147,12 @@ rechaza para releer y combinar; nunca se resuelve sobrescribiendo ciegamente.
 Eso evita perder cambios, pero no bloquea ni coordina ediciones simultáneas al
 código del proyecto: esa responsabilidad sigue en los contratos y agentes.
 
-Hermes utiliza `/host-home/.dotfiles/bin/dotfiles-project-context`; su montaje
-`/host-home/Documents/...` corresponde al directorio del anfitrión y comparte
-el mismo almacén. Las skills contienen ese procedimiento. No hay inyección
-automática de toda la arquitectura en cada mensaje: se consulta cuando aporta
-contexto. Un sandbox que solo autorice escribir el worktree no obtiene permiso
-para modificar el almacén; el agente entrega la actualización pendiente en su
-resultado para guardarla desde un contexto autorizado.
+No hay inyección automática del documento completo: se consulta cuando aporta
+contexto. Si la memoria no es accesible o no puede guardarse, distingue persistencia
+de diseño pendiente. Conserva la actualización fuera del código en una ubicación
+autorizada e informa su ruta; si no hay ninguna, entrega el contenido en el resultado.
+Se puede continuar también con decisiones de arquitectura pendientes, indicando los supuestos. No se amplía el sandbox
+ni se crean notas dentro del código para satisfacer el control.
 
 ## Cursor CLI
 
@@ -165,33 +170,51 @@ tarea se configura con `agent-hub idle configure --minutes 3 --install-hooks`;
 no necesita reiniciar Awesome ni refrescar la barra. Cursor mantiene sus permisos
 nativos y Privacy Mode se configura en la cuenta del proveedor.
 
-## Arquitectura obligatoria antes de escribir código
+## Arquitectura proporcional y contexto sin bloqueo
 
-Los cuatro agentes reciben la misma regla: leer el documento externo, contrastar el
-área afectada y resolver sus decisiones pendientes antes de implementar. El estado
-`draft` permite análisis, no implementación; `defined` indica un diseño definido
-para el alcance descrito, no una auditoría universal de toda la aplicación.
+Codex, Cursor y Antigravity reciben la misma política. Exploración, lecturas,
+búsquedas, consultas de repositorios, herramientas, dependencias, arquitectura
+upstream, baseline de compilación/tests, documentación y borradores no requieren
+registro previo. Clonar en un destino autorizado es adquisición que escribe;
+no implica aprobación automática ni permiso de publicar.
 
-```sh
-dotfiles-project-context init --project /ruta/al/proyecto
-dotfiles-project-context show --project /ruta/al/proyecto
-dotfiles-project-context write --project /ruta/al/proyecto --document architecture --expected missing --status draft --content-file /tmp/arquitectura.md
-```
+La arquitectura ausente, en draft, incompleta o con decisiones pendientes genera
+un aviso: «Falta definir o actualizar la arquitectura de esta parte. Puedes
+continuar con la tarea o definir la arquitectura primero». No es una condición
+para implementar ni una confirmación obligatoria. Si el usuario pidió ejecutar,
+el agente continúa con el cambio mínimo razonable e indica sus supuestos; si
+elige definir primero, prepara ese diseño. Solo pide datos imprescindibles para
+cumplir la tarea que no pueda inferir razonablemente. Se respeta upstream, se
+consulta el área pertinente y no se rediseña todo por una corrección puntual.
+Defined no acredita cobertura; draft y sus pendientes son informativos. No se
+inventa arquitectura ni se marca defined para silenciar avisos. Se conserva CAS.
 
-Para actualizar usa la revisión actual de `show`, conservando las aportaciones de
-otras conversaciones. Cuando el diseño esté resuelto, guarda con `--status defined`.
-No se crea Git ni documentación del agente dentro del código.
+`dotfiles-architecture-guard` aporta recordatorio, ruta, estado y revisión al
+inicio de sesión. No clasifica comandos ni herramientas, no los ejecuta y no
+responde allow/deny. No considera lectura una adquisición, ni ignora segmentos
+posteriores de shell: ha eliminado esa clasificación por completo. Las búsquedas
+con comillas, opciones globales de Git, comandos compuestos, redirecciones,
+sustituciones y opciones ejecutoras como `rg --pre` quedan bajo permisos y controles
+nativos, sin declaraciones engañosas de que sean operaciones de solo lectura.
 
-El instalador conserva y respalda hooks existentes y agrega un control PreToolUse
-para Codex, Cursor y Antigravity; Hermes carga el plugin `dotfiles-architecture`.
-La primera escritura recibe el documento; una revisión nueva exige consultarlo de
-nuevo. La lectura y la preparación de la memoria siguen disponibles. El control se
-complementa con el sandbox y los permisos nativos. Los clientes ya abiertos cargan
-los hooks al iniciar una nueva sesión; no es necesario reiniciar el escritorio.
+El instalador migra únicamente sus handlers de arquitectura desde PreToolUse a
+SessionStart, preservando otros hooks incluso dentro de un grupo mixto. Codex usa
+`hookSpecificOutput/SessionStart/additionalContext`; Cursor `additional_context`;
+Antigravity `injectSteps/systemMessage`. Sus contratos PreToolUse no se reutilizan
+para autoaprobar. Los recibos de lectura dejan de ser requisito y no se escriben;
+sin ID de sesión o con memoria/recibos inaccesibles no hay bloqueo circular. El
+contexto no acredita que el agente haya leído o comprendido la arquitectura.
 
-En Coucou, `/tarea auto ...` usa el contrato público de Agent Hub para preparar la
-arquitectura y ejecutar cuando el diseño esté definido. `/definir RUN-001 ...`
-continúa las decisiones pendientes sin perder la referencia al directorio.
+Una revisión nueva orienta la consulta del área afectada; el estado
+se vuelve a obtener con `dotfiles-project-context show`. El hook de inicio no
+monitoriza cambios de revisión durante una sesión. Sesiones nuevas refrescan
+reglas y hooks; no hace falta reiniciar el escritorio. No se modifican controles
+sobre secretos, credenciales, publicación/push, destrucción, rutas, dinero ni
+servicios externos. Hermes académico no recibe estos hooks; el antiguo plugin
+que llama a `check()` queda neutralizado por compatibilidad hasta retirarlo.
+
+Los contratos de Agent Hub/Coucou son independientes: cambiar estas fuentes no
+actualiza por sí solo perfiles o bibliotecas ya registrados en otra instalación.
 
 ## Context-efficiency al iniciar sesión
 
@@ -203,11 +226,19 @@ sessionStart/additional_context para Cursor (conservando sus preferencias previa
 y SessionStart/injectSteps para Antigravity. Codex también vuelve a recibirla al
 reanudar o compactar; no hay un hook por mensaje ni un daemon adicional.
 
-Hermes habilita el plugin independiente `dotfiles-context-efficiency`, cuya sección
-nativa de sistema incorpora ese mismo resumen al construir el contexto de cada sesión.
-No usa pre_llm_call ni repite el contenido por turno. Las sesiones antiguas que
-restauran un prompt guardado pueden conservar su versión anterior: abre una sesión
-nueva para comprobar la configuración actual. Hub conserva la guía completa bajo demanda.
+El hook existente de inicio de Codex carga también la política vigente desde
+`~/.config/agent-skills/AGENTS.md`, que apunta a la fuente mantenida. Indica que
+sustituye solo el bloque administrado antiguo y preserva instrucciones ajenas y
+permisos nativos. Esto permite recibir las reglas corregidas en una sesión nueva
+incluso si `~/.codex/AGENTS.md` está montado como solo lectura. No modifica ese
+archivo protegido: su sincronización física y la migración de hooks.json siguen
+pendientes hasta ejecutar `--architecture-only` desde un contexto autorizado.
+El handler PreToolUse antiguo de Codex responde `{}` sin aprobar ni bloquear.
+
+El plugin de context-efficiency para Hermes ya no se instala: forma parte de la
+limpieza selectiva de programación. Se conservan su configuración académica y sus
+plugins ajenos. Las sesiones abiertas pueden mantener instrucciones ya cargadas;
+tras sincronizar o retirar componentes, abre una sesión nueva.
 
 La carga no prueba obediencia perfecta ni ahorro de tokens. La skill prioriza
 exactitud, trabajo completo, verificaciones necesarias y el detalle pedido; para
@@ -218,5 +249,4 @@ respaldan, y repetir la instalación no duplica los handlers administrados.
 
 Contratos consultados: [Codex](https://learn.chatgpt.com/docs/hooks),
 [Cursor](https://cursor.com/docs/hooks), documentación incorporada de Antigravity
-(`agy-customizations/docs/hooks.md`) y API instalada de Hermes
-(`PluginContext.register_system_prompt_section`).
+(`agy-customizations/docs/hooks.md`). No se inventan campos JSON para Hermes.

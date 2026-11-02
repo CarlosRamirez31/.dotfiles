@@ -13,6 +13,16 @@ La configuración prioriza cuatro ideas:
 - respaldar archivos ajenos antes de enlazar los administrados;
 - mantener identidades, contraseñas y ajustes por máquina fuera de Git.
 
+## Capturas del escritorio
+
+Escritorio con AwesomeWM y Polybar:
+
+![Escritorio Arch Linux con AwesomeWM y Polybar](docs/images/escritorio.png)
+
+Editor de apariencia, Btop y Neovim en uso:
+
+![Escritorio con el editor de apariencia, Btop y Neovim abiertos](docs/images/escritorio-aplicaciones.png)
+
 ## Dónde está cada cosa
 
 ```text

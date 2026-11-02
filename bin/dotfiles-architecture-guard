@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Require external architecture context before native agents modify code."""
+"""Provide architecture context at session startup, without deciding permissions."""
 import argparse
-import hashlib
 import importlib.machinery
 import importlib.util
 import json
 import os
 from pathlib import Path
-import re
-import shlex
 import sys
 
 loader = importlib.machinery.SourceFileLoader('directory_memory', str(Path(__file__).resolve().with_name('dotfiles-project-context')))
@@ -16,141 +13,91 @@ spec = importlib.util.spec_from_loader(loader.name, loader)
 memory = importlib.util.module_from_spec(spec)
 loader.exec_module(memory)
 
-
-def readonly(command):
-    if not isinstance(command, str) or re.search(r'[\n;&|<>`$]', command):
-        return False
-    try:
-        argv = shlex.split(command)
-    except ValueError:
-        return False
-    if not argv:
-        return True
-    program = Path(argv[0]).name
-    if program == 'dotfiles-project-context':
-        return len(argv) > 1 and argv[1] in ('show', 'init', 'write')
-    if program in ('pwd', 'ls', 'cat', 'head', 'tail', 'wc', 'stat', 'file', 'realpath', 'readlink'):
-        return True
-    if program == 'rg':
-        return not any(value.startswith(('--pre', '--hostname-bin')) for value in argv[1:])
-    if program == 'mkdir':
-        # Creating a directory is allowed so a new project can register its
-        # external design before any source file exists. This does not allow code.
-        return all(value == '-p' or not value.startswith('-') for value in argv[1:])
-    return False
+REMINDER = (
+    'Arquitectura orientativa: explora, consulta upstream, adquiere repositorios autorizados '
+    '(clonar escribe), verifica herramientas, obtén baseline y prepara documentación sin exigir registro previo. '
+    'Contrasta el área pertinente con el código; defined no demuestra cobertura. '
+    'La arquitectura ausente, draft o con decisiones pendientes solo genera un aviso, nunca un bloqueo: '
+    '«Falta definir o actualizar la arquitectura de esta parte. Puedes continuar con la tarea '
+    'o definir la arquitectura primero». Ofrece ambas opciones sin exigir confirmación por rutina. '
+    'Si el usuario pidió implementar, continúa con el cambio mínimo razonable e indica los supuestos; '
+    'si elige definir primero, prepara ese diseño. Pregunta solo por información imprescindible no inferible. '
+    'Si la memoria no es escribible, conserva la actualización pendiente fuera del código en una ruta '
+    'autorizada e informa su ubicación; puedes continuar aunque no se haya definido ni persistido arquitectura. '
+    'No amplíes permisos ni fabriques arquitectura. Se mantienen los controles nativos de secretos, '
+    'credenciales, publicación/push, destrucción, rutas, dinero y servicios externos.'
+)
 
 
-def normalize(payload):
-    call = payload.get('toolCall') or {}
-    name = str(payload.get('tool_name') or call.get('name') or '')
-    args = payload.get('tool_input') or call.get('args') or payload.get('args') or {}
-    if isinstance(args, str):
-        try:
-            args = json.loads(args)
-        except ValueError:
-            args = {'patch': args}
-    if not isinstance(args, dict):
-        args = {}
+def context(payload, root=None):
+    """Read metadata only: no command parsing, execution, receipts or inferred approval."""
     roots = payload.get('workspacePaths') or payload.get('workspace_roots') or []
-    cwd = args.get('workdir') or args.get('working_directory') or args.get('cwd') or args.get('Cwd') or payload.get('cwd') or (roots[0] if roots else os.getcwd())
-    session = payload.get('session_id') or payload.get('conversation_id') or payload.get('conversationId')
-    return name.casefold(), args, Path(cwd).expanduser().resolve(), session
-
-
-def targets(name, args, cwd):
-    shell = any(word in name for word in ('exec_command', 'functions.exec', 'run_command', 'bash', 'shell', 'terminal'))
-    if shell:
-        command = args.get('cmd') or args.get('command') or args.get('CommandLine')
-        return [] if readonly(command) else [cwd]
-    if not any(word in name for word in ('write', 'edit', 'patch', 'delete', 'remove', 'move', 'rename', 'create_file', 'replace', 'insert', 'update_file')):
-        return []
-    paths = []
-    for key in ('file_path', 'filePath', 'path', 'TargetFile', 'target_file', 'source', 'destination'):
-        if isinstance(args.get(key), str):
-            paths.append(Path(args[key]).expanduser())
-    patch = args.get('patch') or args.get('input') or args.get('patch_text') or ''
-    if isinstance(patch, str):
-        paths += [Path(value) for value in re.findall(r'^\*\*\* (?:Add|Update|Delete) File: (.+)$', patch, re.M)]
-    return [(path if path.is_absolute() else cwd/path).resolve() for path in paths] or [cwd]
+    cwd = Path(payload.get('cwd') or (roots[0] if roots else os.getcwd())).expanduser().resolve()
+    # Agent Hub may attach the source's architecture to an explicitly associated workspace.
+    managed = os.environ.get('DOTFILES_WORKSPACE_DIRECTORY')
+    source = os.environ.get('DOTFILES_PROJECT_DIRECTORY')
+    if managed and source and cwd.is_relative_to(Path(managed).resolve()):
+        cwd = Path(source).resolve()
+    storage = Path(root or memory.default_root(cwd)).expanduser().resolve()
+    try:
+        info = memory.describe(memory.existing(cwd, storage))
+        doc = info['documents']['architecture']
+    except (OSError, ValueError, KeyError, TypeError):
+        return REMINDER + '\nMemoria externa ausente o inaccesible para ' + str(cwd) + (
+            '. Es un problema de registro/lectura, no evidencia de una decisión de diseño pendiente. '
+            'Consulta dotfiles-project-context show si está disponible; init solo si la ruta está autorizada y es escribible.'
+        )
+    return REMINDER + '\nReferencia externa (lee solo el contenido pertinente y contrástalo): ' + str(doc['path']) + (
+        '\nEstado: ' + str(info['architecture_status']) + '; revisión: ' + str(doc['revision']) +
+        '. Si cambia la revisión, vuelve a consultar el área afectada. No se ha acreditado su lectura ni su cobertura.'
+    )
 
 
 def check(payload, agent='codex', root=None, receipts=None):
-    name, args, cwd, session = normalize(payload)
-    for target in targets(name, args, cwd):
-        storage = Path(root or memory.default_root(target)).resolve()
-        # Temporary drafts and external notes are not application source files.
-        if target.is_relative_to(storage) or (target.parent == Path('/tmp') and target.suffix in ('.md', '.txt')):
-            # Unit fixtures under /tmp still need a guard when root is explicit.
-            if root is None or target.is_relative_to(storage):
-                continue
-        managed = os.environ.get('DOTFILES_WORKSPACE_DIRECTORY')
-        source = os.environ.get('DOTFILES_PROJECT_DIRECTORY')
-        if managed and source and target.is_relative_to(Path(managed).resolve()):
-            directory = Path(source).resolve()
-        else:
-            directory = target if target.is_dir() else target.parent
-        while not directory.exists() and directory != directory.parent:
-            directory = directory.parent
-        try:
-            folder = memory.existing(directory, storage)
-            info = memory.describe(folder)
-        except (OSError, ValueError, KeyError):
-            return 'Falta la arquitectura externa de '+str(directory)+'. Antes de modificar código, usa software-architect: analiza, define responsabilidades y guarda architecture con dotfiles-project-context init/write. Puedes leer y preparar un borrador en /tmp/arquitectura.md con la herramienta de archivos y guardarlo mediante write --content-file /tmp/arquitectura.md --expected missing --status draft (o defined tras resolver el diseño). No inventes una arquitectura para desbloquear la tarea.'
-        doc = info['documents']['architecture']
-        path = Path(doc['path'])
-        if doc['revision'] == 'missing' or info['architecture_status'] != 'defined':
-            return 'Arquitectura ausente o en borrador para '+info['directory']+'. Primero concreta qué se puede hacer, qué está bloqueado y las decisiones pendientes; guarda con --status defined cuando estén resueltas. No implementes todavía.'
-        if path.stat().st_size > 200000:
-            return 'La arquitectura supera el límite de lectura; revísala antes de implementar.'
-        content = path.read_text()
-        if not content.strip():
-            return 'La arquitectura está vacía; documenta el proyecto antes de implementar.'
-        if managed and source and target.is_relative_to(Path(managed).resolve()) and os.environ.get('DOTFILES_ARCHITECTURE_REVISION') == doc['revision']:
-            continue  # Host attached this exact document to the bounded context pack.
-        if not session:
-            return 'No se pudo identificar esta sesión para registrar la consulta de arquitectura. No se modificó código.'
-        base = Path(receipts or (Path('/host-home') if str(cwd).startswith('/host-home/') else Path.home())/'.local/state/dotfiles/architecture-read')
-        base.mkdir(parents=True, exist_ok=True, mode=0o700)
-        key = hashlib.sha256((agent+'\0'+session+'\0'+info['directory']).encode()).hexdigest()
-        receipt = base/(key+'.json')
-        try:
-            previous = json.loads(receipt.read_text())
-        except (OSError, ValueError):
-            previous = {}
-        if previous.get('revision') != doc['revision']:
-            memory.atomic_write(receipt, json.dumps({'revision': doc['revision'], 'directory': info['directory']}))
-            return ('Consulta obligatoria de arquitectura antes de implementar. Contrasta el área afectada con el código actual; '
-                    'si el documento no basta, completa el diseño antes de continuar. Documento externo: '+str(path)+'\n\n'+content[:24000]+
-                    ('\n[Documento truncado: lee el archivo completo antes de implementar.]' if len(content)>24000 else ''))
+    """Compatibility for old Hermes pre_tool_call plugins: never gate a tool.
+
+    Old plugins interpret any truthy return value as action=block. The installer
+    no longer distributes programming to Hermes; remove the old plugin when possible.
+    """
     return None
 
 
 def reply(agent, message):
+    """SessionStart contracts only; no permission decision or tool auto-approval."""
     if not message:
-        # Leave the native policy and other hooks in charge. Never auto-approve.
-        return {'decision': 'allow'} if agent == 'antigravity' else {}
+        return {}
+    if agent == 'codex':
+        return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': message}}
     if agent == 'cursor':
-        return {'permission': 'deny', 'user_message': 'Primero hay que consultar/definir la arquitectura.', 'agent_message': message}
+        return {'additional_context': message}
     if agent == 'antigravity':
-        return {'decision': 'deny', 'reason': message}
-    if agent == 'hermes':
-        return {'action': 'block', 'message': message}
-    return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'deny', 'permissionDecisionReason': message}}
+        return {'injectSteps': [{'systemMessage': {'systemMessage': message}}]}
+    raise ValueError('Hermes académico queda excluido de los hooks de programación.')
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--agent', choices=('codex', 'cursor', 'antigravity', 'hermes'), required=True)
-    args = parser.parse_args()
+    parser.add_argument('--agent', choices=('codex', 'cursor', 'antigravity'), required=True)
+    parser.add_argument('--event', choices=('SessionStart', 'PreToolUse'), default='PreToolUse')
+    args = parser.parse_args(argv)
+    if args.event == 'PreToolUse':
+        # Compatibility during migration. Cursor/Antigravity have no neutral
+        # PreToolUse response contract; remove those handlers, never emit allow.
+        if args.agent != 'codex':
+            print('Migra el handler de arquitectura a SessionStart con dotfiles-agent-skills.', file=sys.stderr)
+            return 1
+        print('{}')
+        return 0
     try:
         payload = json.loads(sys.stdin.read(1024*1024))
         if not isinstance(payload, dict):
             raise ValueError('payload')
-        message = check(payload, args.agent)
+        message = context(payload)
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
-        message = 'No se pudo validar la arquitectura externa. Revisa la memoria del proyecto antes de modificar código.'
+        message = REMINDER + '\nNo se pudo consultar la referencia externa; revisa el contexto pertinente.'
     print(json.dumps(reply(args.agent, message), ensure_ascii=False))
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

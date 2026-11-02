@@ -23,6 +23,14 @@ def skill_context(path=None):
 def payload(agent):
     context = skill_context()
     if agent == 'codex':
+        # Read the maintained policy through the already installed startup hook,
+        # including when CODEX_HOME itself is mounted read-only by the sandbox.
+        policy = Path.home()/'.config/agent-skills/AGENTS.md'
+        if policy.is_file():
+            context = ('Preferencias de programación vigentes: este texto sustituye únicamente '
+                       'el bloque dotfiles-programming anterior; conserva las instrucciones ajenas '
+                       'y todos los permisos y controles de seguridad nativos.\n\n' +
+                       policy.read_text() + '\n\n' + context)
         return {'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': context}}
     if agent == 'antigravity':
         return {'injectSteps': [{'systemMessage': {'systemMessage': context}}]}

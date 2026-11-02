@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+mount_launcher=$(readlink -f -- "${BASH_SOURCE[0]}")
+mount_repo=$(cd -- "$(dirname -- "$mount_launcher")/.." && pwd -P)
+exec /usr/bin/python3 -I "$mount_repo/environments/workbench/podman/mounts.py" "$@"

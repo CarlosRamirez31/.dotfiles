@@ -13,25 +13,35 @@ description: Design a new application, substantial feature, integration, or stru
 
 ## Memoria fuera del proyecto
 
-- Identifica la raíz que el usuario abrió o indicó. Ejecuta `dotfiles-project-context show --project <ruta>`; si falta, usa `init` con esa raíz, no con una subcarpeta accidental. En Hermes el ejecutable es `/host-home/.dotfiles/bin/dotfiles-project-context`. La identidad es la ruta real del sistema, con enlaces resueltos: no consultes Git ni crees `.git`. Conversaciones en ese directorio reutilizan la misma memoria; directorios distintos no se fusionan por tener el mismo nombre.
+- Identifica la raíz que el usuario abrió o indicó. Ejecuta `dotfiles-project-context show --project <ruta>`; si falta y el almacén está autorizado y es escribible, usa `init` con esa raíz, no con una subcarpeta accidental. La falta de registro no impide explorar. La identidad es la ruta real del sistema, con enlaces resueltos: no consultes Git ni crees `.git`. Conversaciones en ese directorio reutilizan la misma memoria; directorios distintos no se fusionan por tener el mismo nombre.
 - El comando devuelve una carpeta externa en `~/Documents/Agentes/proyectos/<nombre>-<id>/` y las revisiones de sus documentos. Consulta únicamente `architecture.md`, `decisions.md` o `security.md` si el encargo lo necesita. Usa esa referencia como punto de partida y contrasta los archivos afectados; no consideres las notas más fiables que el código actual.
 - Cuando haya un diseño real, guarda un resumen breve de responsabilidades, estructura, contratos y comandos de validación en `architecture.md`; decisiones no obvias en `decisions.md`; límites de confianza y requisitos de seguridad en `security.md`. No fabriques una arquitectura ni crees tres documentos por un cambio cosmético. Indica los archivos y fecha de la comprobación; una revisión parcial no verifica todo el proyecto.
 - Guarda mediante `dotfiles-project-context write --project <ruta> --document architecture --expected <revisión>` con el texto por stdin (lo mismo para decisions/security). Usa `missing` solo al crear un documento. Si otra conversación lo actualizó, relee y combina los cambios; no sobrescribas su trabajo. Resume el estado confirmado, nunca conversaciones completas, credenciales o razonamiento interno.
-- Estos documentos pertenecen al almacén externo, no al código: no generes `AGENTS.md`, planes ni documentación interna del agente en el proyecto. Conserva los README y documentos propios de la aplicación. Si la memoria externa queda fuera de los permisos de la tarea, consúltala solo si se permite y entrega los cambios pendientes sin ampliar el sandbox.
+- Estos documentos pertenecen al almacén externo, no al código: no generes `AGENTS.md`, planes ni documentación interna del agente en el proyecto. Conserva los README y documentos propios de la aplicación. Si falla la lectura o persistencia externa, distingue ese fallo de decisiones de diseño pendientes. Conserva la actualización fuera del código en una ruta autorizada (por ejemplo /tmp si está permitido), informa su ubicación y permite continuar también si quedan decisiones de arquitectura pendientes; explica los supuestos sin inventar un estado defined. Si no hay ruta externa escribible, entrega el contenido pendiente en el resultado. No amplíes el sandbox ni dependas de recibos de lectura.
 
 
-## Requisito antes de implementar
+## Arquitectura como aviso y elección
 
-- Antes de escribir código, lee la arquitectura externa y contrasta el bloque que
-  tocarás. Su existencia por sí sola no es evidencia de que se consultó.
-- Sin arquitectura, realiza primero un análisis acotado del proyecto real y guarda
-  responsabilidades, estructura, entradas, dependencias, validación y límites.
-  No marques como comprobado un componente que no inspeccionaste.
-- Si la definición es incompleta, explica qué se puede hacer y qué no, presenta
-  una propuesta y las decisiones pendientes. Guarda con `--status draft`; no
-  implementes hasta resolver esas decisiones y guardar con `--status defined`.
-- Para un proyecto nuevo sin stack definido, propone opciones proporcionadas y
-  aclara la decisión que afecte al diseño. Con stack y requisitos suficientes,
-  define la estructura mínima antes del scaffold; no requieras Git.
+- Explora, consulta upstream, comprueba herramientas y dependencias, obtiene
+  baseline y prepara borradores sin registro previo. Clonar con autorización y
+  destino permitido es adquisición que escribe, no lectura ni permiso de publicar.
+- Consulta el contenido pertinente y contrástalo con el código; defined no prueba
+  cobertura. Si falta arquitectura, está en draft o hay decisiones pendientes,
+  muestra: «Falta definir o actualizar la arquitectura de esta parte. Puedes
+  continuar con la tarea o definir la arquitectura primero».
+- Ofrece ambas opciones sin bloquear herramientas ni exigir confirmación por rutina.
+  Si el usuario pidió implementar, continúa con una solución mínima razonable e
+  indica los supuestos. Si elige definir primero, prepara ese diseño. Pregunta solo
+  por datos imprescindibles no inferibles para cumplir la tarea, no por un estado
+  de arquitectura ni por la imposibilidad de persistirlo.
+- En proyectos existentes respeta upstream y limita la revisión al área afectada.
+  En proyectos nuevos propone la estructura mínima dentro del trabajo autorizado;
+  no conviertas el scaffold en una aprobación obligatoria de arquitectura.
+- Draft y decisiones pendientes son información, no impedimentos para implementar.
+  Guarda draft si las decisiones siguen abiertas y defined solo para el alcance
+  realmente resuelto. Si no puede guardarse, entrega la actualización pendiente.
+  No inventes diseño ni marques decisiones como resueltas para silenciar avisos.
 - Los documentos llevan fecha, archivos consultados y alcance de la revisión.
-  Tras un cambio estructural, actualiza solo el área pertinente mediante CAS.
+  Actualiza solo el área pertinente mediante CAS, conservando aportaciones previas.
+- Esta política de avisos de arquitectura conserva los controles de seguridad,
+  rutas autorizadas, secretos, publicación/push, destrucción, dinero y servicios.

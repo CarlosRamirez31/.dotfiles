@@ -61,18 +61,18 @@ class ProgrammingSkillsTests(unittest.TestCase):
                 installer.main()
                 self.assertEqual(first_hooks, {str(p.relative_to(home)): p.read_text() for p in home.rglob('hooks.json')})
             hooks = __import__('json').loads((home / '.cursor/hooks.json').read_text())
-            self.assertEqual(len(hooks['hooks']['sessionStart']), 1)
+            self.assertEqual(len(hooks['hooks']['sessionStart']), 2)
             self.assertEqual(first, old.read_text())
             self.assertTrue(first.startswith('Reglas previas del usuario.'))
             codex = __import__('json').loads((old.parent/'hooks.json').read_text())
             self.assertEqual(codex['hooks']['SessionStart'][0], personal['hooks']['SessionStart'][0])
-            self.assertEqual(len(codex['hooks']['SessionStart']), 2)
+            self.assertEqual(len(codex['hooks']['SessionStart']), 3)
             agy = __import__('json').loads((home/'.gemini/config/hooks.json').read_text())
             self.assertEqual(len(agy['dotfiles-context-efficiency']['SessionStart']), 1)
             for base in ('.agents/skills', '.gemini/config/skills', '.cursor/skills'):
                 self.assertEqual({p.name for p in (home / base).iterdir()}, set(installer.NATIVE_NAMES))
 
-    def test_session_hook_injects_only_startup_summary_with_native_protocols(self):
+    def test_session_hook_injects_current_policy_and_summary_with_native_protocols(self):
         import runpy
         helper = runpy.run_path(str(ROOT/'bin/dotfiles-session-context'))
         content = (ROOT/'config/agent-skills/context-efficiency/SKILL.md').read_text()
@@ -88,7 +88,13 @@ class ProgrammingSkillsTests(unittest.TestCase):
                 self.assertEqual(codex['hookEventName'], 'SessionStart')
                 agy = helper['payload']('antigravity')['injectSteps'][0]['systemMessage']['systemMessage']
                 cursor = helper['payload']('cursor')['additional_context']
-                self.assertEqual(codex['additionalContext'], agy)
+                self.assertIn('sustituye únicamente el bloque dotfiles-programming anterior', codex['additionalContext'])
+                self.assertIn(policy.read_text(), codex['additionalContext'])
+                self.assertTrue(codex['additionalContext'].endswith(agy))
+                policy.write_text('Updated managed policy, native permissions preserved.')
+                self.assertIn(policy.read_text(), helper['payload']('codex')['hookSpecificOutput']['additionalContext'])
+                self.assertNotIn('Personal programming preferences.', helper['payload']('codex')['hookSpecificOutput']['additionalContext'])
+                cursor = helper['payload']('cursor')['additional_context']
                 self.assertIn('Prioriza exactitud y trabajo completo.', agy)
                 self.assertNotIn('## Guía bajo demanda', agy)
                 self.assertNotIn('Al transferir contexto conserva', agy)
@@ -111,23 +117,6 @@ class ProgrammingSkillsTests(unittest.TestCase):
                 skill.unlink()
                 with self.assertRaises(OSError):
                     helper['skill_context']()
-
-    def test_hermes_context_is_registered_once_as_native_session_section(self):
-        from unittest.mock import Mock
-        namespace = {}
-        exec(installer.hermes_context_plugin(), namespace)
-        ctx = Mock()
-        namespace['register'](ctx)
-        ctx.register_system_prompt_section.assert_called_once()
-        args, kwargs = ctx.register_system_prompt_section.call_args
-        self.assertEqual(args[0], 'dotfiles.context-efficiency')
-        self.assertEqual(kwargs['max_chars'], 4000)
-        with patch.object(namespace['runpy'], 'run_path', return_value={'skill_context': lambda path: 'loaded '+path.name}):
-            self.assertEqual(args[1]({}), 'loaded SKILL.md')
-        with patch.object(namespace['runpy'], 'run_path', return_value={'skill_context': lambda path: 'x'*4001}):
-            with self.assertRaises(ValueError):
-                args[1]({})
-        ctx.register_hook.assert_not_called()
 
     @unittest.skipUnless((Path.home() / 'Documents/Programacion/codex-hub/agent_hub').exists(), 'Local Agent Hub is optional')
     def test_hub_context_includes_skills_inside_the_budget(self):

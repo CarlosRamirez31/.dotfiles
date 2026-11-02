@@ -167,7 +167,7 @@ def main():
     parser.add_argument('--source', type=Path, help='origen de una asociación explícita de snapshot')
     parser.add_argument('--root', type=Path, help='carpeta externa de memoria compartida')
     parser.add_argument('--document', choices=DOCUMENTS)
-    parser.add_argument('--status', choices=('draft', 'defined'), help='estado de la arquitectura: draft impide implementar')
+    parser.add_argument('--status', choices=('draft', 'defined'), help='estado informativo del alcance: draft conserva decisiones pendientes; no bloquea la implementación')
     parser.add_argument('--content-file', type=Path, help='documento UTF-8 externo; alternativa a stdin')
     parser.add_argument('--expected', help='revisión de show, o missing para un documento nuevo')
     args = parser.parse_args()

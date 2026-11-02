@@ -23,6 +23,8 @@ HOME = Path.home()
 UID, GID = os.getuid(), os.getgid()
 USER = getpass.getuser()
 MANAGER = 'dotfiles-podman-workbench'
+MOUNT_SOURCE = Path('/srv/workbench-mounts')
+MOUNT_TARGET = '/mnt/montajes'
 PODMAN = shlex.split(os.environ.get('PODMAN_WORKBENCH_CLIENT', 'podman'))
 PROFILES = json.loads((ROOT / 'profiles.json').read_text())
 BASE_COPY = ['.zshrc', '.zshenv', '.zprofile', '.gitconfig', '.config/git',
@@ -197,6 +199,9 @@ def create_args(profile, image):
             '--security-opt', 'label=disable', '--entrypoint', '/usr/bin/sleep']
     if profile.get('network'):
         args += ['--network', profile['network']]
+    lab_profile = profile.get('runtime_name', profile['name']) in (PROFILES['kali']['name'], PROFILES['parrotos']['name'])
+    if lab_profile and profile.get('lab_mounts', Path('/etc/workbench-mounts/enabled').is_file()):
+        args += ['--mount', f'type=bind,source={MOUNT_SOURCE},destination={MOUNT_TARGET},rw,bind-propagation=rslave']
     env = {'HOME': str(HOME), 'USER': USER, 'LOGNAME': USER,
            'SHELL': '/bin/zsh', 'XDG_CONFIG_HOME': str(HOME / '.config'),
            'XDG_DATA_HOME': str(HOME / '.local/share'),
@@ -379,6 +384,8 @@ def setup(key, fresh=False):
         integrate_dev()
     else:
         integrate_security(key)
+        if Path('/etc/workbench-mounts/enabled').is_file():
+            install_mount_client(name)
     verify(key)
     mark(name, 'ready')
     print(f'{name} preparado. Home interno: {HOME}; home compartido: /host-home')
@@ -473,29 +480,127 @@ def lifecycle(action, key, options=()):
             refresh_camera(name)
 
 
+def lab_mounts(key, action):
+    """Switch the dedicated bind mount, keeping stopped rootfs backups."""
+    if key not in ('kali', 'parrotos'):
+        raise RuntimeError('Los montajes de laboratorio solo se configuran en Kali y Parrot.')
+    profile = PROFILES[key]
+    name = profile['name']
+    info = managed(name)
+    shared = any(m['Destination'] == MOUNT_TARGET and Path(m['Source']) == MOUNT_SOURCE
+                 for m in info.get('Mounts', []))
+    if action == 'status':
+        print(f'{name}: {MOUNT_TARGET} {"activado" if shared else "desactivado"}')
+        return
+    enabled = action == 'enable'
+    if enabled and not Path('/etc/workbench-mounts/enabled').is_file():
+        raise RuntimeError('Primero activa el servicio del anfitrión con lab-mount enable.')
+    if shared == enabled:
+        start(name)
+        try:
+            if enabled:
+                install_mount_client(name)
+            else:
+                remove_mount_bridge(name)
+        finally:
+            if not info['State']['Running']:
+                pod('stop', name)
+        print(f'{name}: montajes ya {"activados" if enabled else "desactivados"}.')
+        return
+    if any(m['Type'] == 'volume' or m['Destination'] == str(HOME)
+           or m['Destination'].startswith(str(HOME) + '/') for m in info.get('Mounts', [])):
+        raise RuntimeError('La migración requiere un home interno sin volúmenes externos.')
+    expected = create_args({**profile, 'lab_mounts': False}, profile['image'])
+    destinations = {arg.split('destination=', 1)[1].split(',', 1)[0]
+                    for i, arg in enumerate(expected) if i and expected[i - 1] == '--mount'}
+    if any(m['Destination'] not in destinations | {MOUNT_TARGET} for m in info.get('Mounts', [])):
+        raise RuntimeError('Hay montajes personalizados; se conserva el contenedor sin migrarlo automáticamente.')
+    if any(m['Destination'] == MOUNT_TARGET and Path(m['Source']) != MOUNT_SOURCE for m in info.get('Mounts', [])):
+        raise RuntimeError('La carpeta de montajes ya tiene otro origen; se conserva el contenedor.')
+    token = uuid.uuid4().hex[:12]
+    candidate = name + '-mounts-' + token
+    backup = name + '-before-mounts-' + token
+    image = 'localhost/workbench-mounts-backup:' + token
+    running = info['State']['Running']
+    if running:
+        pod('stop', name)
+    renamed = False
+    try:
+        pod('commit', '--include-volumes=false', name, image)
+        args = create_args({**profile, 'name': candidate, 'runtime_name': name, 'lab_mounts': enabled}, image)
+        args[args.index('--hostname') + 1] = name
+        for label, value in info['Config'].get('Labels', {}).items():
+            if label != 'manager':
+                args[1:1] = ['--label', f'{label}={value}']
+        pod(*args)
+        pod('start', candidate)
+        execute(candidate, 'test', '-d', str(HOME))
+        if enabled:
+            execute(candidate, 'mountpoint', '-q', MOUNT_TARGET)
+            install_mount_client(candidate)
+        else:
+            remove_mount_bridge(candidate)
+        pod('rename', name, backup)
+        renamed = True
+        pod('rename', candidate, name)
+    except Exception:
+        if renamed:
+            pod('rename', backup, name)
+        if running:
+            pod('start', name)
+        print(f'Cambio incompleto; se conserva el original y el snapshot {image}.', file=sys.stderr)
+        raise
+    if not running:
+        pod('stop', name)
+    print(f'{name}: montajes {"activados" if enabled else "desactivados"}. Respaldo detenido: {backup}')
+
+
+def install_mount_client(name):
+    helpers = HOME / '.local/libexec/podman-workbench'
+    execute(name, 'mkdir', '-p', str(helpers), str(HOME / '.local/bin'))
+    pipe_tar(name, ['mounts.py', 'mount_policy.py'], helpers, ROOT)
+    execute(name, 'python3', '-c',
+            'import pathlib,sys; p=pathlib.Path.home()/".local/bin/lab-mount"; '
+            'source=pathlib.Path(sys.argv[1]); '
+            'same=p.is_symlink() and p.readlink()==source; '
+            'assert same or not (p.exists() or p.is_symlink()), "lab-mount ya existe; se conserva"; '
+            'p.symlink_to(source) if not same else None', str(helpers / 'mounts.py'))
+    execute(name, 'python3', '-I', '-', str(helpers), USER,
+            root=True, data=(ROOT / 'install_mount_bridge.py').read_text())
+
+
+def remove_mount_bridge(name):
+    execute(name, 'python3', '-I', '-', '--remove',
+            root=True, data=(ROOT / 'install_mount_bridge.py').read_text())
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['setup', 'enter', 'exec', 'verify', 'status', 'integrate',
-                                         'start', 'stop', 'restart', 'rm', 'ps', 'inspect', 'logs', 'lab-network'])
+                                         'start', 'stop', 'restart', 'rm', 'ps', 'inspect', 'logs', 'lab-network', 'lab-mounts'])
     parser.add_argument('profile', choices=[*PROFILES, 'all'])
     parser.add_argument('--fresh', action='store_true', help='Reconstruir dev desde paquetes e instaladores, sin snapshot.')
     args, command = parser.parse_known_args()
     if command[:1] == ['--']:
         command = command[1:]
-    if command and args.action not in ('exec', 'rm'):
+    if command and args.action not in ('exec', 'rm', 'lab-mounts'):
         parser.error('Argumentos no reconocidos: ' + shlex.join(command))
+    if args.action == 'lab-mounts' and command not in (['enable'], ['disable'], ['status']):
+        parser.error('lab-mounts requiere enable, disable o status')
     if args.fresh and args.action != 'setup':
         parser.error('--fresh solo se usa con setup')
     if UID == 0:
         parser.error('Ejecuta este comando como tu usuario normal, sin sudo.')
     if args.fresh and args.profile in ('dev', 'all') and not sys.stdin.isatty():
         parser.error('--fresh requiere una terminal interactiva para revisar las licencias de Android.')
-    if args.profile == 'all' and args.action not in ('setup', 'verify', 'status'):
+    if args.profile == 'all' and args.action not in ('setup', 'verify', 'status', 'lab-mounts'):
         parser.error('Usa un perfil concreto para enter o exec')
     # The client may explicitly select Podman's supported remote API.
     # Never fall back to sudo, a different engine, or Distrobox creation.
     pod('info', stdout=subprocess.DEVNULL)
     keys = list(PROFILES) if args.profile == 'all' else [args.profile]
+    if args.action == 'lab-mounts' and args.profile == 'all':
+        keys = ['kali', 'parrotos']
     for key in keys:
         name = PROFILES[key]['name']
         if args.action == 'setup':
@@ -510,6 +615,10 @@ def main():
             with open(f'/tmp/podman-workbench-{UID}-{key}.lock', 'a') as lock:
                 fcntl.flock(lock, fcntl.LOCK_EX)
                 lab_network(key)
+        elif args.action == 'lab-mounts':
+            with open(f'/tmp/podman-workbench-{UID}-{key}.lock', 'a') as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                lab_mounts(key, command[0])
         elif args.action == 'status':
             info = inspect(name)
             print(f'{name}: {info["State"]["Status"] if info else "no creado"}')

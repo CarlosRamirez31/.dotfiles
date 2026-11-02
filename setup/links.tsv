@@ -15,6 +15,7 @@ awesome	config/awesome/appearance.lua	.config/awesome/appearance.lua
 awesome	config/awesome/bar.lua	.config/awesome/bar.lua
 awesome	config/awesome/battery-alert.lua	.config/awesome/battery-alert.lua
 awesome	config/awesome/battery-menu.lua	.config/awesome/battery-menu.lua
+awesome	config/awesome/calendar-menu.lua	.config/awesome/calendar-menu.lua
 awesome	config/awesome/menu-style.lua	.config/awesome/menu-style.lua
 awesome	config/awesome/desktop-panels.lua	.config/awesome/desktop-panels.lua
 awesome	bin/dotfiles-desktop-panel	.local/bin/dotfiles-desktop-panel
@@ -167,6 +168,7 @@ workbench	bin/dotfiles-dev-exec	.local/bin/dotfiles-dev-exec
 workbench	bin/dotfiles-lazydocker	.local/bin/dotfiles-lazydocker
 workbench	bin/dotfiles-parrot-setup	.local/bin/dotfiles-parrot-setup
 workbench	bin/dotfiles-podman	.local/bin/dotfiles-podman
+workbench	bin/lab-mount	.local/bin/lab-mount
 workbench	bin/hermes	.local/bin/hermes
 workbench	bin/kali-podman	.local/bin/kali-podman
 workbench	bin/lazydocker	.local/bin/lazydocker

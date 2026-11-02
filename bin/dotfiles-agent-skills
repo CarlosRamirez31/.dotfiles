@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Install the shared programming skills without starting models or changing approvals."""
 import argparse
-import base64
 import datetime
 import json
+import inspect
 import os
 from pathlib import Path
 import shutil
@@ -60,8 +60,7 @@ def install_hub(source, backups):
         hub_json('skill', 'register', name, '--file', str(source / name / 'SKILL.md'), '--scope', 'global')
     # Base commands, models, containers, approvals and permission ceilings are inherited.
     by_id = {p['id']: p for p in profiles}
-    specifications = [('antigravity', 'antigravity-architect', 'Arquitectura pragmática: diseño y cambios estructurales', 'architecture', 'software-architect'),
-                      ('hermes-reviewer', 'hermes-appsec', 'Revisión AppSec del diff; sin edición', 'security', 'appsec-guardrail')]
+    specifications = [('antigravity', 'antigravity-architect', 'Arquitectura pragmática: diseño y cambios estructurales', 'architecture', 'software-architect')]
     allowed = {'version','id','provider','description','capabilities','specializations','skills','tools','priority_domains','context_max_chars','cost_class','roles','command','resume_command','format','model','enabled','container','adapter','permissions'}
     for base, ident, description, domain, skill in specifications:
         if base not in by_id:
@@ -75,9 +74,6 @@ def install_hub(source, backups):
         profile['skills'] = list(dict.fromkeys(profile.get('skills', []) + [skill]))
         profile['specializations'] = list(dict.fromkeys(profile.get('specializations', []) + [domain]))
         profile['priority_domains'] = list(dict.fromkeys(profile.get('priority_domains', []) + [domain]))
-        if ident == 'hermes-appsec':
-            profile['roles'] = ['reviewer']
-            profile['permissions'] = dict(profile.get('permissions', {}), filesystem='read', network=False, dependencies=False, git_commit=False, git_push=False)
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json') as output:
             json.dump(profile, output)
             output.flush()
@@ -102,30 +98,63 @@ def install_cursor_context(home, backups):
     path.chmod(0o600)
 
 
+def architecture_hooks(data, agent, guard):
+    """Migrate only our exact command handlers; keep mixed groups and other hooks."""
+    commands = {shlex.join([guard, '--agent', agent]),
+                shlex.join([guard, '--agent', agent, '--event', 'SessionStart'])}
+
+    def managed(handler):
+        try:
+            return shlex.join(shlex.split(handler.get('command', ''))) in commands
+        except ValueError:
+            return False
+
+    hooks = data.setdefault('dotfiles-architecture' if agent == 'antigravity' else 'hooks', {})
+    old_event = 'preToolUse' if agent == 'cursor' else 'PreToolUse'
+    if old_event in hooks:
+        kept = []
+        for entry in hooks[old_event]:
+            if agent == 'cursor':
+                if not managed(entry):
+                    kept.append(entry)
+            else:
+                remaining = [handler for handler in entry.get('hooks', []) if not managed(handler)]
+                if remaining or not entry.get('hooks'):
+                    kept.append(dict(entry, hooks=remaining) if entry.get('hooks') else entry)
+        if kept:
+            hooks[old_event] = kept
+        else:
+            del hooks[old_event]
+    command = shlex.join([guard, '--agent', agent, '--event', 'SessionStart'])
+    handler = {'type': 'command', 'command': command, 'timeout': 5}
+    if agent == 'cursor':
+        data.setdefault('version', 1)
+        entry = {'command': command}
+    elif agent == 'codex':
+        entry = {'hooks': [handler]}
+    else:
+        entry = handler
+    entries = hooks.setdefault('sessionStart' if agent == 'cursor' else 'SessionStart', [])
+    if entry not in entries:
+        entries.append(entry)
+    return data
+
+
 def install_architecture_guards(home, backups):
     guard = str(Path(__file__).resolve().with_name('dotfiles-architecture-guard'))
     for agent, path in (
         ('codex', Path(os.environ.get('CODEX_HOME', str(home/'.codex')))/'hooks.json'),
         ('cursor', home/'.cursor/hooks.json'),
         ('antigravity', home/'.gemini/config/hooks.json')):
-        data = json.loads(path.read_text()) if path.exists() else {}
-        command = shlex.join([guard, '--agent', agent])
-        if agent == 'antigravity':
-            entries = data.setdefault('dotfiles-architecture', {}).setdefault('PreToolUse', [])
-        else:
-            entries = data.setdefault('hooks', {}).setdefault('preToolUse' if agent == 'cursor' else 'PreToolUse', [])
-        entry = {'command': command} if agent == 'cursor' else {'matcher': '*', 'hooks': [{'type': 'command', 'command': command, 'timeout': 5}]}
-        if entry in entries:
+        original = path.read_text() if path.exists() else ''
+        data = architecture_hooks(json.loads(original) if original else {}, agent, guard)
+        if original and json.loads(original) == data:
             continue
         if path.exists():
             backups.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, backups/(agent+'-before-architecture.json.bak'))
-        if agent == 'cursor':
-            data.setdefault('version', 1)
-        entries.append(entry)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2)+'\n')
-        path.chmod(0o600)
 
 
 def install_session_context(home, backups):
@@ -151,92 +180,70 @@ def install_session_context(home, backups):
         path.chmod(0o600)
 
 
-def hermes_context_plugin():
-    # Hermes freezes native plugin sections into each session's system prompt.
-    return '''from pathlib import Path
-import runpy
-
-def register(ctx):
-    def content(session_info):
-        helper=runpy.run_path('/host-home/.dotfiles/bin/dotfiles-session-context')
-        text=helper['skill_context'](Path('/opt/hermes/.hermes/skills/programming/context-efficiency/SKILL.md'))
-        if len(text)>4000:raise ValueError('context-efficiency supera el límite nativo de Hermes (4000 caracteres)')
-        return text
-    ctx.register_system_prompt_section('dotfiles.context-efficiency',content,max_chars=4000)
-'''
-
-
-def install_hermes_context(container):
-    manifest = 'name: dotfiles-context-efficiency\nversion: 1.0.0\ndescription: Context efficiency loaded into each session prompt\nprovides_tools: []\n'
-    writer = "import json,sys;from pathlib import Path;p=json.load(sys.stdin);d=Path('/opt/hermes/.hermes/plugins/dotfiles-context-efficiency');d.mkdir(parents=True,exist_ok=True);(d/'__init__.py').write_text(p['code']);(d/'plugin.yaml').write_text(p['manifest'])"
-    subprocess.run(['podman','exec','-i',container,'python3','-c',writer],input=json.dumps({'code':hermes_context_plugin(),'manifest':manifest}),text=True,check=True)
-    subprocess.run(['podman','exec',container,'/usr/local/bin/hermes','plugins','enable','dotfiles-context-efficiency'],check=True)
-
-
-def install_hermes_architecture(container):
-    guard = '/host-home/.dotfiles/bin/dotfiles-architecture-guard'
-    code = f'''import importlib.machinery,importlib.util,os
-loader=importlib.machinery.SourceFileLoader('architecture_guard',{guard!r})
-spec=importlib.util.spec_from_loader(loader.name,loader)
-guard=importlib.util.module_from_spec(spec);loader.exec_module(guard)
-def register(ctx):
-    def before(**kw):
-        message=guard.check({{'tool_name':kw.get('tool_name'),'tool_input':kw.get('args') or {{}},'cwd':os.getcwd(),'session_id':kw.get('session_id') or kw.get('task_id')}},'hermes')
-        if message:return {{'action':'block','message':message}}
-    ctx.register_hook('pre_tool_call',before)
-'''
-    manifest='name: dotfiles-architecture\nversion: 1.0.0\ndescription: Architecture required before code changes\nprovides_tools: []\nprovides_hooks:\n  - pre_tool_call\n'
-    writer="import json,sys;from pathlib import Path;p=json.load(sys.stdin);d=Path('/opt/hermes/.hermes/plugins/dotfiles-architecture');d.mkdir(parents=True,exist_ok=True);(d/'__init__.py').write_text(p['code']);(d/'plugin.yaml').write_text(p['manifest'])"
-    subprocess.run(['podman','exec','-i',container,'python3','-c',writer],input=json.dumps({'code':code,'manifest':manifest}),text=True,check=True)
-    subprocess.run(['podman','exec',container,'/usr/local/bin/hermes','plugins','enable','dotfiles-architecture'],check=True)
+def remove_hermes_programming(home, names):
+    """Quarantine only programming components distributed by this installer."""
+    home = Path(home)
+    policy_path = home/'SOUL.md'
+    original = policy_path.read_text() if policy_path.exists() else ''
+    begin, end = '<!-- dotfiles-programming:start -->', '<!-- dotfiles-programming:end -->'
+    updated = original
+    if begin in original or end in original:
+        if original.count(begin) != 1 or original.count(end) != 1:
+            raise ValueError('Bloque de preferencias incompleto; no se cambia Hermes.')
+        before, rest = original.split(begin, 1)
+        _, after = rest.split(end, 1)
+        updated = before + after
+    paths = [home/'skills/programming'/name for name in names]
+    paths += [home/'plugins'/name for name in ('dotfiles-architecture', 'dotfiles-context-efficiency')]
+    paths = [path for path in paths if path.exists() or path.is_symlink()]
+    if not paths and updated == original:
+        return None
+    backup = home/'backups'/('remove-programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
+    backup.mkdir(parents=True)
+    if updated != original:
+        shutil.copy2(policy_path, backup/'SOUL.md')
+        policy_path.write_text(updated)
+    for path in paths:
+        saved = backup/path.relative_to(home)
+        saved.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(path), str(saved))
+    return str(backup)
 
 
-def install_hermes(source, container):
-    payload = {'skills': {name: (source / name / 'SKILL.md').read_text() for name in NAMES},
-               'oil_ui': {str(path.relative_to(source / 'oil-ui')): base64.b64encode(path.read_bytes()).decode('ascii')
-                          for path in sorted((source / 'oil-ui').rglob('*')) if path.is_file()},
-               'policy': (source / 'AGENTS.md').read_text()}
-    # Executed inside the existing container; no model, shell interpolation or credential reads.
-    code = '''import base64,json,sys,datetime
-from pathlib import Path
-p=json.load(sys.stdin); home=Path('/opt/hermes/.hermes')
-for name,content in p['skills'].items():
-    dest=home/'skills/programming'/name/'SKILL.md'
-    if dest.exists() and dest.read_text()!=content:
-        backup=home/'backups'/('programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))/name/'SKILL.md'
-        backup.parent.mkdir(parents=True,exist_ok=True);backup.write_bytes(dest.read_bytes())
-    dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(content)
-for relative,encoded in p['oil_ui'].items():
-    dest=home/'skills/programming/oil-ui'/relative
-    content=base64.b64decode(encoded)
-    if dest.exists() and dest.read_bytes()!=content:
-        backup=home/'backups'/('programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))/'oil-ui'/relative
-        backup.parent.mkdir(parents=True,exist_ok=True);backup.write_bytes(dest.read_bytes())
-    dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(content)
-path=home/'SOUL.md'; old=path.read_text() if path.exists() else ''
-begin,end='<!-- dotfiles-programming:start -->','<!-- dotfiles-programming:end -->'
-block=begin+'\\n'+p['policy'].rstrip()+'\\n'+end
-if begin in old or end in old:
-    if old.count(begin)!=1 or old.count(end)!=1:raise ValueError('Bloque de preferencias incompleto')
-    before,rest=old.split(begin,1);_,after=rest.split(end,1);new=before+block+after
-else:new=old.rstrip()+('\\n\\n' if old.strip() else '')+block+'\\n'
-if new!=old:
-    if path.exists():
-        saved=home/'backups'/('SOUL-before-programming-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')+'.md')
-        saved.parent.mkdir(parents=True,exist_ok=True);saved.write_text(old)
-    path.write_text(new)
-print('Hermes: seis skills de programación y Oil UI instaladas.')
-'''
-    subprocess.run(['podman', 'exec', '-i', container, 'python', '-c', code], input=json.dumps(payload), text=True, check=True)
+def uninstall_hermes_programming(container):
+    code = ('import datetime,json,shutil\nfrom pathlib import Path\n' +
+            inspect.getsource(remove_hermes_programming) +
+            "\nprint(json.dumps({'backup':remove_hermes_programming('/opt/hermes/.hermes'," + repr(NATIVE_NAMES) + ")}))")
+    subprocess.run(['podman', 'exec', '-i', '--', container, 'python3', '-c', code], check=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, default=Path.home() / '.config/agent-skills')
     parser.add_argument('--hub', action='store_true', help='registrar skills y perfiles en Agent Hub')
-    parser.add_argument('--hermes', metavar='CONTAINER', help='instalar además en el Hermes de este contenedor existente')
+    parser.add_argument('--hermes', metavar='CONTAINER', help=argparse.SUPPRESS)
+    parser.add_argument('--remove-hermes-programming', metavar='CONTAINER', help='retirar solo skills, bloque y plugins de programación administrados; conservar Hermes académico')
+    parser.add_argument('--architecture-only', action='store_true', help='sincronizar solo preferencias y hooks de arquitectura locales; sin perfiles, enlaces ni contenedores')
     args = parser.parse_args()
+    if args.hermes:
+        parser.error('Hermes es solo académico: ya no se instala programación. Usa --remove-hermes-programming CONTAINER para retirar la instalación anterior.')
+    if args.remove_hermes_programming:
+        if args.architecture_only or args.hub:
+            parser.error('--remove-hermes-programming es una operación independiente')
+        uninstall_hermes_programming(args.remove_hermes_programming)
+        return
+    if args.architecture_only and args.hub:
+        parser.error('--architecture-only no se combina con --hub')
     source = args.source.resolve()
+    if args.architecture_only:
+        home = Path.home()
+        backups = Path(os.environ.get('XDG_STATE_HOME', str(home/'.local/state'))) / 'dotfiles/agent-skills' / datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+        policy = (source/'AGENTS.md').read_text()
+        for dest in (Path(os.environ.get('CODEX_HOME', str(home/'.codex')))/'AGENTS.md', home/'.gemini/config/AGENTS.md'):
+            write_policy(dest, policy, backups)
+        install_architecture_guards(home, backups)
+        print('Preferencias y contexto de arquitectura locales sincronizados; sin cambios en permisos, perfiles ni contenedores.')
+        return
     for name in NATIVE_NAMES:
         if not (source / name / 'SKILL.md').is_file():
             parser.error('Skill no encontrada: ' + name)
@@ -259,10 +266,6 @@ def main():
     install_architecture_guards(home, backups)
     if args.hub:
         install_hub(source, backups)
-    if args.hermes:
-        install_hermes(source, args.hermes)
-        install_hermes_context(args.hermes)
-        install_hermes_architecture(args.hermes)
     print('Codex, Cursor y Antigravity: seis skills de programación, Oil UI y preferencias instaladas.')
 
 

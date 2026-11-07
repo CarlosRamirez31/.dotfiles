@@ -13,6 +13,21 @@ Cuando `systemd-detect-virt --vm` devuelve `none`, también instala:
 
 En una VM sin Bluetooth no activa el servicio. `fwupd` y SMART se omiten porque el hipervisor normalmente no expone firmware/discos físicos de forma útil.
 
+### NVIDIA RTX 4050 Laptop
+
+Si detecta la RTX 4050 Laptop (PCI `10de:28e1`) y está instalado el kernel
+`linux`, instala `nvidia-open` y `nvidia-utils` y ejecuta `mkinitcpio -P` para
+regenerar las imágenes de arranque, incluida la imagen EFI unificada si está
+configurada. Es necesario reiniciar para activar el controlador.
+
+Esta selección reproduce la configuración del portátil AMD + NVIDIA; no cambia
+el controlador AMD ni selecciona controladores para otras GPU o variantes del
+kernel. No añade parámetros de arranque ni listas de bloqueo propias: utiliza
+la configuración que proporcionan los paquetes de Arch.
+
+Después del reinicio puede verificarse con `nvidia-smi` y
+`lspci -nnk -d 10de:`. Btop obtiene las métricas de NVIDIA mediante `nvidia-utils`.
+
 ## Uso
 
 ```bash

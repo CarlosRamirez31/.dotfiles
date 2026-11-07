@@ -157,7 +157,7 @@ dev-podman restart
 | [`dbeaver`](docs/dbeaver.md) **opcional** | DBeaver Community en dev, con lanzador gráfico independiente |
 | [`voice-isolation`](docs/voice-isolation.md) **opcional** | Aislamiento de voz RNNoise con detección del micrófono y arranque automático |
 | [`workbench`](environments/workbench/README.md) | entornos rootless de desarrollo y pentesting |
-| [`desktop-extras`](docs/desktop-extras.md) | Firefox, Limusic, KeePassXC, Btop, color y papelera |
+| [`desktop-extras`](docs/desktop-extras.md) | Brave, Limusic, KeePassXC, Btop, color y papelera |
 | [Apariencia](docs/appearance.md) | editor del escritorio, efectos y pruebas reversibles; incluido con Awesome |
 | [`session`](docs/session.md) | bloqueo, inactividad, suspensión y energía |
 | [`desktop-tools`](docs/desktop-tools.md) | capturas e historial del portapapeles |
@@ -197,7 +197,7 @@ Aplicaciones y sesión:
 | --- | --- |
 | `Alt+Enter` / `Ctrl+Alt+T` | terminal |
 | `Alt+Space` / `Alt+D` / `Alt+F2` | aplicaciones |
-| `Alt+B` | Firefox |
+| `Alt+B` | Brave |
 | `Alt+E` | Yazi |
 | `Ctrl+Alt+E` | Thunar (respaldo gráfico) |
 | `Alt+W` | seleccionar wallpaper con vista previa |

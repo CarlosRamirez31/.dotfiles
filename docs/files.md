@@ -1,6 +1,6 @@
 # Files
 
-Este componente convierte el escritorio mínimo en un entorno capaz de navegar archivos, montar medios y abrir formatos comunes. Yazi aporta navegación de terminal tipo Neovim; el portal GTK ofrece el selector de archivos del sistema y Thunar permanece como gestor gráfico. Las asociaciones MIME permiten que Rofi, Firefox y aplicaciones GTK elijan programas predecibles.
+Este componente convierte el escritorio mínimo en un entorno capaz de navegar archivos, montar medios y abrir formatos comunes. Yazi aporta navegación de terminal tipo Neovim; el portal GTK ofrece el selector de archivos del sistema y Thunar permanece como gestor gráfico. Las asociaciones MIME permiten que Rofi, Brave y aplicaciones GTK elijan programas predecibles.
 
 ## Paquetes y responsabilidades
 
@@ -10,6 +10,7 @@ Este componente convierte el escritorio mínimo en un entorno capaz de navegar a
 | `thunar`, `thunar-volman` | Gestor de archivos y reacción a medios removibles. |
 | `tumbler` | Miniaturas en Thunar. |
 | `gvfs`, `gvfs-mtp`, `gvfs-gphoto2`, `gvfs-smb` | Papelera, teléfonos, cámaras y recursos SMB. |
+| `android-tools`, `android-udev` | ADB y reglas de permisos USB para depurar dispositivos Android. |
 | `udisks2` | Montaje de discos por sesión sin ejecutar Thunar como root. |
 | `file-roller` | Crear/extraer ZIP, 7z, RAR y tar. |
 | `imv` | Visor de imágenes. |
@@ -35,7 +36,7 @@ saltan a Descargas, Imágenes y el directorio personal. Los volúmenes aparecen
 en la barra lateral de Thunar y se montan mediante UDisks/GVfs; no hace falta
 `sudo mount` para el uso normal.
 
-En la sesión Awesome, el portal de archivos usa GTK y X11. Firefox y las aplicaciones compatibles
+En la sesión Awesome, el portal de archivos usa GTK y X11. Las aplicaciones compatibles
 abren ese selector al subir, abrir o guardar archivos. Yazi sigue disponible
 como gestor de terminal (`Alt+E`); Thunar es el respaldo gráfico.
 
@@ -44,13 +45,13 @@ como gestor de terminal (`Alt+E`); Thunar es el respaldo gráfico.
 | Contenido | Aplicación |
 | --- | --- |
 | Directorios | Thunar |
-| HTTP, HTTPS y HTML | Firefox |
+| HTTP, HTTPS y HTML | Brave |
 | PDF | Zathura |
 | BMP, GIF, JPEG, PNG, SVG y WebP | imv |
 | FLAC, MP3, Ogg y vídeos comunes | mpv |
 | ZIP, 7z, RAR y tar | File Roller |
 
-Se declaran en `.config/mimeapps.list`. Firefox viene de `desktop-extras`; si ese componente no está instalado, la asociación queda preparada pero no podrá abrirse hasta instalarlo.
+Se declaran en `.config/mimeapps.list`. Brave viene de `desktop-extras`; si ese componente no está instalado, la asociación queda preparada pero no podrá abrirse hasta instalarlo.
 
 El manifiesto también conserva asociaciones para Citrix, enlaces Codex y
 JetBrains cuando esas aplicaciones externas están instaladas. El módulo no las

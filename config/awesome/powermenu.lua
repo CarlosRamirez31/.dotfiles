@@ -74,7 +74,7 @@ local function build(screen)
     local apps = wibox.layout.fixed.vertical()
     apps.spacing = 8
     apps:add(button("󰆍", "Terminal", "#89dceb", spawn("dotfiles-terminal")))
-    apps:add(button("󰈹", "Firefox", "#f9e2af", spawn("firefox")))
+    apps:add(button("󰖟", "Brave", "#f9e2af", spawn("brave --new-window")))
     apps:add(button("󰉋", "Archivos", "#a6e3a1", spawn("thunar")))
     apps:add(button("󰘔", "Aplicaciones", "#cba6f7", spawn("dotfiles-app-launcher")))
 

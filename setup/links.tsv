@@ -25,11 +25,16 @@ awesome	config/awesome/emulator-shape.lua	.config/awesome/emulator-shape.lua
 awesome	config/awesome/emulator-toolbar.lua	.config/awesome/emulator-toolbar.lua
 awesome	config/awesome/polybar-tags.lua	.config/awesome/polybar-tags.lua
 awesome	config/awesome/polybar-visibility.lua	.config/awesome/polybar-visibility.lua
+awesome	config/awesome/vm-input-capture.lua	.config/awesome/vm-input-capture.lua
 awesome	config/awesome/polybar-workarea.lua	.config/awesome/polybar-workarea.lua
 awesome	config/awesome/powermenu.lua	.config/awesome/powermenu.lua
 awesome	config/awesome/quickmenus.lua	.config/awesome/quickmenus.lua
 awesome	config/awesome/rc.lua	.config/awesome/rc.lua
 awesome	config/awesome/rules.lua	.config/awesome/rules.lua
+desktop-tools	bin/dotfiles-virt-manager	.local/bin/dotfiles-virt-manager
+desktop-tools	bin/dotfiles-virt-manager	.local/bin/virt-manager
+desktop-tools	share/applications/virt-manager.desktop	.local/share/applications/virt-manager.desktop
+polybar	bin/dotfiles-input-capture-status	.local/bin/dotfiles-input-capture-status
 awesome	config/awesome/theme.lua	.config/awesome/theme.lua
 awesome	config/awesome/widgets.lua	.config/awesome/widgets.lua
 awesome	config/gtk-3.0/settings.ini	.config/gtk-3.0/settings.ini
@@ -44,8 +49,7 @@ backup	config/dotfiles/backup.conf.example	.config/dotfiles/backup.conf.example
 backup	system/systemd/user/dotfiles-backup.service	.config/systemd/user/dotfiles-backup.service
 backup	system/systemd/user/dotfiles-backup.timer	.config/systemd/user/dotfiles-backup.timer
 dbeaver	bin/dbeaver	.local/bin/dbeaver
-desktop-extras	bin/dotfiles-firefox	.local/bin/dotfiles-firefox
-desktop-extras	share/applications/firefox.desktop	.local/share/applications/firefox.desktop
+desktop-extras	config/brave-flags.conf	.config/brave-flags.conf
 desktop-tools	bin/dotfiles-clipboard	.local/bin/dotfiles-clipboard
 desktop-tools	bin/dotfiles-clipboard-clear	.local/bin/dotfiles-clipboard-clear
 desktop-tools	bin/dotfiles-clipboard-menu	.local/bin/dotfiles-clipboard-menu
@@ -93,6 +97,7 @@ nvim	config/nvim/lua/plugins/lazydocker.lua	.config/nvim/lua/plugins/lazydocker.
 nvim	config/nvim/lua/plugins/lsp.lua	.config/nvim/lua/plugins/lsp.lua
 nvim	config/nvim/lua/plugins/nvim-dap.lua	.config/nvim/lua/plugins/nvim-dap.lua
 nvim	config/nvim/lua/plugins/rustaceanvim.lua	.config/nvim/lua/plugins/rustaceanvim.lua
+nvim	config/nvim/lua/plugins/scope.lua	.config/nvim/lua/plugins/scope.lua
 nvim	config/nvim/lua/plugins/trash.lua	.config/nvim/lua/plugins/trash.lua
 nvim	config/nvim/lua/plugins/treesitter.lua	.config/nvim/lua/plugins/treesitter.lua
 nvim	config/nvim/lua/plugins/ui.lua	.config/nvim/lua/plugins/ui.lua

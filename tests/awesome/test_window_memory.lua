@@ -17,7 +17,9 @@ screen = setmetatable({ connect_signal = function(event, callback) connect('scre
 })
 tag = { connect_signal = function(event, callback) connect('tag', event, callback) end }
 client = { connect_signal = function(event, callback) connect('client', event, callback) end }
-package.loaded.awful = { client = { focus = { history = { get = function(s)
+package.loaded.awful = { screen = { focused = function() return screen.primary end },
+placement = { no_offscreen = function(c) c.placed = true end },
+client = { focus = { history = { get = function(s)
     for _, c in ipairs(clients) do if c.screen == s and c:isvisible() then return c end end
 end } } }, ewmh = { add_activate_filter = function(f) active_filter = f end } }
 package.loaded.gears = { timer = { delayed_call = function(f) delayed[#delayed + 1] = f end } }
@@ -33,9 +35,11 @@ local function monitor(name, x)
         end
         s.tags[i] = t
     end
+    s.selected_tag = s.tags[1]
     screens[#screens + 1] = s
     return s
 end
+client.get = function() return clients end
 local function window(s, indices, minimized)
     local c = { valid = true, screen = s, type = 'normal', minimized = not not minimized, floating = false }
     local tags, geometry = {}, { x = s.geometry.x + 100, y = 60, width = 800, height = 600 }
@@ -57,6 +61,8 @@ local foreground = window(primary, { 1 })
 local a, b, d = window(external, { 4 }), window(external, { 4 }), window(external, { 3 })
 local overlap = window(external, { 1, 2 })
 local minimized = window(external, { 2 }, true)
+local chosen = window(external, { 2 })
+local chosen_parked = window(external, { 1 })
 client.focus = foreground
 local memory = dofile('config/awesome/window-memory.lua')
 memory.start(); memory.start()
@@ -69,6 +75,20 @@ assert(b:tags()[1] == primary.tags[4] and d:tags()[1] == primary.tags[3])
 assert(#overlap:tags() == 2 and overlap.minimized and active_filter(overlap) == false)
 assert(minimized.minimized and not a.minimized)
 assert(client.focus == foreground and primary.tags[1].selected)
+-- Rofi activation adopts disconnected windows on the current workspace,
+-- including parked windows; unrelated clients keep their normal behaviour.
+assert(active_filter(chosen, 'ewmh', { raise = true }) == true)
+assert(chosen.screen == primary and chosen:tags()[1] == primary.tags[1] and chosen.placed)
+assert(active_filter(chosen_parked, 'mouse_enter', { raise = true }) == false)
+assert(active_filter(chosen_parked, 'ewmh', { raise = true }) == true)
+assert(not chosen_parked.minimized and chosen_parked:tags()[1] == primary.tags[1])
+assert(active_filter(foreground, 'ewmh', { raise = true }) == nil)
+-- Repair the N/A case after Awesome finishes removing the old tags.
+local orphan = window(primary, {})
+emit('screen', 'removed', external); flush()
+assert(#orphan:tags() == 1 and orphan.minimized)
+assert(active_filter(orphan, 'ewmh', { raise = true }) == true)
+assert(not orphan.minimized and orphan:tags()[1] == primary.tags[1])
 -- Opening workspace 4 adopts those windows; workspace 3 stays untouched.
 primary.tags[1].selected = false; primary.tags[4].selected = true
 emit('screen', 'tag::history::update', primary)
@@ -77,6 +97,7 @@ overlap.minimized = false; emit('client', 'property::minimized', overlap)
 local reconnected = monitor('DP-1', 1920)
 emit('screen', 'added', reconnected); flush()
 assert(a.screen == primary and b.screen == primary and overlap.screen == primary)
+assert(chosen.screen == primary and chosen_parked.screen == primary)
 assert(d.screen == reconnected and d:tags()[1] == reconnected.tags[3])
 assert(minimized.screen == reconnected and minimized.minimized)
 assert(client.focus == foreground and primary.tags[4].selected)

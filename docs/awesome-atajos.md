@@ -15,7 +15,7 @@
 | `Alt+Ctrl+N` | Activar/desactivar el aislamiento de ruido. |
 | `Alt+Ctrl+V` | Activar/desactivar Solo mi voz, después de registrar la voz. |
 | `Alt+Tab` | Abrir selector de ventanas. También permite volver a una ventana minimizada. |
-| `Alt+B` | Abrir Firefox. |
+| `Alt+B` | Abrir Brave. |
 | `Alt+E` | Abrir Yazi, el gestor de archivos en terminal. |
 | `Ctrl+Alt+E` | Abrir Thunar. |
 | `Alt+W` | Elegir fondo de pantalla. |
@@ -27,7 +27,7 @@
 
 Las ventanas nuevas se abren en la pantalla y el tag activos. Pasar el mouse
 sobre una ventana le da el foco, además de los atajos de teclado. `Alt+B` abre
-una ventana nueva de Firefox en lugar de activar una que esté en otro tag.
+una ventana nueva de Brave en lugar de activar una que esté en otro tag.
 
 | Atajo | Acción |
 | --- | --- |

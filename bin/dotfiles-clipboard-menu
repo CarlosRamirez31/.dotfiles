@@ -21,6 +21,9 @@ def history(cache, clear=False):
         fcntl.flock(lock, fcntl.LOCK_EX)
         index = cache / 'line_cache'
         lines = index.read_text().splitlines() if index.exists() else []
+        lines = [line for line in lines
+                 if line.partition(' ')[0].isascii() and line.partition(' ')[0].isdigit()
+                 and line.partition(' ')[1] and line.partition(' ')[2]]
         entries, kept, files, seen = [], [], set(), set()
         for line in sorted(lines, key=lambda s: int(s.split(' ', 1)[0]), reverse=True):
             if clear or len(entries) >= LIMIT:

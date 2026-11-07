@@ -75,3 +75,8 @@ vim.filetype.add({
 vim.g.lazyvim_prettier_needs_config = true
 -- vim.g.lazyvim_picker = "telescope"
 vim.g.lazyvim_cmp = "blink.cmp"
+
+if vim.g.single_file_mode then
+   -- Keep project-root discovery out of standalone sessions (pickers remain explicit).
+   vim.g.root_spec = { "cwd" }
+end

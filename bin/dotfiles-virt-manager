@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Run virt-manager with capture-state reporting for the local Arch lab."""
+import json
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
+
+PROPERTY = "_DOTFILES_VM_KEYBOARD_CAPTURED"
+
+
+def write_guest_state(captured):
+    # A fixed command and a boolean argument; never forward keyboard contents.
+    script = 'printf "%s\\n" "$1" > /run/dotfiles-input-capture; chmod 644 /run/dotfiles-input-capture'
+    request = {
+        "execute": "guest-exec",
+        "arguments": {
+            "path": "/bin/sh",
+            "arg": ["-c", script, "dotfiles-input", "1" if captured else "0"],
+            "capture-output": False,
+        },
+    }
+    try:
+        subprocess.run(
+            ["virsh", "-c", "qemu:///system", "qemu-agent-command", "arch-security", json.dumps(request)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass  # The guest can be booting; the next heartbeat will retry.
+
+
+def install_capture_hook(viewer_class, glib, gdk_x11):
+    worker = ThreadPoolExecutor(max_workers=1)
+    original_grab = viewer_class._keyboard_grab_cb
+    original_connect = viewer_class._connect_display_signals
+    original_close = viewer_class._close
+
+    def publish(viewer, captured, heartbeat=False):
+        vm = viewer._vm
+        if not vm or vm.get_name() != "arch-security" or vm.conn.get_uri() != "qemu:///system":
+            return
+        display = viewer._display
+        window = display.get_toplevel().get_window() if display else None
+        if window and not heartbeat:
+            subprocess.run(
+                ["xprop", "-id", str(gdk_x11.X11Window.get_xid(window)),
+                 "-f", PROPERTY, "8u", "-set", PROPERTY, "1" if captured else "0"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+            )
+        worker.submit(write_guest_state, bool(captured))
+
+    def grabbed(viewer, source, captured):
+        original_grab(viewer, source, captured)
+        publish(viewer, captured)
+
+    def connect(viewer):
+        original_connect(viewer)
+        publish(viewer, viewer._keyboard_grab)
+
+        def heartbeat():
+            publish(viewer, viewer._keyboard_grab, heartbeat=True)
+            return True
+
+        viewer._dotfiles_capture_timer = glib.timeout_add_seconds(5, heartbeat)
+
+    def close(viewer):
+        timer = getattr(viewer, "_dotfiles_capture_timer", None)
+        if timer:
+            glib.source_remove(timer)
+            viewer._dotfiles_capture_timer = None
+        publish(viewer, False)
+        original_close(viewer)
+
+    viewer_class._keyboard_grab_cb = grabbed
+    viewer_class._connect_display_signals = connect
+    viewer_class._close = close
+
+
+def main():
+    sys.argv[0] = "/usr/bin/virt-manager"
+    sys.path.insert(0, "/usr/share/virt-manager")
+    from virtManager import virtmanager
+
+    # Follow upstream's GTK-after-fork initialization order.
+    original_import = virtmanager._import_gtk
+
+    def import_gtk(leftovers):
+        result = original_import(leftovers)
+        import gi
+        gi.require_version("GdkX11", "3.0")
+        from gi.repository import GLib, GdkX11
+        from virtManager.details.viewers import SpiceViewer
+        install_capture_hook(SpiceViewer, GLib, GdkX11)
+        return result
+
+    virtmanager._import_gtk = import_gtk
+    virtmanager.runcli()
+
+
+if __name__ == "__main__":
+    main()

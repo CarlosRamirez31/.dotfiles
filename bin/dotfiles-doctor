@@ -28,7 +28,7 @@ printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
 
 essential_commands=(awesome picom Xorg xrandr xrdb xset glxinfo zsh alacritty nvim yazi rofi)
 essential_commands+=(xsecurelock xss-lock feh maim slop clipmenu xclip)
-essential_commands+=(gpick firefox thunar)
+essential_commands+=(gpick brave thunar)
 optional_commands=(fastfetch nft openvpn restic podman keepassxc btop trash-put)
 essential_user_commands=(
     dotfiles-terminal

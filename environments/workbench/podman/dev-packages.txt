@@ -31,7 +31,6 @@ lazygit
 luarocks
 lua51
 less
-libreoffice-fresh
 lsof
 man-db
 man-pages

@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Polybar indicator for the lab viewer's keyboard capture state."""
+from pathlib import Path
+import sys
+import time
+
+
+def status():
+    state = Path("/run/dotfiles-input-capture")
+    try:
+        fresh = time.time() - state.stat().st_mtime < 15
+        captured = state.read_text().strip() == "1"
+    except OSError:
+        fresh, captured = False, False
+    if not fresh:
+        return "%{F#6c7086}%{F-}"
+    if captured:
+        return "%{F#cba6f7}%{F-}"
+    return "%{F#89dceb}%{F-}"
+
+
+if __name__ == "__main__":
+    previous = None
+    while True:
+        current = status()
+        if current != previous:
+            print(current, flush=True)
+            previous = current
+        if sys.argv[1:] != ["--watch"]:
+            break
+        time.sleep(0.2)

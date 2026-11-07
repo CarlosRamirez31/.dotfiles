@@ -123,7 +123,7 @@ def refresh_authority(name):
 
 
 def refresh_dns(name):
-    """Refresh Parrot's resolver once when opening a container session."""
+    """Refresh the container's resolver once when opening a session."""
     lines = []
     servers = 0
     for line in Path('/etc/resolv.conf').read_text().splitlines():
@@ -139,7 +139,7 @@ def refresh_dns(name):
             continue
         lines.append(line)
     if not servers:
-        print('Aviso: no hay DNS del host accesible; se conserva el DNS de Parrot.', file=sys.stderr)
+        print(f'Aviso: no hay DNS del host accesible; se conserva el DNS de {name}.', file=sys.stderr)
         return
     execute(name, 'python3', '-c',
             'import pathlib,sys; pathlib.Path("/etc/resolv.conf").write_text(sys.stdin.read())',
@@ -632,8 +632,7 @@ def main():
             lifecycle(args.action, key, command)
         else:
             start(name)
-            if key == 'parrotos':
-                refresh_dns(name)
+            refresh_dns(name)
             refresh_authority(name)
             invocation = [*PODMAN, 'exec', '--user', f'{UID}:{GID}', '--workdir', str(HOME),
                           '--env', 'PODMAN_WORKBENCH=' + name,

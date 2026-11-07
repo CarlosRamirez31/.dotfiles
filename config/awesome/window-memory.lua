@@ -140,6 +140,24 @@ function M.restore(s)
     gears.timer.delayed_call(function() migrating = false end)
 end
 
+-- Awesome can leave clients without tags after deleting a removed screen's
+-- tags. Such clients show up as N/A in Rofi and cannot be reached by tag.
+function M.repair()
+    for _, c in ipairs(client.get()) do
+        if c.valid and c.type ~= "dock" and c.type ~= "desktop" and #c:tags() == 0 then
+            local s = c.screen
+            if not s or not s.valid or #s.tags == 0 then s = destination(s) end
+            if s and s.selected_tag then
+                remembered[c] = remembered[c] or { outputs = {}, tags = {} }
+                c.screen = s
+                c:tags({ s.selected_tag })
+                parked[c] = true
+                c.minimized = true
+            end
+        end
+    end
+end
+
 function M.start()
     if M.started then return end
     M.started = true
@@ -147,7 +165,18 @@ function M.start()
     tag.connect_signal("removal-pending", M.salvage)
     -- view_only emits this even when clicking the already selected tag.
     screen.connect_signal("tag::history::update", M.reveal)
-    awful.ewmh.add_activate_filter(function(c)
+    awful.ewmh.add_activate_filter(function(c, context, hints)
+        if context == "ewmh" and hints and hints.raise and (remembered[c] or parked[c]) then
+            local s = awful.screen.focused()
+            if s and s.selected_tag then
+                remembered[c], parked[c] = nil, nil
+                c.screen = s
+                c:tags({ s.selected_tag })
+                c.minimized = false
+                awful.placement.no_offscreen(c)
+                return true
+            end
+        end
         if parked[c] then return false end
     end)
     local function used(c)
@@ -166,6 +195,13 @@ function M.start()
     screen.connect_signal("property::outputs", function(s)
         remember_outputs(s)
         gears.timer.delayed_call(function() M.restore(s) end)
+    end)
+    screen.connect_signal("removed", function()
+        gears.timer.delayed_call(function()
+            migrating = true
+            M.repair()
+            migrating = false
+        end)
     end)
     client.connect_signal("unmanage", function(c) remembered[c], parked[c] = nil, nil end)
 end

@@ -13,6 +13,8 @@ install_packages \
     tumbler \
     gvfs \
     gvfs-mtp \
+    android-tools \
+    android-udev \
     gvfs-gphoto2 \
     gvfs-smb \
     udisks2 \

@@ -68,7 +68,7 @@ function M.update_screen(s, position, pointer_screen)
     if not state then
         state = {}
         M.states[s] = state
-        state.show_timer = gears.timer({ timeout = 0.45, single_shot = true, callback = function()
+        state.show_timer = gears.timer({ timeout = 1.5, single_shot = true, callback = function()
             if M.fullscreen(s) then
                 M.set_visible(s, true, M.pids(s))
                 for _, c in ipairs(client.get(s)) do

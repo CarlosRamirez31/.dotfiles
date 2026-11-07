@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Virtual Machine Manager
+Name[es]=Gestor de máquinas virtuales
+Comment=Manage virtual machines
+Exec=dotfiles-virt-manager
+TryExec=/usr/bin/virt-manager
+Icon=virt-manager
+Type=Application
+Terminal=false
+Categories=System;Emulator;GTK;

@@ -17,6 +17,14 @@ loader.exec_module(menu)
 
 
 class ClipboardMenuTests(unittest.TestCase):
+    def test_history_ignores_malformed_lines_and_keeps_valid_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = Path(directory)
+            (cache / menu.checksum('válido')).write_text('contenido válido')
+            (cache / 'line_cache').write_text('\nincorrecto\nabc texto\n123\n456 \n789 válido\n')
+            self.assertEqual(menu.history(cache), ['contenido válido'])
+            self.assertEqual((cache / 'line_cache').read_text(), '789 válido\n')
+
     def test_open_pin_and_paste_without_conflicting_rofi_bindings(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

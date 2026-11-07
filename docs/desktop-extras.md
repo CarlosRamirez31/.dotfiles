@@ -31,6 +31,10 @@ trash-empty
 | `Alt+B` | Brave. |
 | `Alt+Shift+C` | Selector de color. |
 
+El acceso de Btop del menú abre Alacritty con letra de tamaño 9, sin forzar
+la maximización. El comando `btop` en una terminal conserva el tamaño de esa
+terminal; la configuración general de Alacritty no cambia.
+
 ## Diagnóstico
 
 ```bash

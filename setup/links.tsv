@@ -50,6 +50,7 @@ backup	system/systemd/user/dotfiles-backup.service	.config/systemd/user/dotfiles
 backup	system/systemd/user/dotfiles-backup.timer	.config/systemd/user/dotfiles-backup.timer
 dbeaver	bin/dbeaver	.local/bin/dbeaver
 desktop-extras	config/brave-flags.conf	.config/brave-flags.conf
+desktop-extras	share/applications/btop.desktop	.local/share/applications/btop.desktop
 desktop-tools	bin/dotfiles-clipboard	.local/bin/dotfiles-clipboard
 desktop-tools	bin/dotfiles-clipboard-clear	.local/bin/dotfiles-clipboard-clear
 desktop-tools	bin/dotfiles-clipboard-menu	.local/bin/dotfiles-clipboard-menu

@@ -10,5 +10,6 @@ case ${DESKTOP_SESSION:-${XDG_SESSION_DESKTOP:-}} in
         # Applications should use Awesome's borderless window management
         # instead of painting their own titlebar controls.
         export GTK_CSD=0
+        export GTK_USE_PORTAL=1
         ;;
 esac

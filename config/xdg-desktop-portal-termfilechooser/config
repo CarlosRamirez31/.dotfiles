@@ -1,7 +1,7 @@
 [filechooser]
 cmd=dotfiles-filechooser
-create_help_file=1
+create_help_file=0
 default_dir=$HOME
-env=TERMCMD='bash "$HOME/.local/bin/dotfiles-terminal" --class dotfiles-file-picker --title "Seleccionar archivo" --'
+env=TERMCMD='bash "$HOME/.local/bin/dotfiles-terminal" --class dotfiles-file-picker --title "Choose files" --'
 open_mode=suggested
 save_mode=suggested

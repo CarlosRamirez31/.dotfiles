@@ -37,6 +37,7 @@ install_packages \
     xdg-desktop-portal \
     xdg-desktop-portal-gtk
 
+install_aur_packages xdg-desktop-portal-termfilechooser
 link_component "files"
 xdg-user-dirs-update
 

@@ -1,139 +1,92 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""Run a private Yazi portal session without creating destination placeholders."""
+import os
+from pathlib import Path
+import stat
+import subprocess
+import sys
+import tempfile
 
-save=${3:?}
 
-if [[ $save != 1 ]]; then
-    exec /usr/share/xdg-desktop-portal-termfilechooser/yazi-wrapper.sh "$@"
-fi
+def write_result(path, text):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+    with os.fdopen(fd, 'w') as stream:
+        info = os.fstat(stream.fileno())
+        if info.st_uid != os.getuid() or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise ValueError('El resultado del selector no es un archivo privado válido.')
+        stream.truncate(0)
+        stream.write(text)
 
-path=${4:?}
-out=${5:?}
-client_id=$$
-watcher_pid=''
-move_watcher_pid=''
-moved_helpers="${out}.helpers"
 
-cleanup() {
-    if [[ -n $watcher_pid ]]; then
-        kill "$watcher_pid" 2>/dev/null || true
-        wait "$watcher_pid" 2>/dev/null || true
-    fi
-    if [[ -n $move_watcher_pid ]]; then
-        kill "$move_watcher_pid" 2>/dev/null || true
-        wait "$move_watcher_pid" 2>/dev/null || true
-    fi
+def run_picker(args):
+    if len(args) < 6 or any(value not in ('0', '1') for value in args[:3]):
+        raise ValueError('Argumentos de portal inválidos.')
+    multiple, directory, save = (value == '1' for value in args[:3])
+    # Version 1.5 escapes apostrophes even though it invokes the wrapper via argv.
+    suggested = Path(args[3].replace("'\\''", "'") or Path.home())
+    if not suggested.is_absolute():
+        suggested = Path.home() / suggested
+    output = Path(args[4])
+    mode = 'save' if save else 'directory' if directory else 'open'
+    initial = suggested.parent if save else suggested
+    while not initial.exists() and initial != initial.parent:
+        initial = initial.parent
+    if not initial.is_dir():
+        initial = initial.parent
+    if not save and suggested.exists():
+        initial = suggested
+    config = Path(os.environ.get('YAZI_CONFIG_HOME', Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'yazi'))
+    terminal = args[6:] or [str(Path.home() / '.local/bin/dotfiles-terminal'),
+                           '--class', 'dotfiles-file-picker', '--title', 'Files · Yazi', '--']
+    write_result(output, '')
+    with tempfile.TemporaryDirectory(prefix='yazi-portal-') as temporary:
+        session = Path(temporary)
+        for name in ('yazi.toml', 'theme.toml', 'plugins', 'flavors'):
+            if (config / name).exists():
+                (session / name).symlink_to(config / name)
+        keys = ''.join('[[mgr.prepend_keymap]]\non = "' + key + '"\nrun = "plugin portal-picker confirm"\ndesc = "Confirm selection"\n\n'
+                       for key in ('<Enter>', '<S-Enter>', '<C-s>', 'o'))
+        if save:
+            keys += '[[mgr.prepend_keymap]]\non = "<F2>"\nrun = "plugin portal-picker name"\ndesc = "Filename"\n\n'
+        if (config / 'keymap.toml').exists():
+            keys += (config / 'keymap.toml').read_text()
+        (session / 'keymap.toml').write_text(keys)
+        init = (config / 'init.lua').read_text() if (config / 'init.lua').exists() else ''
+        (session / 'init.lua').write_text(init + '\nrequire("portal-picker"):setup()\n')
+        env = dict(os.environ, YAZI_CONFIG_HOME=str(session), DOTFILES_PICKER_MODE=mode,
+                   DOTFILES_PICKER_MULTIPLE='1' if multiple else '0',
+                   DOTFILES_PICKER_NAME=suggested.name if save else '',
+                   DOTFILES_PICKER_RESULT=str(session / 'result'))
+        result = subprocess.run([*terminal, 'yazi', str(initial)], env=env)
+        selected = session / 'result'
+        if result.returncode or not selected.exists():
+            return 0
+        paths = selected.read_text().removesuffix('\n').split('\n')
+        if (save or not multiple) and len(paths) != 1:
+            raise ValueError('Número de archivos seleccionados inválido.')
+        for value in paths:
+            path = Path(value)
+            if not path.is_absolute() or '\r' in value:
+                raise ValueError('Ruta seleccionada inválida.')
+            if save:
+                if not path.parent.is_dir() or path.is_dir():
+                    raise ValueError('Destino de guardado inválido.')
+            elif directory:
+                if not path.is_dir():
+                    raise ValueError('La selección no es una carpeta.')
+            elif not path.is_file():
+                raise ValueError('La selección no es un archivo.')
+        write_result(output, ''.join(str(path) + '\n' for path in paths))
+    return 0
 
-    local selected='' selected_path candidate
-    if [[ -s $out ]]; then
-        IFS= read -r selected <"$out" || true
-    fi
-    decode_path "$selected"
-    selected_path=$decoded_path
 
-    if [[ -z $selected ]]; then
-        remove_helper "$path"
-    elif [[ $selected_path != "$(decode_path_value "$path")" ]]; then
-        remove_helper "$path"
-    fi
+def main():
+    try:
+        return run_picker(sys.argv[1:])
+    except (OSError, ValueError) as error:
+        print('Yazi file picker: ' + str(error), file=sys.stderr)
+        return 1
 
-    if [[ -r $moved_helpers ]]; then
-        while IFS= read -r candidate; do
-            [[ -n $candidate && $candidate != "$selected_path" ]] &&
-                remove_helper "$candidate"
-        done <"$moved_helpers"
-    fi
-    rm -f -- "$moved_helpers"
-}
-trap cleanup EXIT
 
-decode_path() {
-    local encoded
-    decoded_path=$1
-    case $decoded_path in
-        file://*)
-            encoded=${decoded_path#file://}
-            printf -v decoded_path '%b' "${encoded//%/\\x}"
-            ;;
-    esac
-}
-
-decode_path_value() {
-    decode_path "$1"
-    printf '%s' "$decoded_path"
-}
-
-is_portal_helper() {
-    local file=$1 size marker='* xdg-desktop-portal-termfilechooser instructions *'
-    [[ -f $file && ! -L $file ]] || return 1
-    size=$(stat -c '%s' -- "$file") || return 1
-    ((size <= 512)) || return 1
-    [[ $(head -n 1 -- "$file") == "$marker" &&
-    $(tail -n 1 -- "$file") == "$marker" ]]
-}
-
-remove_helper() {
-    local file
-    decode_path "$1"
-    file=$decoded_path
-    if is_portal_helper "$file"; then
-        rm -f -- "$file"
-    fi
-}
-
-watch_rename() {
-    local kind _receiver sender payload selected from
-
-    while [[ ! -s $out ]]; do
-        while IFS=, read -r kind _receiver sender payload; do
-            if [[ $kind != rename || $sender != "$client_id" ]]; then
-                continue
-            fi
-            from=$(jq -r '.from // empty' <<<"$payload")
-            selected=$(jq -r '.to // empty' <<<"$payload")
-            if [[ -z $selected || -z $from ]]; then
-                continue
-            fi
-            # Cross-directory moves should stay in Yazi so the user can paste
-            # and confirm explicitly. Same-directory rename commits the name.
-            if [[ ${from%/*} != "${selected%/*}" ]]; then
-                printf '%s\n' "$selected" >>"$moved_helpers"
-                continue
-            fi
-            if ! is_portal_helper "$(decode_path_value "$selected")"; then
-                continue
-            fi
-            printf '%s\n' "$selected" >"$out"
-            ya emit-to "$client_id" quit
-            return
-        done < <(ya sub rename 2>/dev/null)
-        sleep 0.05
-    done
-}
-
-watch_moves() {
-    local kind _receiver sender payload
-
-    while [[ ! -s $out ]]; do
-        while IFS=, read -r kind _receiver sender payload; do
-            if [[ $kind != move || $sender != "$client_id" ]]; then
-                continue
-            fi
-            jq -r '.items[]?.to // empty' <<<"$payload" >>"$moved_helpers"
-        done < <(ya sub move 2>/dev/null)
-        sleep 0.05
-    done
-}
-
-watch_rename &
-watcher_pid=$!
-watch_moves &
-move_watcher_pid=$!
-
-"$HOME/.local/bin/dotfiles-terminal" \
-    --class dotfiles-file-picker \
-    --title "Guardar archivo" \
-    -- yazi \
-    --client-id="$client_id" \
-    --chooser-file="$out" \
-    "$path"
+if __name__ == '__main__':
+    sys.exit(main())

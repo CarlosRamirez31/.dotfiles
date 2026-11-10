@@ -1,6 +1,6 @@
 # Files
 
-Este componente convierte el escritorio mínimo en un entorno capaz de navegar archivos, montar medios y abrir formatos comunes. Yazi aporta navegación de terminal tipo Neovim; el portal GTK ofrece el selector de archivos del sistema y Thunar permanece como gestor gráfico. Las asociaciones MIME permiten que Rofi, Brave y aplicaciones GTK elijan programas predecibles.
+Este componente convierte el escritorio mínimo en un entorno capaz de navegar archivos, montar medios y abrir formatos comunes. Yazi aporta navegación de terminal y el selector de archivos del portal; GTK cubre las otras funciones del portal y Thunar permanece como gestor gráfico. Las asociaciones MIME permiten que Rofi, Brave y aplicaciones GTK elijan programas predecibles.
 
 ## Paquetes y responsabilidades
 
@@ -19,6 +19,7 @@ Este componente convierte el escritorio mínimo en un entorno capaz de navegar a
 | `zathura`, `zathura-pdf-mupdf` | PDF y backend MuPDF. |
 | `tesseract-data-eng`, `tesseract-data-spa` | OCR inglés/español requerido por MuPDF. |
 | `xdg-user-dirs` | Resuelve Documents, Downloads, Pictures y Videos según idioma. |
+| `xdg-desktop-portal-termfilechooser` (AUR) | Conecta los diálogos de abrir, subir, elegir carpeta y guardar con Yazi. |
 
 ## Uso
 
@@ -37,9 +38,11 @@ saltan a Descargas, Imágenes y el directorio personal. Los volúmenes aparecen
 en la barra lateral de Thunar y se montan mediante UDisks/GVfs; no hace falta
 `sudo mount` para el uso normal.
 
-En la sesión Awesome, el portal de archivos usa GTK y X11. Las aplicaciones compatibles
-abren ese selector al subir, abrir o guardar archivos. Yazi sigue disponible
-como gestor de terminal (`Alt+E`); Thunar es el respaldo gráfico.
+En Awesome/X11, las aplicaciones compatibles abren Yazi al subir, abrir o guardar
+archivos mediante el portal. `GTK_USE_PORTAL=1` se configura para las aplicaciones
+de la sesión; las que ya estaban abiertas pueden necesitar reiniciarse. Una
+aplicación que utiliza su propio selector en lugar del portal no queda controlada
+por esta configuración. Yazi también sigue disponible con `Alt+E`.
 
 ## Vistas previas y apertura desde Yazi
 
@@ -57,6 +60,35 @@ previas y devuelve la ruta elegida, sin lanzar el visor al confirmar el archivo.
 
 La configuración vive en `config/yazi/yazi.toml`. Las reglas se añaden delante de
 las originales; los restantes tipos de archivo conservan el comportamiento de Yazi.
+
+## Selector del portal
+
+`dotfiles-filechooser` crea una sesión privada y temporal de Yazi por solicitud.
+Reutiliza tema, vistas previas y configuración de archivos. Los atajos de
+confirmación y el título de la ventana solo se aplican en el selector.
+
+| Acción | Control en el selector |
+| --- | --- |
+| Entrar/salir de una carpeta | `l` / `h`, o flechas derecha/izquierda |
+| Confirmar archivo(s), carpeta actual o destino de guardado | `Enter` o `Ctrl+S` |
+| Cambiar el nombre propuesto de la descarga | `F2`, solo al guardar |
+| Renombrar un archivo existente | `r` |
+| Cortar y pegar/mover archivos existentes | `x`, navegar y `p` |
+| Copiar y pegar | `y`, navegar y `p` |
+| Crear carpeta | `a`, escribir el nombre terminado en `/` |
+| Marcar archivos para una selección múltiple | `Space` |
+| Descargas / Imágenes / carpeta personal | `gd` / `gp` / `gh` |
+| Cancelar | `q` o cerrar la ventana |
+
+Al guardar, la cabecera `SAVE AS` muestra el nombre; `F2` permite editarlo, y
+`Enter` devuelve esa ruta dentro de la carpeta actual. Si ya existe, se pide
+confirmación antes de devolverla. La aplicación que descarga escribe el contenido;
+el selector no crea un archivo provisional. Renombrar, cortar y pegar archivos
+existentes modifica esos archivos en el momento de realizar la operación.
+
+Los títulos y mensajes del selector están en inglés. El plugin local `portal-picker`
+solo se carga en la sesión de la solicitud. Los nombres se pasan como argumentos
+independientes, sin evaluarlos en un shell.
 
 ## Asociaciones predeterminadas del sistema
 
@@ -83,14 +115,15 @@ en X11 y no exporta `LIBGL_ALWAYS_SOFTWARE`.
 
 ## Efectos del instalador y diagnóstico
 
-Además de enlazar `mimeapps.list`, configura el portal con GTK como proveedor
-predeterminado y ejecuta `xdg-user-dirs-update`, que crea o actualiza nombres de
-carpetas XDG del usuario.
+Además de enlazar `mimeapps.list`, instala el backend de AUR mediante el helper
+del proyecto y configura `FileChooser=termfilechooser;gtk`. GTK sigue siendo el
+proveedor general y el respaldo. Ejecuta `xdg-user-dirs-update`, que crea o actualiza
+nombres de carpetas XDG del usuario.
 
 ```bash
 xdg-mime query default inode/directory
 xdg-mime query default application/pdf
-systemctl --user status xdg-desktop-portal.service xdg-desktop-portal-gtk.service
+systemctl --user status xdg-desktop-portal.service xdg-desktop-portal-termfilechooser.service
 gio mount -l
 systemctl status udisks2.service
 ```

@@ -67,6 +67,7 @@ files	config/xdg-desktop-portal/portals.conf	.config/xdg-desktop-portal/portals.
 files	config/yazi/keymap.toml	.config/yazi/keymap.toml
 files	config/yazi/theme.toml	.config/yazi/theme.toml
 files	config/yazi/yazi.toml	.config/yazi/yazi.toml
+files	config/yazi/plugins/portal-picker.yazi/main.lua	.config/yazi/plugins/portal-picker.yazi/main.lua
 flutter	bin/flutter-emulator	.local/bin/flutter-emulator
 flutter	config/flutter/env.zsh	.config/flutter/env.zsh
 fonts	assets/fonts/Lexend/Lexend-VariableFont_wght.ttf	.local/share/fonts/Lexend/Lexend-VariableFont_wght.ttf

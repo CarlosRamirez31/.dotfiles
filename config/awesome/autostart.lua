@@ -33,9 +33,9 @@ awful.spawn.with_shell(
     "xrdb -merge \"$HOME/.Xresources\"; " ..
         "systemctl --user set-environment XCURSOR_THEME=Bibata-Modern-Classic " ..
         "XCURSOR_SIZE=24 XDG_SESSION_TYPE=x11 XDG_CURRENT_DESKTOP=awesome " ..
-        "XDG_SESSION_DESKTOP=awesome; " ..
+        "XDG_SESSION_DESKTOP=awesome GTK_USE_PORTAL=1; " ..
         "dbus-update-activation-environment --systemd DISPLAY XAUTHORITY " ..
-        "XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE; " ..
+        "XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE GTK_USE_PORTAL; " ..
         "systemctl --user import-environment DISPLAY XAUTHORITY; " ..
         "systemctl --user start dotfiles-touchpad-typing.service"
 )

@@ -46,19 +46,19 @@ class Structure(unittest.TestCase):
     def test_foreign_file_is_backed_up_once_and_private_settings_survive(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
-            target = home / '.config/alacritty/alacritty.toml'
+            target = home / '.config/kitty/kitty.conf'
             target.parent.mkdir(parents=True)
             target.write_text('personal terminal settings')
             private = home / '.config/dotfiles/backup.conf'
             private.parent.mkdir(parents=True)
             private.write_text('private backup settings')
-            self.link(home, 'alacritty', 'backup')
-            self.link(home, 'alacritty', 'backup')
+            self.link(home, 'kitty', 'backup')
+            self.link(home, 'kitty', 'backup')
             backups = list(target.parent.glob('*.backup.*'))
             self.assertEqual(len(backups), 1)
             self.assertEqual(backups[0].read_text(), 'personal terminal settings')
             self.assertEqual(private.read_text(), 'private backup settings')
-            self.assertEqual(target.resolve(), REPO / 'config/alacritty/alacritty.toml')
+            self.assertEqual(target.resolve(), REPO / 'config/kitty/kitty.conf')
 
     def test_all_managed_files_link_without_packages_or_services(self):
         with tempfile.TemporaryDirectory() as directory:

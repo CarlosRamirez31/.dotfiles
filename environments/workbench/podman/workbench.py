@@ -42,7 +42,7 @@ DEV_COPY = ['.dotfiles', '.local/bin', '.local/libexec', '.local/lib', '.java',
             '.local/share/NuGet', '.local/share/IsolatedStorage', '.local/share/pki',
             '.gradle', '.m2', '.nuget', '.dotnet', '.pub-cache', '.dart',
             '.flutter', '.flutter_settings', '.flutter_tool_state', '.config/configstore',
-            '.config/awesome', '.config/polybar', '.config/alacritty', '.config/rofi',
+            '.config/awesome', '.config/polybar', '.config/kitty', '.config/rofi',
             '.config/wallpapers', '.config/gtk-3.0', '.config/gtk-4.0',
             '.local/share/icons', '.local/share/zoxide', '.local/state/zsh',
             '.config/github-copilot']
@@ -249,7 +249,7 @@ def create_args(profile, image):
 def seed_home(name, key):
     components = ['shell', 'nvim', 'fastfetch', 'files']
     if key == 'dev':
-        components += ['alacritty', 'awesome', 'polybar', 'rofi', 'themes', 'fonts',
+        components += ['kitty', 'awesome', 'polybar', 'rofi', 'themes', 'fonts',
                        'wallpaper', 'flutter', 'docker', 'dbeaver', 'rider']
     # Materialize only selected modules using the same destinations as the host.
     with tempfile.TemporaryDirectory(prefix='dotfiles-seed-') as directory:

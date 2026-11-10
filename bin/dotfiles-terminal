@@ -10,6 +10,7 @@ if ! [[ "$font_size" =~ ^[0-9]+([.][0-9]+)?$ ]] || ! awk -v value="$font_size" '
     font_size=10
 fi
 
-# Alacritty does not use GTK/Qt scaling for its terminal text. Its configured
-# 10 pt base font therefore needs an explicit per-window override.
-exec alacritty --option "font.size=$font_size" "$@"
+# Preserve the existing display font setting: 10 maps to Kitty 15 pt,
+# measured to match the previous terminal's 12 x 27 px cells on this X11 setup.
+font_size=$(awk -v value="$font_size" 'BEGIN { printf "%g", value * 1.5 }')
+exec kitty --override "font_size=$font_size" "$@"

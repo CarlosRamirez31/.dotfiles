@@ -188,9 +188,9 @@ case ${1:-} in
         exec 9>"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles-backup/popup.lock"
         flock -n 9 || exit 0
         "$HOME/.local/bin/dotfiles-terminal" --class DotfilesBackup \
-            --option window.padding.x=20 --option window.padding.y=16 \
-            --option window.dimensions.columns=64 --option window.dimensions.lines=20 \
-            --title 'Respaldo · Beambollow' -e "$0" scheduled-run
+            --override 'window_padding_width=18 22.5' \
+            --override initial_window_width=64c --override initial_window_height=20c \
+            --title 'Respaldo · Beambollow' -- "$0" scheduled-run
         ;;
     scheduled-run)
         umask 077

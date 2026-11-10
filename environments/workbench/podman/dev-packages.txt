@@ -1,4 +1,4 @@
-alacritty
+kitty
 aspnet-runtime
 aspnet-targeting-pack
 awesome

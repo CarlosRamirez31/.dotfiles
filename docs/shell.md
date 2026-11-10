@@ -41,7 +41,7 @@ FZF: `Ctrl+R` busca historial y `Ctrl+T` archivos, con previews de Bat/eza.
 FZF también define `Alt+C` para directorios, pero Awesome reserva esa combinación
 para el portapapeles; usa `zi` para elegir directorios sin ese conflicto.
 
-La edición de la línea sigue los atajos habituales de un editor gráfico: `Ctrl+Backspace` borra la palabra anterior, `Shift+←/→` amplía la selección por caracteres y `Ctrl+Shift+←/→` la amplía por palabras. Cuando existe una selección, `Backspace` o `Ctrl+Backspace` elimina todo el texto seleccionado. Estas combinaciones están coordinadas con el componente `alacritty`.
+La edición de la línea sigue los atajos habituales de un editor gráfico: `Ctrl+Backspace` borra la palabra anterior, `Shift+←/→` amplía la selección por caracteres y `Ctrl+Shift+←/→` la amplía por palabras. Cuando existe una selección, `Backspace` o `Ctrl+Backspace` elimina todo el texto seleccionado. Estas combinaciones están coordinadas con el componente `kitty`.
 
 ## Paquetes y sistema
 

@@ -40,7 +40,7 @@ dotfiles-clipboard-clear
 
 `Alt+C` abre el historial en Rofi. Elegir una entrada con Enter la copia al
 portapapeles y la pega en la ventana original, usando `Ctrl+Shift+V` en
-Alacritty y otras terminales, o `Ctrl+V` en aplicaciones gráficas. Requiere
+Kitty y otras terminales, o `Ctrl+V` en aplicaciones gráficas. Requiere
 `xdotool` y `xorg-xprop`. Awesome inicia `clipmenud` automáticamente para
 guardar las copias explícitas del portapapeles. No registra la selección
 del ratón (PRIMARY), para evitar capturas continuas al seleccionar texto.

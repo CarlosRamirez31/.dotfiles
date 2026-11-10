@@ -1,8 +1,8 @@
 # module	source (repository-relative)	target (home-relative)
-alacritty	bin/dotfiles-terminal	.local/bin/dotfiles-terminal
-alacritty	config/alacritty/alacritty.toml	.config/alacritty/alacritty.toml
-alacritty	config/xdg-terminals.list	.config/xdg-terminals.list
-alacritty	share/applications/Alacritty.desktop	.local/share/applications/Alacritty.desktop
+kitty	bin/dotfiles-terminal	.local/bin/dotfiles-terminal
+kitty	config/kitty/kitty.conf	.config/kitty/kitty.conf
+kitty	config/xdg-terminals.list	.config/xdg-terminals.list
+kitty	share/applications/kitty.desktop	.local/share/applications/kitty.desktop
 awesome	bin/dotfiles-app-launch	.local/bin/dotfiles-app-launch
 awesome	bin/dotfiles-display	.local/bin/dotfiles-display
 awesome	bin/dotfiles-appearance	.local/bin/dotfiles-appearance

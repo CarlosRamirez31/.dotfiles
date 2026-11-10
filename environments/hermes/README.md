@@ -17,7 +17,7 @@ Requiere Podman rootless y un `dev-podman` ya preparado. Si falta el proveedor:
 Este componente no crea contenedores. Para reconstruir el entorno completo usa
 `dev-podman setup --fresh`; esa receta incluye Hermes, Flutter, Rider, Docker y
 DBeaver. En un dev existente, `./install.sh hermes` instala o actualiza solamente
-Hermes. Dentro instala Hermes CLI, las skills personalizadas, el escritorio Awesome anidado con Xephyr, Polybar, Picom, Firefox, Alacritty y el puente de capturas. Los paquetes de presentación se instalan dentro de `dev`; este componente no añade paquetes al host. No usa una máquina virtual ni XFCE.
+Hermes. Dentro instala Hermes CLI, las skills personalizadas, el escritorio Awesome anidado con Xephyr, Polybar, Picom, Firefox, Kitty y el puente de capturas. Los paquetes de presentación se instalan dentro de `dev`; este componente no añade paquetes al host. No usa una máquina virtual ni XFCE.
 
 ## Qué se reproduce
 

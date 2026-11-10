@@ -39,7 +39,7 @@ def configure(args):
     for name in ['run','verification']:(target/name).chmod(0o700)
     for sub in ['entradas','salidas/capturas','muestras']:(home/'Documents/Universidad'/sub).mkdir(parents=True,exist_ok=True)
     # Reuse visual assets without changing their originals.
-    for source,dest in [(home/'.config/awesome/theme.lua',target/'config/theme.lua'),(home/'.config/polybar/colors.ini',target/'config/polybar/colors.ini'),(home/'.config/alacritty/alacritty.toml',target/'xdg/config/alacritty/alacritty.toml')]:
+    for source,dest in [(home/'.config/awesome/theme.lua',target/'config/theme.lua'),(home/'.config/polybar/colors.ini',target/'config/polybar/colors.ini'),(home/'.config/kitty/kitty.conf',target/'xdg/config/kitty/kitty.conf')]:
         if source.is_file():copy_managed(source,dest,home,backup)
     for directory,names in [('config',['zsh','starship.toml','rofi','fastfetch','bat']),('data',['oh-my-zsh','icons'])]:
         sourcebase=home/('.config' if directory=='config' else '.local/share')

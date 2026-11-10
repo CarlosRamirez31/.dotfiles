@@ -45,4 +45,4 @@ if systemctl --user --quiet is-active xdg-desktop-portal.service 2>/dev/null; th
     systemctl --user restart xdg-desktop-portal.service
 fi
 
-printf 'GTK/X11 file chooser and default applications installed; Yazi is ready in Alacritty.\n'
+printf 'GTK/X11 file chooser and default applications installed; Yazi is ready in Kitty.\n'

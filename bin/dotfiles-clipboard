@@ -30,7 +30,7 @@ xdotool windowactivate --sync "$target"
 # Allow the Return release and Rofi's keyboard grab to finish before pasting.
 sleep 0.15
 case ${window_class,,} in
-    *alacritty* | *kitty* | *wezterm* | *gnome-terminal* | *terminator* | *xfce4-terminal*)
+    *kitty* | *wezterm* | *gnome-terminal* | *terminator* | *xfce4-terminal*)
         xdotool key --clearmodifiers ctrl+shift+v
         ;;
     *xterm* | *urxvt*)

@@ -29,7 +29,7 @@ xdg-open imagen.png
 gio mount smb://servidor/recurso
 ```
 
-`Alt+E` abre Yazi en Alacritty y `Ctrl+Alt+E` abre Thunar. En Yazi se navega
+`Alt+E` abre Yazi en Kitty y `Ctrl+Alt+E` abre Thunar. En Yazi se navega
 con `h/j/k/l`, `Enter` entra en directorios, `Shift+Enter` abre el archivo en
 su aplicación, `Space` selecciona y `q` sale. `gd`, `gp` y `gh`
 saltan a Descargas, Imágenes y el directorio personal. Los volúmenes aparecen

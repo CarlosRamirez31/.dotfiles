@@ -199,7 +199,6 @@ class HubTerminal:
         if not isinstance(extra, list) or not all(isinstance(a, str) and '\0' not in a for a in extra):
             raise BridgeError('Los argumentos del emulador deben ser una lista de cadenas.')
         options = {
-            'alacritty': ['--working-directory', cwd, '-e'],
             'kitty': ['--directory', cwd, '--'],
             'gnome-terminal': ['--wait', '--working-directory', cwd, '--'],
             'konsole': ['--nofork', '--workdir', cwd, '-e'],

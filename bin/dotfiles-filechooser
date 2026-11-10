@@ -133,7 +133,7 @@ move_watcher_pid=$!
 "$HOME/.local/bin/dotfiles-terminal" \
     --class dotfiles-file-picker \
     --title "Guardar archivo" \
-    --command yazi \
+    -- yazi \
     --client-id="$client_id" \
     --chooser-file="$out" \
     "$path"

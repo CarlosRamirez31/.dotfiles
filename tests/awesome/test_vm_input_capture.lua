@@ -14,7 +14,7 @@ local function window(class, name)
 end
 local vm = window("Virt-manager", "arch-security on QEMU/KVM")
 local other = window("Virt-manager", "win11 on QEMU/KVM")
-local terminal = window("Alacritty", "Terminal")
+local terminal = window("kitty", "Terminal")
 local bindings = vm:buttons()
 local capture = dofile("config/awesome/vm-input-capture.lua")
 capture.start()

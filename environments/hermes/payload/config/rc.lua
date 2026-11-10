@@ -19,14 +19,14 @@ local function float()
     c:raise()
 end
 local keys=gears.table.join(
-    awful.key({mod},'Return',spawn('alacritty')),
-    awful.key({mod,'Control'},'t',spawn('alacritty')),
+    awful.key({mod},'Return',spawn('kitty')),
+    awful.key({mod,'Control'},'t',spawn('kitty')),
     awful.key({mod},'space',spawn('rofi -show drun')),
     awful.key({mod},'d',spawn('rofi -show drun')),
     awful.key({mod},'F2',spawn('rofi -show run')),
     awful.key({mod},'Tab',spawn('rofi -modi window,drun -show window')),
     awful.key({mod},'b',spawn('presentacion firefox')),
-    awful.key({mod},'e',spawn('alacritty -e yazi @HOST_HOME@/Documents/Universidad')),
+    awful.key({mod},'e',spawn('kitty -- yazi @HOST_HOME@/Documents/Universidad')),
     awful.key({mod},'w',spawn('/opt/presentacion/bin/wallpaper-picker')),
     awful.key({mod},'q',function() if client.focus then client.focus:kill() end end),
     awful.key({mod},'v',float),

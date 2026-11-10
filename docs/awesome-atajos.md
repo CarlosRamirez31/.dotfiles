@@ -79,7 +79,7 @@ las pantallas.
 | Teclas de brillo | Subir o bajar brillo. |
 | Reproducir/Pausar, Siguiente, Anterior | Control multimedia. |
 
-## Terminal Alacritty
+## Terminal Kitty
 
 | Atajo | Acción |
 | --- | --- |

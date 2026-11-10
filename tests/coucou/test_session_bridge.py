@@ -22,7 +22,7 @@ class SessionLauncher(unittest.TestCase):
 
     def test_focus_live_terminal_without_opening_anything(self):
         self.module['record'](self.session, {'pid': 123, 'started': '42'}, '/')
-        with patch.dict(self.module['open_session'].__globals__, {'process': lambda pid: ('alacritty', 1, '42')}), patch('subprocess.run') as run, patch('subprocess.Popen') as launch:
+        with patch.dict(self.module['open_session'].__globals__, {'process': lambda pid: ('kitty', 1, '42')}), patch('subprocess.run') as run, patch('subprocess.Popen') as launch:
             run.return_value.stdout = 'boolean true'
             self.module['open_session'](self.session)
             self.assertIn('c.pid == 123', run.call_args.args[0][1])
@@ -30,13 +30,13 @@ class SessionLauncher(unittest.TestCase):
 
     def test_closed_or_reused_terminal_resumes_exact_session(self):
         self.module['record'](self.session, {'pid': 123, 'started': '42'}, '/')
-        with patch.dict(self.module['open_session'].__globals__, {'process': lambda pid: ('alacritty', 1, '99')}), patch('subprocess.Popen') as launch:
+        with patch.dict(self.module['open_session'].__globals__, {'process': lambda pid: ('kitty', 1, '99')}), patch('subprocess.Popen') as launch:
             self.module['open_session'](self.session)
-            self.assertEqual(launch.call_args.args[0][-4:], ['-e', 'codex', 'resume', self.session])
-            self.assertIn('--working-directory', launch.call_args.args[0])
+            self.assertEqual(launch.call_args.args[0][-4:], ['--', 'codex', 'resume', self.session])
+            self.assertIn('--directory', launch.call_args.args[0])
         with patch('subprocess.Popen') as launch:
             self.module['open_session']('')
-            self.assertEqual(launch.call_args.args[0][-4:], ['-e', 'codex', 'resume', '--all'])
+            self.assertEqual(launch.call_args.args[0][-4:], ['--', 'codex', 'resume', '--all'])
         with patch('subprocess.Popen') as launch:
             with self.assertRaises(ValueError):
                 self.module['open_session']('invalid; command')

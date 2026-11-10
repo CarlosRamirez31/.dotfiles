@@ -364,7 +364,7 @@ def main():
     if args.action=='terminal-privada':
         host=dict(os.environ); host['DISPLAY']=s['host_display']
         if s['host_xauthority']: host['XAUTHORITY']=s['host_xauthority']
-        subprocess.Popen(['distrobox-host-exec','alacritty','--title','HERMES_PRIVADO','-e','distrobox','enter','dev'],env=host,start_new_session=True)
+        subprocess.Popen(['distrobox-host-exec','kitty','--title','HERMES_PRIVADO','--','distrobox','enter','dev'],env=host,start_new_session=True)
         print('Terminal privada abierta en el escritorio principal. Ejecuta hermes allí.'); return
 
 

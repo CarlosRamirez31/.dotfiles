@@ -3,7 +3,7 @@
 **Autor: Carlos Ramirez · © 2026 · [Licencia MIT](LICENSE)**
 
 Escritorio Arch Linux reproducible para programación, uso diario y laboratorios
-de seguridad autorizados. El conjunto usa AwesomeWM sobre X11, Alacritty, Zsh y
+de seguridad autorizados. El conjunto usa AwesomeWM sobre X11, Kitty, Zsh y
 Neovim con una apariencia coherente y módulos instalables por separado.
 
 La configuración prioriza cuatro ideas:
@@ -62,7 +62,7 @@ próximo arranque sin interrumpir la sesión actual.
 Para instalar componentes concretos:
 
 ```bash
-./install.sh rofi alacritty awesome
+./install.sh rofi kitty awesome
 ./install.sh --help
 ```
 
@@ -164,7 +164,7 @@ dev-podman restart
 | [`files`](docs/files.md) | Yazi, selector del sistema, Thunar, visores y asociaciones |
 | [`hardware`](docs/hardware.md) | Bluetooth y, en equipos físicos, firmware/SMART |
 | [`security`](docs/security.md) | keyring, agente SSH y firewall nftables |
-| [`alacritty`](docs/alacritty.md) | terminal gráfica y registro XDG |
+| [`kitty`](docs/kitty.md) | terminal gráfica y registro XDG |
 | [`nvim`](docs/nvim.md) | editor LazyVim para todos los lenguajes usados |
 | [`rofi`](docs/rofi.md) | lanzador de aplicaciones |
 | [`wallpaper`](docs/wallpaper.md) | carrusel GTK/X11 y fondo Feh |

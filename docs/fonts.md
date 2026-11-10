@@ -6,7 +6,7 @@ Este componente instala las familias tipográficas que sostienen la interfaz: Je
 
 | Fuente | Procedencia | Uso |
 | --- | --- | --- |
-| JetBrainsMono Nerd Font | Paquete Arch `ttf-jetbrains-mono-nerd` | Alacritty, Starship e iconos Nerd Font. |
+| JetBrainsMono Nerd Font | Paquete Arch `ttf-jetbrains-mono-nerd` | Kitty, Starship e iconos Nerd Font. |
 | Iosevka Nerd Font | Paquete Arch `ttf-iosevka-nerd` | Tipografía compacta de la barra y respaldo de glifos. |
 | Material Icons | Paquete Arch `ttf-material-icons` | Recursos de iconos compatibles con aplicaciones; los bordes de Polybar usan Nerd Font. |
 | Noto Color Emoji | Paquete Arch `noto-fonts-emoji` | Emojis de Starship, incluido el dragón que identifica Kali Linux. |
@@ -24,11 +24,11 @@ fc-match Lexend
 fc-list | rg 'JetBrains|Lexend'
 ```
 
-`fc-match` debe devolver la familia solicitada y no una sustitución como DejaVu Sans. Después de instalar, aplicaciones antiguas pueden necesitar reiniciarse para reconstruir sus propias cachés. Alacritty usa Noto Color Emoji como respaldo cuando Starship muestra símbolos Unicode que no pertenecen a Nerd Fonts.
+`fc-match` debe devolver la familia solicitada y no una sustitución como DejaVu Sans. Después de instalar, aplicaciones antiguas pueden necesitar reiniciarse para reconstruir sus propias cachés. Kitty usa Noto Color Emoji como respaldo cuando Starship muestra símbolos Unicode que no pertenecen a Nerd Fonts.
 
 ## Relaciones y personalización
 
-Alacritty solicita JetBrainsMono Regular; Polybar usa JetBrainsMono e Iosevka Nerd Font y los menús de Awesome usan JetBrainsMono con opciones marcadas y descripciones más suaves. Cambiar el nombre o retirar una familia exige actualizar esas configuraciones para evitar fallback inconsistente.
+Kitty solicita JetBrainsMono Regular/Bold/Italic/Bold Italic; Polybar usa JetBrainsMono e Iosevka Nerd Font y los menús de Awesome usan JetBrainsMono con opciones marcadas y descripciones más suaves. Cambiar el nombre o retirar una familia exige actualizar esas configuraciones para evitar fallback inconsistente.
 
 Si aparecen glifos cuadrados, verifica primero que el proceso use esta cuenta de usuario y ejecuta:
 

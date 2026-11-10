@@ -14,7 +14,7 @@ awful.spawn = { easy_async = function(args, callback)
     if args[2] == "--export-saved" then callback("gap\t8\nborder\t1\naccent\t#abcdef\n", "", "exit", 0)
     else callback("", "", "exit", 0) end
 end }
-local normal = { type = "normal", class = "Alacritty" }
+local normal = { type = "normal", class = "kitty" }
 local unfocused = { type = "normal", class = "Firefox" }
 local emulator = { type = "normal", class = "Emulator", border_width = 0 }
 local dock = { type = "dock", border_width = 0 }

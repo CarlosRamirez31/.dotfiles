@@ -1,5 +1,5 @@
 # Text editing that follows the conventions used by graphical applications.
-# Alacritty sends the corresponding CSI sequences explicitly.
+# Kitty sends the corresponding CSI sequences explicitly.
 _dotfiles_start_selection() {
     if (( ! REGION_ACTIVE )); then
         MARK=$CURSOR
@@ -51,7 +51,7 @@ zle -N dotfiles-backward-delete-or-region _dotfiles_backward_delete_or_region
 zle -N dotfiles-backward-kill-word-or-region _dotfiles_backward_kill_word_or_region
 
 for keymap in emacs viins; do
-    # Alacritty translates Ctrl+Backspace to Ctrl+W. Keep Ctrl+W itself useful
+    # Kitty translates Ctrl+Backspace to Ctrl+W. Keep Ctrl+W itself useful
     # as the conventional terminal shortcut for deleting the previous word.
     bindkey -M "$keymap" '^?' dotfiles-backward-delete-or-region
     bindkey -M "$keymap" '^W' dotfiles-backward-kill-word-or-region

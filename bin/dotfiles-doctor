@@ -26,7 +26,7 @@ fail() {
 
 printf '%sDotfiles desktop doctor%s\n\n' "$bold" "$reset"
 
-essential_commands=(awesome picom Xorg xrandr xrdb xset glxinfo zsh alacritty nvim yazi rofi)
+essential_commands=(awesome picom Xorg xrandr xrdb xset glxinfo zsh kitty nvim yazi rofi)
 essential_commands+=(xsecurelock xss-lock feh maim slop clipmenu xclip)
 essential_commands+=(gpick brave thunar)
 optional_commands=(fastfetch nft openvpn restic podman keepassxc btop trash-put)
@@ -107,7 +107,7 @@ managed_paths=(
     "$HOME/.Xresources"
     "$HOME/.xprofile"
     "$HOME/.config/gtk-3.0/settings.ini"
-    "$HOME/.config/alacritty/alacritty.toml"
+    "$HOME/.config/kitty/kitty.conf"
     "$HOME/.config/nvim/init.lua"
     "$HOME/.config/yazi/yazi.toml"
     "$HOME/.config/xdg-desktop-portal/portals.conf"

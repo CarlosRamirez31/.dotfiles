@@ -26,8 +26,8 @@ def adapt(root):
     text = text.replace("x=spawn(xephyr,host_env,RUN/'xephyr.log')",
                         "x=spawn(xephyr,dict(host_env,__NV_PRIME_RENDER_OFFLOAD='0',"
                         "__GLX_VENDOR_LIBRARY_NAME='mesa'),RUN/'xephyr.log')")
-    text = text.replace("['distrobox-host-exec','alacritty','--title','HERMES_PRIVADO','-e','distrobox','enter','dev']",
-                        "['alacritty','--title','HERMES_PRIVADO','-e','zsh','-l']")
+    text = text.replace("['distrobox-host-exec','kitty','--title','HERMES_PRIVADO','--','distrobox','enter','dev']",
+                        "['kitty','--title','HERMES_PRIVADO','--','zsh','-l']")
     if 'distrobox-host-exec' in text:
         raise SystemExit('Queda un lanzador de host sin adaptar en presentación.')
     script.write_text(text)

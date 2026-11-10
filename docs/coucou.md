@@ -20,7 +20,7 @@ Después, con Coucou instalado en `~/.local/opt/coucou/squashfs-root`, ejecutar:
 
 El script enlaza el código local, conserva las copias anteriores y recompila
 la biblioteca del tema de forma atómica. Si falta `agent-hub.json`, crea una
-configuración de Alacritty mediante `dotfiles-terminal`; no sobreescribe una
+configuración de Kitty mediante `dotfiles-terminal`; no sobreescribe una
 configuración existente. Reiniciar únicamente Coucou para cargar la biblioteca.
 No instala ni actualiza aplicaciones y no reinicia el escritorio.
 

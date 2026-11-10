@@ -26,7 +26,7 @@ class TerminalTests(unittest.TestCase):
         self.error = None
         self.response_route = None
         self.bridge = module.HubTerminal(self.root / 'state', config={
-            'terminal': {'program': 'alacritty', 'adapter': 'alacritty'}},
+            'terminal': {'program': 'kitty', 'adapter': 'kitty'}},
             run=self.run_hub, spawn=self.spawn, which=lambda name: '/bin/' + name)
 
     def run_hub(self, argv, **kwargs):
@@ -58,7 +58,7 @@ class TerminalTests(unittest.TestCase):
         self.bridge.config['returnToAgents'] = True
         result = self.bridge.open({'route':self.route})
         argv = self.launches[0][0]
-        self.assertEqual(argv[:4],['alacritty','--working-directory',str(self.cwd),'-e'])
+        self.assertEqual(argv[:4],['kitty','--directory',str(self.cwd),'--'])
         self.assertEqual(Path(argv[5]).name,'terminal_session.py')
         self.assertEqual(argv[6:],['--route-file',result['routeFile']])
 
@@ -99,7 +99,7 @@ class TerminalTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
             self.assertEqual(json.loads(path.read_text(encoding='utf-8')), route)
             argv, kwargs = self.launches[-1]
-            self.assertEqual(argv, ['alacritty', '--working-directory', str(self.cwd), '-e',
+            self.assertEqual(argv, ['kitty', '--directory', str(self.cwd), '--',
                                     'agent-hub', 'open', '--route-file', str(path)])
             self.assertEqual(kwargs['cwd'], str(self.cwd))
             self.assertNotIn('sh', argv)
@@ -170,7 +170,7 @@ class TerminalTests(unittest.TestCase):
 
     def test_terminal_apis_are_distinct_and_child_argv_preserved(self):
         child = ['agent-hub', 'open', '--route-file', '/ruta con " ; 日本語.json']
-        for adapter, separator in [('alacritty', '-e'), ('kitty', '--'), ('gnome-terminal', '--'),
+        for adapter, separator in [('kitty', '--'), ('gnome-terminal', '--'),
                                    ('konsole', '-e'), ('wezterm', '--'), ('foot', '--'),
                                    ('xterm', '-e'), ('xfce4-terminal', '--execute')]:
             self.bridge.config = {'terminal': {'program': adapter, 'adapter': adapter}}

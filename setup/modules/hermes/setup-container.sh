@@ -22,7 +22,7 @@ trap 'rm -f -- "$package_before"' EXIT
 pacman -Qq >"$package_before"
 sudo pacman -Syu --needed --noconfirm base-devel git curl python python-pip python-yaml \
     xorg-server-xephyr xorg-xdpyinfo xorg-xrandr xorg-xauth xorg-setxkbmap \
-    xdotool scrot xclip awesome polybar rofi alacritty feh picom firefox yazi \
+    xdotool scrot xclip awesome polybar rofi kitty feh picom firefox yazi \
     dbus libpulse ttf-dejavu zsh starship fastfetch eza bat fd fzf ripgrep zoxide vivid \
     zsh-autosuggestions zsh-syntax-highlighting zsh-completions zsh-history-substring-search
 python "$component_root/configure.py" --component "$component_root" --packages-before "$package_before"

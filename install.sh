@@ -25,7 +25,7 @@ default_components=(
     files
     hardware
     security
-    alacritty
+    kitty
     nvim
     rofi
     wallpaper

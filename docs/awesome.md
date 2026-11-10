@@ -107,7 +107,7 @@ bajo el puntero; vuelve a abrirlas para que los tomen. El deslizador acepta
 tamaños de fuente en décimas de punto. El primer nivel de escala
 de aplicaciones, 110 %, aplica un aumento efectivo del 20 % para que el cambio
 sea visible. El tamaño de fuente adicional ajusta las fuentes de las aplicaciones
-compatibles y Alacritty. Polybar usa su selector propio. Algunas aplicaciones
+compatibles y Kitty. Polybar usa su selector propio. Algunas aplicaciones
 pueden ignorar los ajustes de fuente de X11. Las preferencias se guardan por
 EDID en `display-appearance.json`.
 Hay 20 segundos para conservar o restaurar la prueba.

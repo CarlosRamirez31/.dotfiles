@@ -31,9 +31,9 @@ trash-empty
 | `Alt+B` | Brave. |
 | `Alt+Shift+C` | Selector de color. |
 
-El acceso de Btop del menú abre Alacritty con letra de tamaño 9, sin forzar
+El acceso de Btop del menú abre Kitty mediante el wrapper con tamaño lógico 9 (13.5 pt), sin forzar
 la maximización. El comando `btop` en una terminal conserva el tamaño de esa
-terminal; la configuración general de Alacritty no cambia.
+terminal; la configuración general de Kitty no cambia.
 
 ## Diagnóstico
 

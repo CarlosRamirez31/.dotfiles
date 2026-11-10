@@ -4,9 +4,54 @@ set -euo pipefail
 config_dir=${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles
 config_file="$config_dir/backup.conf"
 exclude_file="$config_dir/backup-excludes"
+state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/backup
+
+# A weekly cycle starts on Monday at 10:00 in the local time zone.
+weekly_cycle() {
+    local monday
+    monday=$(date -d "$(date +%F) -$(( $(date +%u) - 1 )) days 10:00" +%s)
+    if (( $(date +%s) < monday )); then
+        monday=$(date -d "$(date -d "@$monday" +%F) -7 days 10:00" +%s)
+    fi
+    printf '%s\n' "$monday"
+}
+
+finish_cycle() {
+    mkdir -p -- "$state_dir"
+    printf '%s\n' "${DOTFILES_BACKUP_CYCLE:-$(weekly_cycle)}" >"$state_dir/finished-cycle"
+}
+
+backup_header() {
+    printf '\033[2J\033[H\n\033[1;35m  ◇  TU RESPALDO SEMANAL\033[0m\n\n'
+    printf '  Tus archivos, protegidos.\n'
+    printf '\033[2m  La contraseña solo se usa durante la copia.\033[0m\n\n'
+}
+
+choose_backup_action() {
+    local choice
+    local allow_start=${1:-false}
+    printf '  [2] Reintentar más tarde · en 2 horas\n'
+    printf '  [3] Cancelar esta semana\n\n'
+    while true; do
+        choice=
+        if ! read -rt 120 -p '  Elige una opción › ' choice; then
+            choice=2
+        fi
+        case $choice in
+            1) if $allow_start; then return 0; fi ;;
+            2|'') printf '\n  Te lo recordaré dentro de 2 horas.\n'; return 2 ;;
+            3)
+                finish_cycle
+                printf '\n  Cancelado por esta semana.\n  Volveré el lunes a las 10 a. m.\n'
+                return 3
+                ;;
+            *) printf '  Escribe el número de una opción.\n' ;;
+        esac
+    done
+}
 
 usage() {
-    printf 'Usage: %s {setup REPOSITORY|run|popup|scheduled-run|preview|snapshots|check|restore [SNAPSHOT] TARGET}\n' "${0##*/}"
+    printf 'Usage: %s {setup REPOSITORY|run|popup|scheduled-popup|scheduled-run|preview|snapshots|check|restore [SNAPSHOT] TARGET}\n' "${0##*/}"
 }
 
 load_config() {
@@ -41,9 +86,10 @@ prepare_destination() {
         local mounted
         mounted=$(findmnt -rn -S "UUID=$BACKUP_DISK_UUID" -o TARGET || true)
         if [[ -z $mounted ]]; then
-            printf 'Montando el disco de respaldo...\n'
-            udisksctl mount -b "/dev/disk/by-uuid/$BACKUP_DISK_UUID" || {
-                printf 'No se pudo montar el disco. Conectalo y vuelve a intentar.\n' >&2
+            printf '  Conectando con tu disco de respaldo…\n'
+            mkdir -p -- "$state_dir"
+            udisksctl mount -b "/dev/disk/by-uuid/$BACKUP_DISK_UUID" >"$state_dir/mount.log" 2>&1 || {
+                printf '\n  No pude abrir tu disco de respaldo.\n  Comprueba que esté conectado y desbloqueado.\n' >&2
                 return 1
             }
             mounted=$(findmnt -rn -S "UUID=$BACKUP_DISK_UUID" -o TARGET)
@@ -71,14 +117,14 @@ run_backup() {
         create_repository=true
         printf '  Respaldo nuevo. Elige una contraseña\n  y guardala en un lugar seguro.\n\n'
     fi
-    read -rsp '  Contraseña › ' RESTIC_PASSWORD
+    read -rt 120 -sp '  Contraseña › ' RESTIC_PASSWORD
     printf '\n'
     [[ -n $RESTIC_PASSWORD ]] || {
         printf 'La contraseña no puede estar vacia.\n' >&2
         return 1
     }
     if $create_repository; then
-        read -rsp '  Repite      › ' confirmation
+        read -rt 120 -sp '  Repite      › ' confirmation
         printf '\n'
         [[ $RESTIC_PASSWORD == "$confirmation" ]] || {
             unset RESTIC_PASSWORD confirmation
@@ -124,7 +170,18 @@ case ${1:-} in
         printf 'Backup configured. A floating terminal will request your password weekly. Start now with: dotfiles-backup popup\n'
         ;;
     run)
+        umask 077
         run_backup
+        ;;
+    scheduled-popup)
+        umask 077
+        export DOTFILES_BACKUP_CYCLE
+        DOTFILES_BACKUP_CYCLE=$(weekly_cycle)
+        if [[ -f $state_dir/finished-cycle ]] &&
+            [[ $(cat "$state_dir/finished-cycle") == "$DOTFILES_BACKUP_CYCLE" ]]; then
+            exit 0
+        fi
+        exec "$0" popup
         ;;
     popup)
         mkdir -p "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles-backup"
@@ -132,25 +189,38 @@ case ${1:-} in
         flock -n 9 || exit 0
         "$HOME/.local/bin/dotfiles-terminal" --class DotfilesBackup \
             --option window.padding.x=20 --option window.padding.y=16 \
+            --option window.dimensions.columns=64 --option window.dimensions.lines=20 \
             --title 'Respaldo · Beambollow' -e "$0" scheduled-run
         ;;
     scheduled-run)
+        umask 077
         require_terminal
-        printf '\n\033[1;35m  ◇  RESPALDO BEAMBOLLOW\033[0m\n\033[2m  Tu contraseña no se guarda.\033[0m\n\n'
+        backup_header
+        printf '  ¿Hacemos una copia de tus archivos?\n\n'
+        printf '  [1] Iniciar respaldo ahora\n'
+        if ! choose_backup_action true; then exit 0; fi
+        backup_header
         # A child shell preserves errexit inside run_backup and reports failures.
         if "$0" run; then
-            result=0
-            printf '\nRespaldo terminado correctamente.\n'
+            finish_cycle
+            printf '\n\033[1;32m  ✓  Tus archivos ya están respaldados.\033[0m\n'
+            printf '  Próximo respaldo: lunes a las 10 a. m.\n\n'
+            read -rt 120 -p '  Pulsa Enter para cerrar › ' _ || true
         else
-            result=$?
-            printf '\nEl respaldo no termino correctamente (codigo %s). Revisa el mensaje anterior.\n' "$result"
+            printf '\n\033[1;35m  Dejamos tu respaldo pendiente.\033[0m\n'
+            printf '  Puedes conectar el disco y volver más tarde.\n\n'
+            # The next attempt is scheduled even if the window is closed.
+            choose_backup_action || true
         fi
-        read -rp 'Pulsa Enter para cerrar esta ventana. ' _ || true
-        exit "$result"
         ;;
     preview)
-        printf '\n\033[1;35m  ◇  RESPALDO BEAMBOLLOW\033[0m\n\033[2m  Tu contraseña no se guarda.\033[0m\n\n  Vista previa · no inicia una copia.\n\n'
-        read -rp '  Enter para cerrar › ' _ || true
+        backup_header
+        printf '  ¿Hacemos una copia de tus archivos?\n\n'
+        printf '  [1] Iniciar respaldo ahora\n'
+        printf '  [2] Reintentar más tarde · en 2 horas\n'
+        printf '  [3] Cancelar esta semana\n\n'
+        printf '\033[2m  Vista previa · no inicia una copia.\033[0m\n\n'
+        read -rt 120 -p '  Enter para cerrar › ' _ || true
         ;;
     snapshots)
         load_config

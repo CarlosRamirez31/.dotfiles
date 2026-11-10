@@ -2,9 +2,10 @@
 Description=Weekly encrypted Restic backup
 
 [Timer]
-OnCalendar=weekly
+OnCalendar=Mon *-*-* 10:00:00
+OnUnitInactiveSec=2h
+AccuracySec=1s
 Persistent=true
-RandomizedDelaySec=30m
 Unit=dotfiles-backup.service
 
 [Install]

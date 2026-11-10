@@ -24,6 +24,12 @@ function M.pids(s)
             if pid then result[#result + 1] = pid; seen[pid] = true end
         end
     end
+    -- The output registry remains authoritative after RandR moves a bar to
+    -- another screen. Do not adopt that screen's temporarily misplaced bars.
+    if #result > 0 then
+        table.sort(result)
+        return result
+    end
     for _, c in ipairs(client.get(s)) do
         if c.class == "Polybar" and c.pid and not seen[c.pid] then
             result[#result + 1] = c.pid
@@ -48,13 +54,16 @@ end
 function M.recover_geometry(s)
     local repaired = false
     local area = s.geometry
-    for _, c in ipairs(client.get(s)) do
-        if c.class == "Polybar" then
+    local owned = {}
+    for _, pid in ipairs(M.pids(s)) do owned[pid] = true end
+    for _, c in ipairs(client.get()) do
+        if c.class == "Polybar" and owned[c.pid] then
             local g = c:geometry()
             if g.x + g.width <= area.x or g.x >= area.x + area.width
                 or g.y + g.height <= area.y or g.y >= area.y + area.height then
                 g.x = area.x + math.max(0, math.floor((area.width - g.width) / 2))
                 g.y = area.y + math.floor(area.height * 0.005)
+                c.screen = s
                 c:geometry(g)
                 repaired = true
             end

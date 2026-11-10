@@ -874,6 +874,24 @@ def gui(outputs):
             self.connect('destroy', Gtk.main_quit)
             self.connect('destroy', lambda *_: Gtk.StyleContext.remove_provider_for_screen(self.get_screen(), self.css))
             self.show_all()
+            # The panel owns the layout lock, so --auto cannot handle lid
+            # changes until it closes. Handle those transitions here too.
+            self.last_lid_state = False
+            self.lid_timer = GLib.timeout_add_seconds(1, self.check_lid)
+            self.connect('destroy', lambda *_: GLib.source_remove(self.lid_timer))
+
+        def check_lid(self):
+            closed = lid_closed()
+            if closed != self.last_lid_state:
+                try:
+                    if self.pending is not None:
+                        self.finish_preview(None, False)
+                    automatic(query())
+                    self.sync_outputs()
+                    self.last_lid_state = closed
+                except (OSError, ValueError, subprocess.SubprocessError) as error:
+                    self.message.set_text('No se pudo ajustar la pantalla al cambiar la tapa: ' + str(error))
+            return True
 
         def select_monitor(self, combo):
             name = combo.get_active_id()

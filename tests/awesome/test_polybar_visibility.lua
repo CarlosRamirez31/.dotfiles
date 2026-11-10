@@ -12,9 +12,17 @@ package.loaded.gears = { timer = function(options)
 end }
 local source = (arg[0]:match("^(.*)/tests/") or ".")
 local visibility = dofile(source .. "/config/awesome/polybar-visibility.lua")
+local registered_pids = visibility.pids
 local a = { geometry = { y = 0 }, outputs = { A = true }, clients = {} }
 local b = { geometry = { y = 0 }, outputs = { B = true }, clients = {} }
-client = { get = function(s) return s.clients end }
+client = { get = function(s)
+    if s then return s.clients end
+    local all = {}
+    for _, screen in ipairs({ a, b }) do
+        for _, c in ipairs(screen.clients) do all[#all + 1] = c end
+    end
+    return all
+end }
 visibility.pids = function(s) return s == a and { 101 } or { 202 } end
 local full = { fullscreen = true, tags = function() return { { selected = true } } end }
 a.clients = { full }
@@ -40,7 +48,7 @@ assert(not visibility.fullscreen(a), "Fullscreen on an unselected tag must not h
 a.geometry = { x = 0, y = 0, width = 1920, height = 1080 }
 local geometry = { x = 1939, y = 5, width = 1881, height = 44 }
 local raised = 0
-local panel = { class = "Polybar", raise = function() raised = raised + 1 end, geometry = function(_, value)
+local panel = { class = "Polybar", pid = 101, raise = function() raised = raised + 1 end, geometry = function(_, value)
     if value then geometry = value end
     return geometry
 end }
@@ -80,4 +88,20 @@ a.clients = { panel }
 visibility.update_screen(a, { y = 300 }, a)
 assert(visibility.states[a].visible and not visibility.states[a].show_timer.started
     and not visibility.states[a].hide_timer.started, "Leaving fullscreen restores panel")
+
+-- A panel can be assigned to the wrong live screen after IPC show restores
+-- its cached coordinates. Recover it by output ownership, not client.screen.
+a.clients = {}
+b.clients = { panel }
+geometry.x = 1939
+visibility.update_screen(a, { y = 300 }, a)
+assert(geometry.x == 19 and panel.screen == a, "Return misplaced panel to its owning output")
+local open = io.open
+io.open = function(path)
+    local pid = path:match('/A$') and 101 or 202
+    return { read = function() return tostring(pid) end, close = function() end }
+end
+local pids = registered_pids(b)
+io.open = open
+assert(#pids == 1 and pids[1] == 202, "Never adopt another output's registered panel")
 print("Per-monitor Polybar visibility tests OK")

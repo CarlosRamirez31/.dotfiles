@@ -46,6 +46,7 @@ application/vnd.openxmlformats-officedocument.presentationml.template=onlyoffice
 application/vnd.oasis.opendocument.presentation=onlyoffice-desktopeditors.desktop
 x-scheme-handler/about=brave-browser.desktop
 x-scheme-handler/unknown=brave-browser.desktop
+x-scheme-handler/mailto=brave-browser.desktop
 
 [Added Associations]
 text/html=brave-browser.desktop;

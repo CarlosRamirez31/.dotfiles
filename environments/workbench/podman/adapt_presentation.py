@@ -17,8 +17,15 @@ def adapt(root):
     text = script.read_text()
     text = text.replace('Distrobox dev', 'dev-podman')
     text = text.replace("'Presentación · dev'", "'Presentación · dev-podman'")
-    text = text.replace("['xdotool','search','--class','^Xephyr$']",
-                        "['xdotool','search','--name','^Presentación · dev-podman$']")
+    # WM_NAME and the UTF-8 window title can differ. Search the stable class;
+    # resize() still checks the full title before choosing this container's window.
+    text = text.replace("['xdotool','search','--name','^Presentación · dev-podman$']",
+                        "['xdotool','search','--class','^Xephyr$']")
+    # NVIDIA PRIME offload crashes Xephyr's glamor backend on resize. Keep the
+    # outer X server on Mesa without changing the applications' environment.
+    text = text.replace("x=spawn(xephyr,host_env,RUN/'xephyr.log')",
+                        "x=spawn(xephyr,dict(host_env,__NV_PRIME_RENDER_OFFLOAD='0',"
+                        "__GLX_VENDOR_LIBRARY_NAME='mesa'),RUN/'xephyr.log')")
     text = text.replace("['distrobox-host-exec','alacritty','--title','HERMES_PRIVADO','-e','distrobox','enter','dev']",
                         "['alacritty','--title','HERMES_PRIVADO','-e','zsh','-l']")
     if 'distrobox-host-exec' in text:

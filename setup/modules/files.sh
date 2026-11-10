@@ -7,7 +7,6 @@ source "$component_root/../lib.sh"
 require_arch_user
 install_packages \
     yazi \
-    ueberzugpp \
     thunar \
     thunar-volman \
     tumbler \

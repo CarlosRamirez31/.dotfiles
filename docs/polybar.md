@@ -59,6 +59,11 @@ no está disponible por MPRIS: el panel muestra únicamente información real de
 pista actual. Ambos paneles cierran con la X o un segundo clic en su icono y
 permiten seguir usando las aplicaciones y los atajos del escritorio.
 
+Junto al icono de música aparece un punto separador y el nombre corto de la
+aplicación enfocada, en lavanda y con la misma JetBrainsMono de la barra. Cambia
+con el foco de Awesome, sin consultas periódicas, y solo aparece en el monitor
+de esa ventana. No muestra títulos de ventanas.
+
 El panel incluye interruptores directos de red, Bluetooth, modo avión y luz
 nocturna. El icono de red distingue Ethernet y Wi-Fi según la conexión activa;
 en Wi-Fi enciende/apaga la radio y en Ethernet desconecta/reconecta el dispositivo.

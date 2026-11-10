@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Awesome exposes tags globally through EWMH. Ask it for this output's tags
 # instead, so identically named tags on other screens never leak into the bar.
-if [[ ${1:-} == --workspaces || ${1:-} == --tag ]]; then
+if [[ ${1:-} == --workspaces || ${1:-} == --tag || ${1:-} == --active-app ]]; then
     action=$1
     monitor=${2:-}
     [[ $monitor =~ ^[a-zA-Z0-9_.:-]+$ ]] || exit 2
@@ -12,7 +12,9 @@ if [[ ${1:-} == --workspaces || ${1:-} == --tag ]]; then
     if [[ $action == --tag ]]; then
         awesome-client "for s in screen do if s.outputs['$monitor'] then local t=s.tags[$index]; if t then t:view_only() end end end" >/dev/null
     else
-        cache="${XDG_RUNTIME_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}}/dotfiles-polybar-tags/$monitor"
+        directory="${XDG_RUNTIME_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}}/dotfiles-polybar-tags"
+        if [[ $action == --active-app ]]; then directory+=/active-app; fi
+        cache="$directory/$monitor"
         if [[ ! -r $cache ]]; then
             awesome-client 'require("polybar-tags").start()' >/dev/null
         fi

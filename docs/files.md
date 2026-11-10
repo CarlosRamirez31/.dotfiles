@@ -15,6 +15,7 @@ Este componente convierte el escritorio mínimo en un entorno capaz de navegar a
 | `file-roller` | Crear/extraer ZIP, 7z, RAR y tar. |
 | `imv` | Visor de imágenes. |
 | `mpv` | Audio y vídeo. |
+| `ffmpeg`, `poppler`, `resvg`, `imagemagick` | Fotogramas de vídeo y vistas previas de PDF, SVG y formatos de imagen. |
 | `zathura`, `zathura-pdf-mupdf` | PDF y backend MuPDF. |
 | `tesseract-data-eng`, `tesseract-data-spa` | OCR inglés/español requerido por MuPDF. |
 | `xdg-user-dirs` | Resuelve Documents, Downloads, Pictures y Videos según idioma. |
@@ -30,8 +31,8 @@ gio mount smb://servidor/recurso
 ```
 
 `Alt+E` abre Yazi en Kitty y `Ctrl+Alt+E` abre Thunar. En Yazi se navega
-con `h/j/k/l`, `Enter` entra en directorios, `Shift+Enter` abre el archivo en
-su aplicación, `Space` selecciona y `q` sale. `gd`, `gp` y `gh`
+con `h/j/k/l`, `Enter` o `Shift+Enter` abre el archivo seleccionado,
+`l` entra en directorios, `Space` selecciona y `q` sale. `gd`, `gp` y `gh`
 saltan a Descargas, Imágenes y el directorio personal. Los volúmenes aparecen
 en la barra lateral de Thunar y se montan mediante UDisks/GVfs; no hace falta
 `sudo mount` para el uso normal.
@@ -40,13 +41,30 @@ En la sesión Awesome, el portal de archivos usa GTK y X11. Las aplicaciones com
 abren ese selector al subir, abrir o guardar archivos. Yazi sigue disponible
 como gestor de terminal (`Alt+E`); Thunar es el respaldo gráfico.
 
-## Asociaciones predeterminadas
+## Vistas previas y apertura desde Yazi
+
+Kitty muestra las vistas previas con su protocolo gráfico nativo, detectado por
+Yazi. Se conservan los motores incluidos: imágenes, SVG con resvg, fotogramas de
+vídeo con FFmpeg y páginas PDF con pdftoppm. No se necesitan plugins adicionales.
+Los vídeos se previsualizan como fotogramas; la reproducción completa ocurre en mpv.
+
+`J` y `K` avanzan o retroceden la vista previa, incluidas páginas PDF y posiciones
+del vídeo. `Enter` abre imágenes y SVG en imv, audio/vídeo en mpv y PDF en Zathura.
+`O` (mayúscula) muestra «Abrir con», que también conserva la aplicación del sistema.
+Las selecciones múltiples se pasan como rutas independientes mediante los
+placeholders nativos de Yazi. El modo `--chooser-file` también muestra las vistas
+previas y devuelve la ruta elegida, sin lanzar el visor al confirmar el archivo.
+
+La configuración vive en `config/yazi/yazi.toml`. Las reglas se añaden delante de
+las originales; los restantes tipos de archivo conservan el comportamiento de Yazi.
+
+## Asociaciones predeterminadas del sistema
 
 | Contenido | Aplicación |
 | --- | --- |
 | Directorios | Thunar |
 | HTTP, HTTPS y HTML | Brave |
-| PDF | Zathura |
+| PDF | OnlyOffice (Zathura al abrir desde Yazi) |
 | BMP, GIF, JPEG, PNG, SVG y WebP | imv |
 | FLAC, MP3, Ogg y vídeos comunes | mpv |
 | ZIP, 7z, RAR y tar | File Roller |

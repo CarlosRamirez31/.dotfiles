@@ -16,6 +16,26 @@ max_width = 1200
 max_height = 900
 image_delay = 40
 
+# Keep the built-in image, SVG, video and PDF previewers and Kitty detection.
+# Native %s placeholders preserve selected paths, including spaces and quotes.
+[opener]
+image = [
+    { run = "imv -- %s", desc = "Ver imagen (imv)", orphan = true, for = "linux" },
+]
+media = [
+    { run = "mpv -- %s", desc = "Reproducir (mpv)", orphan = true, for = "linux" },
+]
+document = [
+    { run = "zathura -- %s", desc = "Leer PDF (Zathura)", orphan = true, for = "linux" },
+]
+
+[open]
+prepend_rules = [
+    { mime = "application/pdf", use = [ "document", "open", "reveal" ] },
+    { mime = "image/*", use = [ "image", "open", "reveal" ] },
+    { mime = "{audio,video}/*", use = [ "media", "open", "reveal" ] },
+]
+
 [tasks]
 micro_workers = 5
 macro_workers = 10

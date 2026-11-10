@@ -21,6 +21,8 @@ install_packages \
     file-roller \
     imv \
     mpv \
+    ffmpeg \
+    imagemagick \
     zathura \
     tesseract-data-eng \
     tesseract-data-spa \

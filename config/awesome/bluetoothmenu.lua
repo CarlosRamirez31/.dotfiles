@@ -3,12 +3,13 @@ local gears = require("gears")
 local wibox = require("wibox")
 local menu_style = require("menu-style")
 
-local M = { version = 3 }
+local M = { version = 4 }
 local popup, body, timer, session, grabber
 local generation, page = 0, 1
 local loading, dispatching, busy = false, false, false
+local requested = false
 local view, last_output, request_key = "saved", nil, nil
-local backend = os.getenv("HOME") .. "/.local/bin/dotfiles-polybar-bluetooth"
+local backend = os.getenv("HOME") .. "/.local/bin/dotfiles-bluetooth-session"
 local colors = menu_style.colors
 
 local function text(value, font, color)
@@ -29,6 +30,7 @@ end
 
 function M.close()
     generation = generation + 1
+    requested = false
     loading, dispatching, busy = false, false, false
     stop_input()
     if timer then timer:stop(); timer = nil end
@@ -215,10 +217,11 @@ refresh = function()
 end
 
 function M.toggle()
-    if popup and popup.visible then M.close(); return end
+    if requested then M.close(); return end
     M.close()
+    requested = true
     page, view, last_output, request_key = 1, "saved", nil, nil
-    body = wibox.container.background(text("Cargando dispositivos…", "JetBrainsMono Nerd Font Bold 10", colors.muted))
+    body = wibox.container.background()
     local controls = wibox.widget({ spacing = 12, layout = wibox.layout.fixed.horizontal })
     for _, button in ipairs({ { "󰜉", function() if view == "nearby" then action({ "--scan" }) else refresh() end end, "Actualizar" }, { "󰅙", M.close, "Cerrar" } }) do
         local glyph = menu_style.icon(button[1], 16, button[3] == "Cerrar" and colors.red or colors.blue, 25, 28)
@@ -234,7 +237,7 @@ function M.toggle()
         nil, controls, layout = wibox.layout.align.horizontal,
     })
     popup = awful.popup({
-        screen = awful.screen.focused(), ontop = true, visible = true, type = "dialog",
+        screen = awful.screen.focused(), ontop = true, visible = false, type = "dialog",
         bg = colors.base, border_width = 1, border_color = colors.border,
         shape = gears.shape.rounded_rect, minimum_width = 410, maximum_width = 410,
         widget = {
@@ -247,14 +250,16 @@ function M.toggle()
     popup.y = screen.geometry.y + 46
     local current = generation
     awful.spawn.easy_async({ backend, "--open" }, function(output, _, _, status)
-        local token = output:match("^([0-9a-f]+)")
-        if generation ~= current or not popup.visible then end_session(token); return end
-        if status ~= 0 or not token or #token ~= 32 then
+        local token, snapshot = output:match("^([0-9a-f]+)\n(.+)$")
+        if generation ~= current then end_session(token); return end
+        if status ~= 0 or not token or #token ~= 32 or not snapshot then
             body:set_widget(text("No se pudo abrir Bluetooth. Vuelve a intentarlo.", "JetBrainsMono Nerd Font Medium 9", colors.red))
+            menu_style.reveal(popup)
             return
         end
         session = token
-        refresh()
+        render(snapshot)
+        menu_style.reveal(popup)
         timer = gears.timer({ timeout = 1, autostart = true, callback = refresh })
     end)
 end

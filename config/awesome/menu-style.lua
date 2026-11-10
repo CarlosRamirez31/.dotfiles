@@ -9,6 +9,15 @@ M.colors = {
     lavender = "#cba6f7", red = "#f38ba8", yellow = "#f9e2af",
 }
 
+-- Fit the finished widget at the popup's fixed width before mapping it.
+function M.reveal(popup)
+    if popup.visible then return end
+    local widget = popup.widget
+    local _, height = wibox.widget.base.fit_widget(widget, { dpi = popup.screen.dpi }, widget, popup.width, 9999)
+    popup.height = math.max(1, math.ceil(height))
+    popup.visible = true
+end
+
 function M.icon(symbol, size, color, width, height)
     width, height = width or 28, height or width or 28
     local widget = wibox.widget.base.make_widget(nil, nil, { enable_properties = true })

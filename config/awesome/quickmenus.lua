@@ -43,9 +43,9 @@ local function hide(kind)
     if popups[kind] then popups[kind].visible = false end
 end
 
-local function make_popup(kind, title, subtitle, content, width)
+local function make_popup(kind, title, subtitle, content, width, hidden)
     if kind == "network" and popups.network and popups.network.visible then
-        network_host:set_widget(content)
+        if not hidden then network_host:set_widget(content) end
         return popups.network
     end
     if kind == "network" then
@@ -93,7 +93,7 @@ local function make_popup(kind, title, subtitle, content, width)
     local popup = awful.popup({
         screen = awful.screen.focused(),
         ontop = true,
-        visible = true,
+        visible = not hidden,
         type = "dialog",
         bg = palette.base,
         border_width = 1,
@@ -342,7 +342,6 @@ local function render_networks(view, scan_error)
     end
     network_page = math.min(network_page, math.max(1, math.ceil(#available / 5)))
     local key = table.concat(signature, "\n") .. network_page .. tostring(scan_error)
-    view.empty = #available == 0
     view.list.visible = true
     if view.signature == key then return end
     view.signature = key
@@ -363,26 +362,27 @@ local function render_networks(view, scan_error)
 end
 
 function M.show_network(refresh)
-    if not network_view or not popups.network or not popups.network.visible then
+    if not network_view then
         network_page = 1
         network_view = network_content()
-        make_popup("network", "Conexiones", "Estado de Wi-Fi", network_view.widget, 370)
+        make_popup("network", "Conexiones", "Estado de Wi-Fi", network_view.widget, 370, true)
     end
     if network_busy then return end
     network_busy = true
     local view = network_view
     local generation = network_generation
     local popup = popups.network
-    local function valid() return network_generation == generation and network_view == view and popup.visible end
+    local function valid() return network_generation == generation and network_view == view end
     if not network_timer then
         network_timer = gears.timer({ timeout = 10, autostart = true, callback = function() M.show_network() end })
     end
-    view.loading.visible = true
-    if view.empty then view.list.visible = false end
-    network_spinner = gears.timer({ timeout = 0.065, autostart = true, callback = function()
-        view.phase = (view.phase + 1) % 12
-        view.spinner:emit_signal("widget::redraw_needed")
-    end })
+    if refresh and view.ready then
+        view.loading.visible = true
+        network_spinner = gears.timer({ timeout = 0.065, autostart = true, callback = function()
+            view.phase = (view.phase + 1) % 12
+            view.spinner:emit_signal("widget::redraw_needed")
+        end })
+    end
     awful.spawn.easy_async_with_shell("LC_ALL=C nmcli -t --escape no -f DEVICE,TYPE,STATE,CONNECTION device status", function(device_output)
         if not valid() then return end
         local devices, networks, seen = {}, {}, {}
@@ -394,10 +394,8 @@ function M.show_network(refresh)
                 if kind == "wifi" and state ~= "unavailable" then wifi_enabled = true end
             end
         end
-        view.devices = devices
-        view.wifi_enabled = wifi_enabled
-        render_connection(view)
-        local scan = "LC_ALL=C nmcli --wait 10 -t --escape no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan " .. (refresh and "yes" or "auto")
+        local rescan = refresh and "yes" or (view.ready and "auto" or "no")
+        local scan = "LC_ALL=C nmcli --wait 10 -t --escape no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan " .. rescan
         awful.spawn.easy_async_with_shell(scan, function(output, _, _, scan_code)
             if not valid() then return end
             for line in output:gmatch("[^\r\n]+") do
@@ -423,11 +421,17 @@ function M.show_network(refresh)
                         if a.available ~= b.available then return a.available == true end
                         return (tonumber(a.signal) or 0) > (tonumber(b.signal) or 0)
                     end)
-                    view.networks = networks
+                    view.devices, view.wifi_enabled, view.networks = devices, wifi_enabled, networks
+                    render_connection(view)
                     render_networks(view, scan_code ~= 0)
                     network_busy = false
                     if network_spinner then network_spinner:stop(); network_spinner = nil end
                     view.loading.visible = false
+                    if not view.ready then
+                        network_host:set_widget(view.widget)
+                        view.ready = true
+                    end
+                    menu_style.reveal(popup)
                 end
                 if remaining == 0 then render(); return end
                 for _, uuid in ipairs(uuids) do
@@ -451,10 +455,15 @@ end
 
 function M.toggle(kind)
     if kind == "network" then
-        if popups.network and popups.network.visible then hide("network") else M.show_network() end
+        if network_view or (popups.network and popups.network.visible) then hide("network") else M.show_network() end
     else
         if popups.power and popups.power.visible then hide("power") else M.show_power() end
     end
+end
+
+function M.close()
+    hide("network")
+    hide("power")
 end
 
 return M

@@ -1,12 +1,14 @@
 """Exercise the BlueZ agent without touching the machine's Bluetooth adapter."""
 
 from pathlib import Path
+import contextlib
+import io
 import json
 import runpy
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from gi.repository import GLib
 
@@ -188,6 +190,41 @@ class PairingTests(unittest.TestCase):
         device = self.session.bt.objects[DEVICE]["org.bluez.Device1"]
         device.update(Alias="Mis audífonos", Name="Factory name")
         self.assertEqual(self.snapshot_name(), "Mis audífonos")
+
+
+class OpeningTests(unittest.TestCase):
+    def test_open_returns_first_ready_snapshot(self):
+        main = MODULE["main"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            worker = Mock()
+            worker.poll.return_value = None
+
+            def publish(_):
+                folder = next(root.iterdir())
+                MODULE["atomic_json"](folder / "state.json", {"snapshot": "state\ton\n"})
+
+            output = io.StringIO()
+            with patch.dict(main.__globals__, {"ROOT": root}), patch.object(MODULE["sys"], "argv", [str(PROGRAM), "--open"]), \
+                 patch.object(MODULE["subprocess"], "Popen", return_value=worker), \
+                 patch.object(MODULE["time"], "sleep", side_effect=publish), contextlib.redirect_stdout(output):
+                main()
+            token, snapshot = output.getvalue().split("\n", 1)
+            self.assertEqual(len(token), 32)
+            self.assertEqual(snapshot, "state\ton\n")
+            worker.terminate.assert_not_called()
+
+    def test_failed_worker_does_not_leave_a_pending_session(self):
+        main = MODULE["main"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            worker = Mock()
+            worker.poll.return_value = 1
+            with patch.dict(main.__globals__, {"ROOT": root}), patch.object(MODULE["sys"], "argv", [str(PROGRAM), "--open"]), \
+                 patch.object(MODULE["subprocess"], "Popen", return_value=worker):
+                with self.assertRaisesRegex(ValueError, "iniciar la sesión Bluetooth"):
+                    main()
+            self.assertEqual(list(root.iterdir()), [])
 
 
 if __name__ == "__main__":

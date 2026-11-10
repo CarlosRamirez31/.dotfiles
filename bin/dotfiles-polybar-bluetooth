@@ -73,7 +73,7 @@ class Bluetooth:
 
 def menu():
     try:
-        lua = ('local m = require("bluetoothmenu"); if m.version ~= 3 then '
+        lua = ('local m = require("bluetoothmenu"); if m.version ~= 4 then '
                'if m.close then m.close() end; package.loaded.bluetoothmenu = nil; '
                'm = require("bluetoothmenu") end; m.toggle(); return true')
         reply = subprocess.run(["awesome-client", lua],

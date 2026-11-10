@@ -2,6 +2,7 @@
 """Telemetry and bounded MPRIS calls for Awesome's desktop panels."""
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -231,6 +232,14 @@ def toggle_switch(kind):
             path.unlink()
 
 
+def count_updates():
+    try:
+        updates = subprocess.run(["pacman", "-Qu"], capture_output=True, text=True, timeout=2).stdout
+        return len(updates.splitlines())
+    except (OSError, subprocess.TimeoutExpired):
+        return "—"
+
+
 def system():
     memory = {}
     for line in Path("/proc/meminfo").read_text().splitlines():
@@ -257,16 +266,15 @@ def system():
                 temperatures.append(int((chip / "temp1_input").read_text()) / 1000)
         except (OSError, ValueError):
             pass
-    try:
-        updates = subprocess.run(["pacman", "-Qu"], capture_output=True, text=True, timeout=2).stdout
-        update_count = len(updates.splitlines())
-    except (OSError, subprocess.TimeoutExpired):
-        update_count = "—"
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        pending_updates = executor.submit(count_updates)
+        switch_state = switches()
+        update_count = pending_updates.result()
     emit(user=os.environ.get("USER", ""), host=os.uname().nodename,
          distro=release.get("PRETTY_NAME", "Linux"), uptime=f"{uptime // 3600} h {(uptime // 60) % 60} min",
          cpu_total=sum(map(int, cpu)), cpu_idle=int(cpu[3]) + int(cpu[4]),
          packages=len(list(Path("/var/lib/pacman/local").glob("*/desc"))), updates=update_count,
-         **switches(),
+         **switch_state,
          ram=round(100 * (1 - memory["MemAvailable"] / memory["MemTotal"])),
          ram_detail=f"{(memory['MemTotal'] - memory['MemAvailable']) / 1048576:.1f} / {memory['MemTotal'] / 1048576:.1f} GiB",
          disk=round(100 * disk.used / disk.total), disk_detail=f"{disk.free / 1073741824:.0f} GiB libres",

@@ -6,6 +6,7 @@ local menu_style = require("menu-style")
 local M = {}
 local popup, current, content, message
 local busy = false
+local requested, loading = false, false
 local generation = 0
 local timer
 local colors = menu_style.colors
@@ -59,11 +60,12 @@ end
 
 local function hide()
     generation = generation + 1
+    requested, loading = false, false
     if popup then popup.visible = false end
     if timer then timer:stop(); timer = nil end
 end
 
-local render
+local render, refresh
 local function apply(profile)
     if busy or not profile.available then return end
     busy = true
@@ -71,7 +73,11 @@ local function apply(profile)
     render(current, "Aplicando «" .. profile.title .. "»…")
     awful.spawn.easy_async(profile.command or { helper, "apply", profile.id, "--tsv" }, function(stdout, stderr, _, code)
         busy = false
-        if token ~= generation or not popup or not popup.visible then return end
+        if token ~= generation then
+            if requested then refresh() end
+            return
+        end
+        if not requested then return end
         local data = code == 0 and parse(stdout) or nil
         if data then
             current = data
@@ -175,20 +181,23 @@ render = function(data, notice, failed)
     end
 end
 
-local function refresh()
-    if busy then return end
+refresh = function()
+    if busy or loading or not requested then return end
     local token = generation
+    loading = true
     awful.spawn.easy_async({ helper, "status", "--tsv" }, function(stdout, stderr, _, code)
-        if token ~= generation or not popup or not popup.visible then return end
+        if token ~= generation or not requested then return end
+        loading = false
         current = code == 0 and parse(stdout) or nil
-        render(current, current and nil or stderr:gsub("[\r\n]+$", ""), not current)
+        local error_text = stderr:gsub("[\r\n]+$", "")
+        render(current, not current and (error_text ~= "" and error_text or "No se pudo leer el estado de energía.") or nil, not current)
+        menu_style.reveal(popup)
     end)
 end
 
 function M.show()
-    generation = generation + 1
-    if timer then timer:stop() end
-    if popup then popup.visible = false end
+    hide()
+    requested = true
     content = wibox.layout.fixed.vertical()
     content.spacing = 7
     local close = menu_style.icon("󰅙", 14, colors.red, 24, 24)
@@ -207,7 +216,7 @@ function M.show()
     local anchor = mouse.coords()
     local screen = mouse.screen or awful.screen.focused()
     popup = awful.popup({
-        screen = screen, ontop = true, visible = true, type = "dialog",
+        screen = screen, ontop = true, visible = false, type = "dialog",
         bg = colors.base, border_width = 1, border_color = colors.border,
         shape = function(cr, width, height) gears.shape.rounded_rect(cr, width, height, 14) end,
         minimum_width = 440, maximum_width = 440,
@@ -233,11 +242,10 @@ function M.show()
     popup:connect_signal("property::width", place)
     popup:connect_signal("property::height", place)
     place()
-    render(nil)
     refresh()
     -- Only refresh battery telemetry while open. Never poll XRandR on a timer.
     timer = gears.timer({ timeout = 5, autostart = true, callback = function()
-        if not current or busy then return end
+        if not popup.visible or not current or busy then return end
         local base = "/sys/class/power_supply/BAT1/"
         current.capacity = tonumber(read(base .. "capacity"))
         current.state = read(base .. "status")
@@ -247,8 +255,10 @@ function M.show()
 end
 
 function M.toggle()
-    if popup and popup.visible then hide() else M.show() end
+    if requested then hide() else M.show() end
 end
+
+M.hide = hide
 
 function M.geometry()
     if popup then return popup.x, popup.y, popup.width, popup.height end

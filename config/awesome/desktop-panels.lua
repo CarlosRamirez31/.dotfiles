@@ -3,12 +3,13 @@ local awful = require("awful")
 local gears = require("gears")
 local wibox = require("wibox")
 local lgi = require("lgi")
+local menu_style = require("menu-style")
 local M = {}
 local active, popup, timer, body, heading, refresh
 local generation, busy = 0, false
 local dragging = false
 local previous_cpu, music_data, last_music_data
-local weather = { city = "Santo Domingo", temperature = "—", description = "Cargando clima…" }
+local weather = { city = "Santo Domingo", temperature = "—", description = "Sin datos del clima" }
 local home = os.getenv("HOME")
 local helper = home .. "/.local/bin/dotfiles-desktop-panel"
 local colors = { base = "#171722", surface = "#20202e", raised = "#373747",
@@ -340,11 +341,13 @@ refresh = function()
         busy = false
         if code ~= 0 then
             heading.text = "No se pudo actualizar · Reintentando…"
+            menu_style.reveal(popup)
             return
         end
         heading.text = ""
         local data = parse(stdout)
         if kind == "system" then render_system(data) else render_music(data) end
+        menu_style.reveal(popup)
     end)
 end
 
@@ -358,9 +361,9 @@ function M.toggle(kind)
     heading = text(kind == "system" and "" or "Música", "Bold 12")
     local close = icon("󰅙", 12, colors.pink, 20)
     close:buttons(gears.table.join(awful.button({}, 1, hide)))
-    body = wibox.widget({ text("Cargando…", 10, colors.muted), spacing = 10,
+    body = wibox.widget({ spacing = 10,
         layout = wibox.layout.fixed.vertical })
-    popup = awful.popup({ screen = s, ontop = true, visible = true, type = "dialog",
+    popup = awful.popup({ screen = s, ontop = true, visible = kind == "music", type = "dialog",
         bg = colors.base, border_width = 1, border_color = colors.border,
         minimum_width = kind == "system" and 286 or 510,
         maximum_width = kind == "system" and 286 or 510,

@@ -353,10 +353,23 @@ def main():
         folder.mkdir(mode=0o700)
         (folder / "heartbeat").touch()
         atomic_json(folder / "state.json", {"snapshot": "state\tstarting\n"})
-        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--serve", token],
+        worker = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--serve", token],
             start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(token)
-        return
+        deadline = time.monotonic() + 3
+        while worker.poll() is None and time.monotonic() < deadline:
+            try:
+                snapshot = json.loads((folder / "state.json").read_text())["snapshot"]
+            except FileNotFoundError:
+                break
+            if not snapshot.startswith("state\tstarting\n"):
+                print(token)
+                print(snapshot, end="")
+                return
+            time.sleep(0.02)
+        if worker.poll() is None:
+            worker.terminate()
+        shutil.rmtree(folder, ignore_errors=True)
+        raise ValueError("No se pudo iniciar la sesión Bluetooth.")
     folder = session_path(args.serve or args.session or "")
     if args.serve:
         try:

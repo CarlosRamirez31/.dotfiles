@@ -33,6 +33,10 @@ escala esas medidas por monitor. Cambiar solamente la fuente o su desplazamiento
 puede dejar el fondo sobresaliendo como un cuadrado o recortar la curva.
 
 Clic en red, Bluetooth, batería o encendido abre los menús correspondientes.
+Red, Bluetooth, batería y el panel de sistema muestran su contenido inicial
+antes de hacerse visibles. Wi-Fi abre con la lista de NetworkManager; el botón
+**Actualizar** fuerza un nuevo escaneo. El clima se actualiza aparte para que
+la conexión a Internet no demore la apertura del panel de sistema.
 El clic izquierdo en el reloj alterna entre hora y fecha; el derecho abre un
 calendario compacto bajo la barra. Las flechas recorren los meses, **Hoy** vuelve
 al mes actual y el día de hoy aparece resaltado. La X u otro clic derecho en el

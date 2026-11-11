@@ -1,5 +1,6 @@
 local awful = require("awful")
 local gears = require("gears")
+local hud = require("level-hud")
 local modkey = "Mod1"
 local layout_resize_step = 0.01
 local function spawn(command)
@@ -52,7 +53,13 @@ local keys = gears.table.join(
         if c and c.floating then c:geometry({ width = math.max(100, c.width - 60), height = math.max(100, c.height - 60) }) end
     end),
     awful.key({}, "Print", spawn("dotfiles-screenshot full")), awful.key({ modkey }, "Print", spawn("dotfiles-screenshot area")), awful.key({ modkey, "Shift" }, "s", spawn("dotfiles-screenshot area")), awful.key({ modkey, "Shift" }, "c", spawn("gpick")),
-    awful.key({}, "XF86AudioRaiseVolume", spawn("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+")), awful.key({}, "XF86AudioLowerVolume", spawn("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-")), awful.key({}, "XF86AudioMute", spawn("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle")), awful.key({}, "XF86AudioMicMute", spawn("dotfiles-polybar --microphone toggle")), awful.key({}, "XF86MonBrightnessUp", spawn("$HOME/.local/bin/dotfiles-polybar --brightness up")), awful.key({}, "XF86MonBrightnessDown", spawn("$HOME/.local/bin/dotfiles-polybar --brightness down")), awful.key({}, "XF86AudioPlay", spawn("playerctl play-pause")), awful.key({}, "XF86AudioNext", spawn("playerctl next")), awful.key({}, "XF86AudioPrev", spawn("playerctl previous")),
+    awful.key({}, "XF86AudioRaiseVolume", function() hud.adjust("volume", "up") end),
+    awful.key({}, "XF86AudioLowerVolume", function() hud.adjust("volume", "down") end),
+    awful.key({}, "XF86AudioMute", function() hud.adjust("volume", "mute") end),
+    awful.key({}, "XF86AudioMicMute", spawn("dotfiles-polybar --microphone toggle")),
+    awful.key({}, "XF86MonBrightnessUp", function() hud.adjust("brightness", "up") end),
+    awful.key({}, "XF86MonBrightnessDown", function() hud.adjust("brightness", "down") end),
+    awful.key({}, "XF86AudioPlay", spawn("playerctl play-pause")), awful.key({}, "XF86AudioNext", spawn("playerctl next")), awful.key({}, "XF86AudioPrev", spawn("playerctl previous")),
     awful.key({ modkey }, "h", function() awful.client.focus.bydirection("left") end), awful.key({ modkey }, "j", function() awful.client.focus.bydirection("down") end), awful.key({ modkey }, "k", function() awful.client.focus.bydirection("up") end), awful.key({ modkey }, "l", function() awful.client.focus.bydirection("right") end),
     awful.key({ modkey, "Shift" }, "h", function() awful.client.swap.bydirection("left") end), awful.key({ modkey, "Shift" }, "j", function() awful.client.swap.bydirection("down") end), awful.key({ modkey, "Shift" }, "k", function() awful.client.swap.bydirection("up") end), awful.key({ modkey, "Shift" }, "l", function() awful.client.swap.bydirection("right") end),
     awful.key({ modkey, "Control" }, "h", function() awful.tag.incmwfact(-layout_resize_step) end), awful.key({ modkey, "Control" }, "l", function() awful.tag.incmwfact(layout_resize_step) end), awful.key({ modkey, "Control" }, "j", function() awful.client.incwfact(-layout_resize_step) end), awful.key({ modkey, "Control" }, "k", function() awful.client.incwfact(layout_resize_step) end),

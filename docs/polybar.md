@@ -53,11 +53,16 @@ El icono de Arch abre el panel del sistema (usuario, tiempo activo, CPU, RAM,
 disco y accesos a conexiones y sesión). El clic derecho conserva el lanzador
 de aplicaciones. El botón de música después de los escritorios abre el panel
 ligero de Awesome con portada de fondo, progreso morado, controles de reproducción
-y una tarjeta con la pista actual a la derecha. Controla por MPRIS el reproductor
-activo, incluido Limusic, sin abrir su ventana ni su Mini Player. La cola de Limusic
+y una tarjeta con la pista actual a la derecha. Controla por MPRIS el último reproductor
+que inició la reproducción, incluido Limusic. Al pausar, el panel conserva su pista
+hasta que otro reproductor empiece a sonar o el actual se cierre. La cola de Limusic
 no está disponible por MPRIS: el panel muestra únicamente información real de la
 pista actual. Ambos paneles cierran con la X o un segundo clic en su icono y
 permiten seguir usando las aplicaciones y los atajos del escritorio.
+
+Durante la reproducción, el botón de música muestra cuatro barras lavanda
+que reaccionan a la salida de audio con Cava. Al pausar o cerrar el reproductor,
+vuelve la nota musical. El clic sigue abriendo el mismo panel.
 
 Junto al icono de música aparece un punto separador y el nombre corto de la
 aplicación enfocada, en lavanda y con la misma JetBrainsMono de la barra. Cambia
@@ -69,7 +74,10 @@ nocturna. El icono de red distingue Ethernet y Wi-Fi según la conexión activa;
 en Wi-Fi enciende/apaga la radio y en Ethernet desconecta/reconecta el dispositivo.
 Modo avión bloquea las radios con rfkill y al salir restaura cuáles estaban
 habilitadas. Luz nocturna aplica una gamma cálida a las pantallas activas y
-restaura su gamma anterior al apagarla. La terminal conserva su acceso directo.
+restaura su gamma anterior al apagarla. El botón toma un acento melocotón mientras
+está activa. Las teclas de volumen, silencio y brillo muestran un indicador
+temporal con el nivel actual en la parte inferior de la pantalla.
+La terminal conserva su acceso directo.
 El botón **Apariencia** abre el [editor del escritorio](appearance.md), con
 ajustes de ventanas y efectos y una prueba reversible de 20 segundos.
 Limusic se instala desde AUR con el módulo `desktop-extras`, incluido en la

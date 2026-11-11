@@ -69,20 +69,32 @@ def music():
     names = bus.call_sync("org.freedesktop.DBus", "/org/freedesktop/DBus",
                           "org.freedesktop.DBus", "ListNames", None, None,
                           Gio.DBusCallFlags.NONE, 1200, None).unpack()[0]
-    players = []
-    for name in sorted(names):
-        if name.startswith(PREFIX):
+    selection = Path(os.environ.get("XDG_RUNTIME_DIR") or Path.home() / ".cache") / "dotfiles-music-player"
+    try:
+        preferred = PREFIX + selection.read_text().strip()
+    except OSError:
+        preferred = ""
+    selected = None
+    if preferred in names:
+        selected = (preferred, properties(bus, preferred))
+    else:
+        priority = 3
+        for name in sorted(names):
+            if not name.startswith(PREFIX):
+                continue
             try:
                 props = properties(bus, name)
-                players.append((name, props))
-                if props.get("PlaybackStatus") == "Playing":
-                    break
             except GLib.Error:
                 continue
-    if not players:
+            rank = {"Playing": 0, "Paused": 1}.get(props.get("PlaybackStatus"), 2)
+            if rank < priority:
+                selected, priority = (name, props), rank
+            if rank == 0:
+                break
+    if selected is None:
         emit(state="empty")
         return
-    name, props = next((p for p in players if p[1].get("PlaybackStatus") == "Playing"), players[0])
+    name, props = selected
     meta = props.get("Metadata", {})
     emit(state=props.get("PlaybackStatus", "Stopped"), player=name,
          title=meta.get("xesam:title", "Sin título"),

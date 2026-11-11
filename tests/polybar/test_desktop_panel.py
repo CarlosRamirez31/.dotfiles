@@ -39,6 +39,24 @@ class DesktopPanelTest(unittest.TestCase):
                 panel.music()
         self.assertEqual(output.getvalue(), "state\tempty\n")
 
+    def test_remembers_paused_player_until_it_closes(self):
+        brave = panel.PREFIX + "brave.instanceTest"
+        limusic = panel.PREFIX + "limusic"
+        bus = Mock()
+        bus.call_sync.return_value.unpack.side_effect = [([brave, limusic],), ([brave],)]
+        states = {brave: {"PlaybackStatus": "Playing"}, limusic: {"PlaybackStatus": "Paused"}}
+        with tempfile.TemporaryDirectory() as directory, patch.dict(panel.os.environ, XDG_RUNTIME_DIR=directory):
+            (Path(directory) / "dotfiles-music-player").write_text("limusic\n")
+            with patch.object(panel.Gio, "bus_get_sync", return_value=bus), \
+                    patch.object(panel, "properties", side_effect=lambda _, name: states[name]):
+                paused, closed = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(paused):
+                    panel.music()
+                with contextlib.redirect_stdout(closed):
+                    panel.music()
+        self.assertIn(f"state\tPaused\nplayer\t{limusic}\n", paused.getvalue())
+        self.assertIn(f"state\tPlaying\nplayer\t{brave}\n", closed.getvalue())
+
     def test_unavailable_control_does_not_send_action(self):
         with patch.object(panel.Gio, "bus_get_sync"), patch.object(panel, "properties", return_value={"CanControl": True, "CanGoNext": False}), patch.object(panel, "call") as call:
             panel.action("org.mpris.MediaPlayer2.test", "Next", 0)

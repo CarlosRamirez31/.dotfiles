@@ -17,6 +17,7 @@ awesome	config/awesome/battery-alert.lua	.config/awesome/battery-alert.lua
 awesome	config/awesome/battery-menu.lua	.config/awesome/battery-menu.lua
 awesome	config/awesome/calendar-menu.lua	.config/awesome/calendar-menu.lua
 awesome	config/awesome/menu-style.lua	.config/awesome/menu-style.lua
+awesome	config/awesome/level-hud.lua	.config/awesome/level-hud.lua
 awesome	config/awesome/desktop-panels.lua	.config/awesome/desktop-panels.lua
 awesome	bin/dotfiles-desktop-panel	.local/bin/dotfiles-desktop-panel
 awesome	config/awesome/bindings.lua	.config/awesome/bindings.lua
@@ -126,6 +127,7 @@ polybar	bin/dotfiles-polybar-wifi	.local/bin/dotfiles-polybar-wifi
 polybar	config/polybar/colors.ini	.config/polybar/colors.ini
 polybar	config/polybar/config.ini	.config/polybar/config.ini
 polybar	config/polybar/modules.ini	.config/polybar/modules.ini
+polybar	config/polybar/music-cava.conf	.config/polybar/music-cava.conf
 rider	bin/rider	.local/bin/rider
 rofi	bin/dotfiles-app-launcher	.local/bin/dotfiles-app-launcher
 rofi	config/rofi/config.rasi	.config/rofi/config.rasi

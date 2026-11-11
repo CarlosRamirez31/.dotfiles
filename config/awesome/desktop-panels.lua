@@ -147,19 +147,21 @@ local function render_system(data)
         mini_gauge("", tonumber(data.ram), data.ram_detail, colors.blue),
         mini_gauge("", tonumber(data.disk), data.disk_detail, colors.pink),
         spacing = 7, layout = wibox.layout.flex.horizontal }))
-    local function shortcut(symbol, title, callback, enabled, hint)
-        local color = enabled == false and colors.raised or colors.blue
-        local glyph = icon(symbol, 15, color or colors.blue, 43)
-        local circle = wibox.widget({ wibox.container.place(glyph, "center", "center"), bg = colors.surface,
+    local function shortcut(symbol, title, callback, enabled, hint, active_accent)
+        local accent = enabled and active_accent
+        local color = enabled == false and colors.raised or accent or colors.blue
+        local background = accent and "#382b32" or colors.surface
+        local glyph = icon(symbol, 15, color, 43)
+        local circle = wibox.widget({ wibox.container.place(glyph, "center", "center"), bg = background,
             shape = gears.shape.circle, forced_width = 43, forced_height = 43,
             widget = wibox.container.background })
-        local name = text(title, 9, enabled == false and colors.muted or colors.blue)
+        local name = text(title, 9, enabled == false and colors.muted or accent or colors.blue)
         name.align = "center"
         local widget = wibox.widget({ wibox.container.place(circle), name,
             spacing = 5, layout = wibox.layout.fixed.vertical })
         widget:buttons(gears.table.join(awful.button({}, 1, callback)))
-        circle:connect_signal("mouse::enter", function() circle.bg = colors.raised end)
-        circle:connect_signal("mouse::leave", function() circle.bg = colors.surface end)
+        circle:connect_signal("mouse::enter", function() circle.bg = accent and "#503737" or colors.raised end)
+        circle:connect_signal("mouse::leave", function() circle.bg = background end)
         awful.tooltip({ objects = { widget }, text = hint or title })
         return widget
     end
@@ -171,7 +173,9 @@ local function render_system(data)
         shortcut("", data.airplane_on == "1" and "ON" or "OFF",
             function() toggle_switch("airplane") end, data.airplane_on == "1", "Activar / desactivar modo avión"),
         spacing = 7, layout = wibox.layout.flex.horizontal }))
-    local night = shortcut("󰌵", "NIGHT LIGHT", function() toggle_switch("nightlight") end, data.nightlight_on == "1")
+    local night_enabled = data.nightlight_on == "1"
+    local night = shortcut("󰌵", "NIGHT LIGHT", function() toggle_switch("nightlight") end,
+        night_enabled, night_enabled and "Night Light · On" or "Night Light · Off", "#fab387")
     local terminal = shortcut("", "TERMINAL", launch({ home .. "/.local/bin/dotfiles-terminal" }))
     local appearance = shortcut("󰏘", "APARIENCIA", launch({ home .. "/.local/bin/dotfiles-appearance" }))
     body:add(wibox.widget({ night, terminal, appearance,

@@ -1,3 +1,133 @@
-#!/usr/bin/env bash
-set -euo pipefail
-exec awesome-client 'require("desktop-panels").toggle("music")'
+#!/usr/bin/env python3
+import asyncio
+import contextlib
+import os
+from pathlib import Path
+import signal
+import sys
+import tempfile
+
+
+BLOCKS = "▁▂▃▄▅▆▇█"
+PLAYERS = ("playerctl", "--all-players", "--no-messages")
+STATUS_FORMAT = "{{playerInstance}} {{status}}"
+
+
+def remember_player(path, selected):
+    with tempfile.TemporaryDirectory(dir=path.parent) as directory:
+        temporary = Path(directory) / path.name
+        temporary.write_text(selected + "\n")
+        temporary.replace(path)
+
+
+async def stop(process):
+    if process.returncode is None:
+        with contextlib.suppress(ProcessLookupError):
+            process.terminate()
+        try:
+            await asyncio.wait_for(process.wait(), 1)
+        except TimeoutError:
+            with contextlib.suppress(ProcessLookupError):
+                process.kill()
+            await process.wait()
+
+
+async def visualize(idle, gap):
+    config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    try:
+        cava = await asyncio.create_subprocess_exec(
+            "cava", "-p", config / "polybar/music-cava.conf",
+            stdout=asyncio.subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        return
+
+    previous = None
+    try:
+        async for line in cava.stdout:
+            try:
+                levels = [int(value) for value in line.strip().rstrip(b";").split(b";")]
+            except ValueError:
+                continue
+            if len(levels) == 4 and all(0 <= level < len(BLOCKS) for level in levels):
+                bars = gap.join(BLOCKS[level] for level in levels)
+                if bars != previous:
+                    print(f"%{{T5}}{bars}%{{T-}}", flush=True)
+                    previous = bars
+    finally:
+        await stop(cava)
+        print(idle, flush=True)
+
+
+async def stop_animation(animation):
+    if animation is not None:
+        animation.cancel()
+        await asyncio.gather(animation, return_exceptions=True)
+
+
+async def watch():
+    # Match the width of the four small bars at the configured Polybar scale.
+    scale = int(os.environ.get("POLYBAR_HEIGHT", "30")) / 30
+    idle = f"%{{O{round(11 * scale)}}}%{{T8}}󰎆%{{T-}}%{{O{round(12 * scale)}}}"
+    gap = f"%{{O{max(1, round(2 * scale))}}}"
+    print(idle, flush=True)
+    task = asyncio.current_task()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, task.cancel)
+
+    selection = Path(os.environ.get("XDG_RUNTIME_DIR") or Path.home() / ".cache") / "dotfiles-music-player"
+    selected = ""
+    with contextlib.suppress(FileNotFoundError):
+        selected = selection.read_text().strip()
+    previous_playing = None
+    events = await asyncio.create_subprocess_exec(
+        *PLAYERS, "--follow", "--format", STATUS_FORMAT, "status",
+        stdout=asyncio.subprocess.PIPE,
+    )
+    animation = None
+    try:
+        async for event in events.stdout:
+            # A paused player can emit an event while another is still playing.
+            status = await asyncio.create_subprocess_exec(
+                *PLAYERS, "--format", STATUS_FORMAT, "status", stdout=asyncio.subprocess.PIPE,
+            )
+            try:
+                output, _ = await status.communicate()
+            finally:
+                await stop(status)
+            states = dict(line.split() for line in output.decode().splitlines() if line)
+            playing = {name for name, state in states.items() if state == "Playing"}
+            started = playing - previous_playing if previous_playing is not None else set()
+            previous_playing = playing
+            current = selected
+            if started:
+                source = event.decode().partition(" ")[0]
+                current = source if source in started else min(started)
+            elif selected not in states:
+                current = min(states, key=lambda name: ({"Playing": 0, "Paused": 1}.get(states[name], 2), name),
+                              default="")
+            if current != selected:
+                selection.parent.mkdir(parents=True, exist_ok=True)
+                remember_player(selection, current)
+                selected = current
+
+            if playing:
+                if animation is None or animation.done():
+                    if animation is not None:
+                        await animation
+                    animation = asyncio.create_task(visualize(idle, gap))
+            else:
+                await stop_animation(animation)
+                animation = None
+    finally:
+        await stop(events)
+        await stop_animation(animation)
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["--watch"]:
+        with contextlib.suppress(asyncio.CancelledError):
+            asyncio.run(watch())
+    else:
+        os.execvp("awesome-client", ["awesome-client", 'require("desktop-panels").toggle("music")'])

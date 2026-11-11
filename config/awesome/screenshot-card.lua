@@ -44,10 +44,11 @@ local function button(title, callback, color)
     return result
 end
 
-function M.show(path)
+function M.show(path, destination)
     if type(path) ~= "string" or path:sub(1, 1) ~= "/" then return false end
-    local folder = path:match("^(.+)/[^/]+$")
-    local image, err = gears.surface.load_uncached_silently(path)
+    destination = destination or path
+    local folder = destination:match("^(.+)/[^/]+$")
+    local image, err = require("artwork-style").load(path)
     if not folder or err or not image then return false end
     local function run(argv)
         return function() hide(); awful.spawn(argv) end
@@ -61,22 +62,28 @@ function M.show(path)
             require("naughty").notify({ title = "Screenshot editor", text = "Install Satty to edit screenshots." })
             return
         end
-        local output = path:gsub("%.png$", ""):gsub("%%", "%%%%") .. "-edited-%Y%m%d-%H%M%S.png"
+        local output = destination:gsub("%%", "%%%%")
         run({ "/usr/bin/env", "ADW_DEBUG_COLOR_SCHEME=prefer-dark", editor,
             "--filename", path, "--initial-tool", "brush", "--output-filename", output,
+            "--actions-on-enter", "save-to-clipboard", "--actions-on-escape", "exit",
             "--copy-command", "xclip -selection clipboard -t image/png -i" })()
     end
     hide()
     popup.screen = mouse.screen or awful.screen.focused()
     popup.widget = wibox.widget({ {
-        { label("Screenshot saved", colors.lavender), nil, button("×", hide, colors.muted),
+        { label(destination == path and "Screenshot" or "Screenshot · not saved", colors.lavender), nil, button("×", hide, colors.muted),
             layout = wibox.layout.align.horizontal },
         { { { image = image, resize = true, widget = wibox.widget.imagebox },
                 halign = "center", valign = "center", forced_height = 166, widget = wibox.container.place },
             bg = colors.surface, shape_clip = true,
             shape = function(cr, w, h) gears.shape.rounded_rect(cr, w, h, 8) end,
             widget = wibox.container.background },
-        { button("Open", run({ "xdg-open", path })), button("Edit", edit, colors.lavender),
+        { button("Save", function()
+                if path == destination then hide(); return end
+                awful.spawn.easy_async({ "cp", "--", path, destination }, function(_, err, _, code)
+                    if code == 0 then hide() else require("naughty").notify({title="Screenshot",text=err}) end
+                end)
+            end, colors.lavender), button("Edit", edit, colors.lavender),
             button("Folder", run({ "xdg-open", folder })), spacing = 6, layout = wibox.layout.flex.horizontal },
         spacing = 8, layout = wibox.layout.fixed.vertical },
         margins = 11, widget = wibox.container.margin })

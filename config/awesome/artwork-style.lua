@@ -1,6 +1,19 @@
 local gears = require("gears")
 local lgi = require("lgi")
 local M = {}
+function M.load(path)
+    local source, err = gears.surface.load_uncached_silently(path)
+    if err or not source then return nil, err end
+    local w, h = gears.surface.get_size(source)
+    if w < 1 or h < 1 then return nil, "Empty artwork" end
+    local image = lgi.cairo.ImageSurface.create(lgi.cairo.Format.ARGB32, w, h)
+    local cr = lgi.cairo.Context(image)
+    cr:set_source_surface(source, 0, 0)
+    cr:paint()
+    cr:set_source_rgba(0, 0, 0, 0)
+    image:flush()
+    return image
+end
 function M.accent(surface)
     local cairo = lgi.cairo
     local width, height = gears.surface.get_size(surface)
@@ -14,6 +27,8 @@ function M.accent(surface)
     cr:paint()
     sample:flush()
     local pixels, groups, best = tostring(buffer), {}, nil
+    cr:set_source_rgba(0, 0, 0, 0)
+    sample:finish()
     for offset = 1, #pixels, 4 do
         local rgb = string.unpack("=I4", pixels, offset)
         local r, g, b = (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255

@@ -127,7 +127,7 @@ local function fetch()
             if cover_path ~= data.cover then
                 cover_path, cover, accent = data.cover, nil, colors.lavender
                 if cover_path and cover_path ~= "" then
-                    local image, err = gears.surface.load_uncached_silently(cover_path)
+                    local image, err = require("artwork-style").load(cover_path)
                     if not err then cover = image end
                     accent = cover and require("artwork-style").accent(cover) or colors.lavender
                 end

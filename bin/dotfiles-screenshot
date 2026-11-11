@@ -5,7 +5,12 @@ mode=${1:-full}
 pictures_dir=$(xdg-user-dir PICTURES 2>/dev/null || true)
 [[ -n $pictures_dir ]] || pictures_dir="$HOME/Pictures"
 output_dir="$pictures_dir/Screenshots"
-output="$output_dir/$(date +%Y-%m-%d_%H-%M-%S).png"
+destination="$output_dir/$(date +%Y-%m-%d_%H-%M-%S-%N).png"
+cache_dir="${XDG_RUNTIME_DIR:?}/dotfiles-screenshots"
+mkdir -p -- "$cache_dir"
+chmod 700 -- "$cache_dir"
+output=$(mktemp "$cache_dir/capture-XXXXXXXX.png")
+trap 'if [[ ! -s $output ]]; then rm -f -- "$output"; fi' EXIT
 mkdir -p -- "$output_dir"
 
 case $mode in
@@ -25,13 +30,14 @@ case $mode in
 esac
 
 xclip -selection clipboard -t image/png -i <"$output"
-if ! shown=$(python3 - "$output" <<'PY' | awesome-client 2>/dev/null
+if ! shown=$(python3 - "$output" "$destination" <<'PY' | awesome-client 2>/dev/null
 import os
 import sys
 
 path = "".join("\\%03d" % byte for byte in os.fsencode(sys.argv[1]))
-print('return require("screenshot-card").show("' + path + '")')
+destination = "".join("\\%03d" % byte for byte in os.fsencode(sys.argv[2]))
+print('return require("screenshot-card").show("' + path + '","' + destination + '")')
 PY
 ) || [[ $shown != *"boolean true"* ]]; then
-    notify-send -a Screenshot -i "$output" 'Captura guardada' "$(basename -- "$output")"
+    notify-send -a Screenshot -i "$output" 'Captura en el portapapeles; pendiente de guardar' "$(basename -- "$output")"
 fi

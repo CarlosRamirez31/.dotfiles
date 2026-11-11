@@ -23,11 +23,15 @@ dotfiles-screenshot full
 dotfiles-screenshot area
 ```
 
-Las imágenes se guardan con fecha y hora en `$(xdg-user-dir PICTURES)/Screenshots`
-y se copian al portapapeles.
-En Awesome aparece una miniatura con **Open**, **Edit** y **Folder**.
-**Edit** abre la captura en Satty con el pincel activo y las herramientas en la
-misma ventana. Al guardar, las anotaciones se escriben en una copia `-edited-…png`.
+Las capturas se copian al portapapeles y se mantienen temporalmente en
+`$XDG_RUNTIME_DIR/dotfiles-screenshots`, sin guardarse automáticamente en Pictures.
+En Awesome aparece una miniatura con **Save**, **Edit** y **Folder**.
+**Save** guarda en `$(xdg-user-dir PICTURES)/Screenshots`, con fecha y hora.
+**Edit** abre la captura temporal en Satty con el pincel activo y las herramientas
+en la misma ventana. Abrir el editor o copiar una edición no guarda archivos.
+El botón de guardar o `Ctrl+S` usa una única ruta para esa captura: los guardados
+posteriores actualizan ese archivo, sin copias `-edited-…png`. Guardar con otro
+nombre sigue disponible como una elección explícita del editor.
 
 | Atajo | Acción |
 | --- | --- |

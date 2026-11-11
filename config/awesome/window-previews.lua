@@ -39,6 +39,8 @@ local function remember(c)
     cr:scale(scale, scale)
     cr:set_source_surface(source, 0, 0)
     cr:paint()
+    cr:set_source_rgba(0, 0, 0, 0)
+    image:flush()
     if cr.status == "SUCCESS" then snapshots[c] = image end
 end
 
@@ -58,8 +60,8 @@ local function paint(cr, c, width, height, stretch)
     cr:clip()
     cr:set_source(gears.color(colors.raised))
     cr:paint()
-    local content = c:isvisible() and not c.minimized and gears.surface.load_uncached(c.content)
-        or snapshots[c]
+    if c:isvisible() and not c.minimized then remember(c) end
+    local content = snapshots[c]
     local surface = content or (c.icon and gears.surface(c.icon))
     if surface then
         local sw, sh = gears.surface.get_size(surface)

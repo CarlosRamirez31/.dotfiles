@@ -79,13 +79,35 @@ return {
     },
     {
         rule = { role = "dotfiles-file-tray-edge" },
-        properties = { placement = function() end },
+        properties = {
+            placement = function() end,
+            screen = function(c)
+                local x, y, w, h = (c.name or ""):match("^File tray edge | (%-?%d+) | (%-?%d+) | (%d+) | (%d+)$")
+                if x then
+                    x, y = tonumber(x) + tonumber(w) / 2, tonumber(y) + tonumber(h) / 2
+                    for s in screen do
+                        local g = s.geometry
+                        if x >= g.x and x < g.x + g.width and y >= g.y and y < g.y + g.height then return s end
+                    end
+                end
+                return mouse.screen
+            end,
+        },
+        callback = function(c)
+            local x, y, w, h = (c.name or ""):match("^File tray edge | (%-?%d+) | (%-?%d+) | (%d+) | (%d+)$")
+            if x then
+                x, y, w, h = tonumber(x), tonumber(y), tonumber(w), tonumber(h)
+                local width = math.min(640, w - 40)
+                c:geometry({x=x+math.floor((w-width)/2), y=y+h-5, width=width, height=5})
+            end
+        end,
     },
     {
         rule = { role = "dotfiles-file-tray" },
         properties = {
             floating = true, ontop = true, sticky = true, skip_taskbar = true,
             focusable = true, border_width = 0, size_hints_honor = true,
+            screen = function() return mouse.screen end,
             placement = function() end,
         },
         callback = function(c)

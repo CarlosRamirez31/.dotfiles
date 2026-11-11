@@ -209,23 +209,23 @@ def main():
             except ValueError as error:
                 self.status.set_text(str(error))
 
-        def dropped(self, _widget, context, _x, _y, selection, _info, timestamp):
+        def dropped(self, _widget, context, _x, _y, selection, _info, timestamp, monitor=None):
             success = False
             try:
                 paths = local_paths(selection.get_uris() or [])
                 self.drag_inside = False
-                self.add(paths)
+                self.add(paths, monitor=monitor or self.monitor)
                 success = True
             except ValueError as error:
                 self.status.set_text(str(error))
             Gtk.drag_finish(context, success, False, timestamp)
 
-        def add(self, paths):
+        def add(self, paths, monitor=None):
             combined = list(dict.fromkeys(self.paths + paths))
             if len(combined) > LIMIT:
                 raise ValueError(f'The tray holds up to {LIMIT} files.')
             self.paths = combined
-            self.show(temporary=True, focus=False)
+            self.show(temporary=True, focus=False, monitor=monitor)
             for index, path in enumerate(self.paths):
                 if path in paths:
                     self.tree.get_selection().select_path(Gtk.TreePath.new_from_indices([index]))
@@ -300,7 +300,7 @@ def main():
                 monitor = display.get_monitor(index)
                 area = monitor.get_geometry()
                 edge = Gtk.Window()
-                edge.set_title('File tray edge')
+                edge.set_title(f'File tray edge | {area.x} | {area.y} | {area.width} | {area.height}')
                 edge.set_role('dotfiles-file-tray-edge')
                 edge.set_decorated(False)
                 edge.set_accept_focus(False)
@@ -322,7 +322,7 @@ def main():
                 edge.drag_dest_set_track_motion(True)
                 edge.connect('drag-motion', self.drag_motion, monitor)
                 edge.connect('drag-leave', self.drag_leave)
-                edge.connect('drag-data-received', self.dropped)
+                edge.connect('drag-data-received', self.dropped, monitor)
                 edge.show_all()
                 self.edges.append(edge)
                 handler = monitor.connect('notify::geometry', self.setup_edges)
@@ -339,7 +339,7 @@ def main():
                 return False
             self.drag_inside = True
             self.cancel_hide()
-            if not self.window or not self.window.get_visible() or self.target == 0:
+            if not self.window or not self.window.get_visible() or self.target == 0 or (monitor is not None and monitor != self.monitor):
                 self.show(temporary=True, focus=False, monitor=monitor)
                 self.cancel_hide()
             Gdk.drag_status(context, Gdk.DragAction.COPY, timestamp)

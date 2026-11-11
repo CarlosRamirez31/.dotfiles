@@ -219,7 +219,7 @@ local function render_music(data)
     if cover_path ~= data.cover then
         cover_path, cover_surface, cover_accent = data.cover, nil, nil
         if cover_path and cover_path ~= "" then
-            local surface, error = gears.surface.load_uncached_silently(cover_path)
+            local surface, error = require("artwork-style").load(cover_path)
             if surface and not error then
                 cover_surface = surface
                 cover_accent = require("artwork-style").accent(surface)

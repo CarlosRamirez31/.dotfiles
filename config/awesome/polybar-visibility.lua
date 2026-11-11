@@ -1,6 +1,11 @@
 local awful = require("awful")
 local gears = require("gears")
 local M = { states = setmetatable({}, { __mode = "k" }) }
+local suppressed = setmetatable({}, { __mode = "k" })
+
+local function stop_timer(timer)
+    if timer.started then timer:stop() end
+end
 
 function M.fullscreen(s)
     for _, c in ipairs(client.get(s)) do
@@ -94,10 +99,16 @@ function M.update_screen(s, position, pointer_screen)
     -- just revealed over fullscreen, causing an endless hide/show cycle.
     M.recover_geometry(s)
     local pids = M.pids(s)
+    if suppressed[s] then
+        stop_timer(state.show_timer)
+        stop_timer(state.hide_timer)
+        M.set_visible(s, false, pids)
+        return
+    end
     local full = M.fullscreen(s)
     if not full then
-        state.show_timer:stop()
-        state.hide_timer:stop()
+        stop_timer(state.show_timer)
+        stop_timer(state.hide_timer)
         state.full = false
         M.set_visible(s, true, pids)
         return
@@ -116,17 +127,17 @@ function M.update_screen(s, position, pointer_screen)
         end
     end
     if not state.visible then
-        state.hide_timer:stop()
+        stop_timer(state.hide_timer)
         if on_edge then
             if not state.show_timer.started then state.show_timer:start() end
         else
-            state.show_timer:stop()
+            stop_timer(state.show_timer)
         end
     else
-        state.show_timer:stop()
+        stop_timer(state.show_timer)
         local hovering = pointer_screen == s and top >= 0 and top <= bar_bottom
         if hovering then
-            state.hide_timer:stop()
+            stop_timer(state.hide_timer)
         elseif not state.hide_timer.started then
             state.hide_timer:start()
         end
@@ -137,14 +148,19 @@ end
 function M.stop()
     if M.timer then M.timer:stop(); M.timer = nil end
     for _, state in pairs(M.states) do
-        state.show_timer:stop()
-        state.hide_timer:stop()
+        stop_timer(state.show_timer)
+        stop_timer(state.hide_timer)
     end
 end
 
 function M.update()
     local position, pointer_screen = mouse.coords(), mouse.screen
     for s in screen do M.update_screen(s, position, pointer_screen) end
+end
+
+function M.suppress(s, enabled)
+    suppressed[s] = enabled or nil
+    M.update()
 end
 
 function M.start()

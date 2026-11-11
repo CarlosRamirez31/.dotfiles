@@ -68,6 +68,11 @@ Junto al icono de música aparece un punto separador y el nombre corto de la
 aplicación enfocada, en lavanda y con la misma JetBrainsMono de la barra. Cambia
 con el foco de Awesome, sin consultas periódicas, y solo aparece en el monitor
 de esa ventana. No muestra títulos de ventanas.
+Al hacer clic en el nombre, puedes fijar la ventana encima, convertirla en
+flotante o moverla de escritorio. Kitty ofrece abrir otra terminal en el
+directorio actual y Brave ofrece una ventana privada.
+La ventana fijada con `Alt+F11` muestra el borde normal cuando tiene el foco o
+cuando el puntero está encima.
 
 Al dejar el cursor sobre los escritorios 1–4 aparece su distribución en miniatura.
 La vista y las tarjetas de **Alt+Tab** muestran el contenido de las ventanas
@@ -79,6 +84,13 @@ selección o pulsa Escape para cancelar. **Ctrl+Alt+Tab** abre el buscador Rofi.
 La campana al lado del reloj abre el historial de notificaciones, agrupado por
 aplicación. Guarda los últimos 40 avisos en memoria durante la sesión. El botón
 **Do Not Disturb** silencia los avisos emergentes y los mantiene en el historial.
+El modo enfoque (`Alt+F10`) pone la ventana actual a pantalla completa, oculta
+Polybar en ese monitor y activa No molestar. Al salir, recupera el estado
+anterior de la ventana y de las notificaciones.
+
+`Alt+F8` abre las últimas seis descargas completadas, o menos
+si la pantalla es pequeña. Muestra miniaturas de imágenes y permite abrir el
+archivo, copiar su ruta o abrir Yazi con el archivo bajo el cursor.
 
 El panel incluye interruptores directos de red, Bluetooth, modo avión y luz
 nocturna. El icono de red distingue Ethernet y Wi-Fi según la conexión activa;

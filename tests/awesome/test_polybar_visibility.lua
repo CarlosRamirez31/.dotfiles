@@ -89,6 +89,18 @@ visibility.update_screen(a, { y = 300 }, a)
 assert(visibility.states[a].visible and not visibility.states[a].show_timer.started
     and not visibility.states[a].hide_timer.started, "Leaving fullscreen restores panel")
 
+-- Focus mode suppresses only its monitor, including edge reveal.
+mouse = { coords = function() return { y = 0 } end, screen = a }
+screen = setmetatable({}, { __call = function(_, _, previous)
+    if previous == nil then return a end
+    if previous == a then return b end
+end })
+visibility.suppress(a, true)
+assert(commands[#commands][3] == "101" and commands[#commands][5] == "hide")
+assert(not visibility.states[a].show_timer.started and visibility.states[b].visible)
+visibility.suppress(a, false)
+assert(commands[#commands][3] == "101" and commands[#commands][5] == "show")
+
 -- A panel can be assigned to the wrong live screen after IPC show restores
 -- its cached coordinates. Recover it by output ownership, not client.screen.
 a.clients = {}

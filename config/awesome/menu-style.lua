@@ -44,4 +44,44 @@ function M.icon(symbol, size, color, width, height)
     return widget
 end
 
+function M.text(value, size, color, height)
+    return wibox.widget({
+        markup = '<span foreground="' .. (color or M.colors.text) .. '">'
+            .. gears.string.xml_escape(tostring(value)) .. '</span>',
+        font = "JetBrainsMono Nerd Font Bold " .. size, valign = "center",
+        ellipsize = "end", forced_height = height, widget = wibox.widget.textbox,
+    })
+end
+
+function M.action(value, callback, color)
+    local label = M.text(value, 9, color, 28)
+    local row = wibox.widget({
+        { label, left = 8, right = 8, widget = wibox.container.margin },
+        bg = M.colors.surface, widget = wibox.container.background,
+        shape = function(cr, w, h) gears.shape.rounded_rect(cr, w, h, 7) end,
+    })
+    row:buttons(require("awful").button({}, 1, callback))
+    row:connect_signal("mouse::enter", function() row.bg = M.colors.raised end)
+    row:connect_signal("mouse::leave", function() row.bg = M.colors.surface end)
+    return row
+end
+
+function M.place_below_bar(popup, anchor)
+    local screen = popup.screen
+    local g = screen.workarea
+    local y = g.y + 8
+    for _, c in ipairs(client.get(screen)) do
+        if c.class == "Polybar" then
+            local bar = c:geometry()
+            if anchor.x >= bar.x and anchor.x < bar.x + bar.width
+                and anchor.y >= bar.y and anchor.y < bar.y + bar.height then
+                y = bar.y + bar.height + 8
+                break
+            end
+        end
+    end
+    popup.x = math.max(g.x + 8, math.min(anchor.x - popup.width / 2, g.x + g.width - popup.width - 8))
+    popup.y = math.max(g.y, math.min(y, g.y + g.height - popup.height - 8))
+end
+
 return M

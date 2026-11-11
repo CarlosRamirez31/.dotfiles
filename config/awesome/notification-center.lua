@@ -62,8 +62,9 @@ end
 popup:connect_signal("property::height", place)
 
 local render
-local function toggle_quiet()
-    if naughty.is_suspended() then
+function M.set_quiet(enabled)
+    if enabled == naughty.is_suspended() then return end
+    if not enabled then
         local pending = naughty.notifications.suspended
         naughty.resume()
         -- History already has these messages. Dismiss the suspended popups
@@ -73,7 +74,7 @@ local function toggle_quiet()
         naughty.suspend()
     end
     publish()
-    render()
+    if popup.visible then render() end
 end
 
 render = function()
@@ -87,7 +88,8 @@ render = function()
     local quiet = naughty.is_suspended()
     body:add(wibox.widget({ text("Notifications", 11, colors.lavender, 24), nil, button("×", hide, true),
         layout = wibox.layout.align.horizontal }))
-    body:add(wibox.widget({ button(quiet and "Do Not Disturb · On" or "Do Not Disturb · Off", toggle_quiet,
+    body:add(wibox.widget({ button(quiet and "Do Not Disturb · On" or "Do Not Disturb · Off",
+        function() M.set_quiet(not naughty.is_suspended()) end,
         true, quiet and colors.yellow or nil), nil, button("Clear", clear, #history > 0),
         layout = wibox.layout.align.horizontal }))
 

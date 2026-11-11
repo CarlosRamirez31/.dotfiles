@@ -1,7 +1,7 @@
 # Kitty
 
 Este componente instala Kitty y lo registra como terminal gráfica de Awesome/X11.
-`dotfiles-terminal` mantiene una entrada compartida para atajos, Rofi, Coucou y XDG.
+`dotfiles-terminal` mantiene una entrada compartida para atajos, Rofi y XDG.
 
 ## Configuración
 
@@ -46,7 +46,7 @@ No modifica ni evalúa los argumentos del programa. El valor de TERM es el nativ
 
 Alt+Enter, Ctrl+Alt+T y los menús usan el wrapper. Alt+E y el selector de archivos
 usan Yazi. Btop mantiene su tamaño lógico 9. LazyDocker y respaldos conservan sus
-clases especiales de Awesome. Coucou usa el adaptador nativo `kitty`.
+clases especiales de Awesome.
 
 Instalador: [kitty.sh](../setup/modules/kitty.sh). Los destinos administrados se
 declaran en [links.tsv](../setup/links.tsv).

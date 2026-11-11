@@ -46,7 +46,7 @@ MENU_MATCH = ("(window_type = 'popup_menu' || window_type = 'dropdown_menu' || w
               "|| window_type = 'tooltip' || (window_type = 'dialog' "
               "&& (class_g = 'awesome' || class_g = 'Awesome')))")
 EFFECT_MATCH = ("!fullscreen && window_type != 'dock' && window_type != 'desktop' "
-                "&& class_g != 'Coucou' && class_g != 'coucou' && class_g != 'Emulator' "
+                "&& class_g != 'Emulator' "
                 "&& class_g != 'XSecureLock' && class_g != 'xsecurelock'")
 PRESETS = {
     "Equilibrado": DEFAULTS,
@@ -461,7 +461,7 @@ def gui(test_hook=None):
             self.scale(effects, "blur_strength", "Intensidad de desenfoque", "Más intensidad requiere más recursos gráficos.", "niveles")
             animations = self.page("animations", "Animaciones")
             self.switch(animations, "window_animations", "Animar apertura y cierre", "Animaciones de ventanas normales. Desactivado por defecto.")
-            self.switch(animations, "menu_animations", "Animar menús y paneles", "Incluye los paneles de Awesome; excluye Polybar y Coucou.")
+            self.switch(animations, "menu_animations", "Animar menús y paneles", "Incluye los paneles de Awesome; excluye Polybar.")
             self.switch(animations, "workspace_animations", "Animar ocultar y mostrar", "Incluye minimizar y cambios de espacio que oculten o muestren ventanas; no desliza el escritorio completo.")
             self.choice(animations, "animation_style", "Estilo general", "Se usa cuando un evento tiene seleccionado Usar estilo general.")
             self.scale(animations, "animation_duration", "Duración general", "Menos tiempo produce una transición más rápida.", "ms")
@@ -476,7 +476,7 @@ def gui(test_hook=None):
                 animations.pack_start(expander, False, False, 0)
             opacity = self.page("opacity", "Transparencia")
             self.scale(opacity, "inactive_opacity", "Opacidad de ventanas inactivas", "0% las oculta; 100% es opaco. La ventana activa conserva su opacidad.", "%")
-            self.scale(opacity, "menu_opacity", "Opacidad de menús y paneles", "100% conserva el fondo opaco. Bájala para apreciar el desenfoque. No cambia Polybar ni Coucou.", "%")
+            self.scale(opacity, "menu_opacity", "Opacidad de menús y paneles", "100% conserva el fondo opaco. Bájala para apreciar el desenfoque. No cambia Polybar.", "%")
             opacity.pack_start(self.label("Las aplicaciones pueden tener su propia transparencia.\nEste ajuste no cambia su configuración interna.", "muted"), False, False, 8)
             background = self.page("background", "Fondo")
             background.pack_start(self.label("Un fondo que combine contigo", "heading"), False, False, 0)

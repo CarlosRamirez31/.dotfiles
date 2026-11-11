@@ -74,6 +74,3 @@ require("autostart")
 
 -- Fullscreen and hover visibility are independent for each output.
 require("polybar-visibility").start()
-
--- Deliberate centre hover opens Coucou, anchored to Polybar.
-require("coucou-polybar").start()

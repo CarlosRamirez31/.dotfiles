@@ -139,7 +139,6 @@ class AppearanceTest(unittest.TestCase):
             self.assertIn('shadow = false;', config)
             self.assertIn("_NET_WM_STATE@ *= '_NET_WM_STATE_FULLSCREEN'", config)
             self.assertIn('match = "fullscreen"; corner-radius = 0;', config)
-            self.assertIn("class_g != 'Coucou'", config)
             self.assertIn("class_g != 'Emulator'", config)
             self.assertNotIn('opacity = 1.0;', config)
             self.assertNotIn('shadow-exclude =', config)

@@ -38,7 +38,7 @@ la guía completa queda bajo demanda. Las sesiones que ya arrancaron pueden cons
 abre una sesión nueva o retoma la existente después de cerrar su CLI para refrescarlas.
 Esto no evita que Antigravity tenga que esperar a que se restablezca su cuota.
 
-## Agent Hub y Coucou
+## Agent Hub
 
 Las seis skills de programación se registran en el scope `global`. Oil UI se
 distribuye a los agentes nativos, pero no se registra como skill global de Hub:
@@ -60,15 +60,9 @@ Perfiles nuevos, heredando comandos, contenedores y configuración de modelo:
 - `antigravity-architect`: worker de arquitectura, con `software-architect`.
 
 No se alteran los perfiles originales ni las policies, aprobaciones o asignaciones
-fijas existentes. El registro no ejecuta agentes ni consume cuota. Desde Coucou:
-
-```text
-/tarea architect Diseñar la integración de pedidos
-/tarea antigravity-architect Diseñar el módulo de facturación
-```
-
-Ambos preparan un plan de Hub con asignación fija al arquitecto. La ejecución
-conserva los controles del Hub sobre repositorio, permisos y checks. Hermes no recibe
+fijas existentes. El registro no ejecuta agentes ni consume cuota. Los perfiles
+se usan desde el planificador de Agent Hub, con sus controles sobre repositorio,
+permisos y checks. Hermes no recibe
 perfiles nuevos de programación desde este instalador. Los perfiles de Hub ya existentes se conservan; no equivalen a sincronizar Hermes.
 
 ## Reinstalar o actualizar
@@ -99,7 +93,7 @@ Oil UI conserva sus referencias y recursos locales. No consulta versiones ni
 envía telemetría; búsqueda o servicios externos requieren autorización expresa.
 
 Validación: frontmatter de las skills, limpieza selectiva de Hermes con fixtures,
-instalación repetida, preservación de reglas/skills ajenas, alias de Coucou y
+instalación repetida, preservación de reglas/skills ajenas, integración de Hub y
 context pack real en un worktree temporal sin modelos.
 
 ## Memoria externa por directorio, sin Git
@@ -213,7 +207,7 @@ sobre secretos, credenciales, publicación/push, destrucción, rutas, dinero ni
 servicios externos. Hermes académico no recibe estos hooks; el antiguo plugin
 que llama a `check()` queda neutralizado por compatibilidad hasta retirarlo.
 
-Los contratos de Agent Hub/Coucou son independientes: cambiar estas fuentes no
+Los contratos de Agent Hub son independientes: cambiar estas fuentes no
 actualiza por sí solo perfiles o bibliotecas ya registrados en otra instalación.
 
 ## Context-efficiency al iniciar sesión

@@ -27,7 +27,7 @@ con un estilo de terminal.
   o posterior.
 - Desenfoque Dual Kawase: interruptor e intensidad. Solo se aprecia detrás de
   superficies transparentes; puedes bajar la opacidad de menús y paneles en
-  Transparencia. Polybar, Coucou, el emulador y las ventanas de bloqueo quedan
+  Transparencia. Polybar, el emulador y las ventanas de bloqueo quedan
   excluidos de estos efectos nuevos, al igual que las ventanas a pantalla completa.
 - Transparencia: opacidad de ventanas inactivas; las aplicaciones conservan su
   configuración interna de transparencia.

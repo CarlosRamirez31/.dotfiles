@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ ${1:-} == --notifications ]]; then
+    cache="${XDG_RUNTIME_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}}/dotfiles-polybar-tags/notifications"
+    if [[ ! -r $cache ]]; then
+        awesome-client 'require("notification-center").start()' >/dev/null
+    fi
+    exec tail -n 1 -F -- "$cache" 2>/dev/null
+fi
+
 # Awesome exposes tags globally through EWMH. Ask it for this output's tags
 # instead, so identically named tags on other screens never leak into the bar.
 if [[ ${1:-} == --workspaces || ${1:-} == --tag || ${1:-} == --active-app ]]; then

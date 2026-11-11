@@ -1,6 +1,7 @@
 local awful = require("awful")
 local gears = require("gears")
 local hud = require("level-hud")
+local previews = require("window-previews")
 local modkey = "Mod1"
 local layout_resize_step = 0.01
 local function spawn(command)
@@ -40,7 +41,9 @@ local keys = gears.table.join(
     awful.key({ modkey, "Control" }, "v", spawn("dotfiles-microphone personal toggle")),
     awful.key({ modkey, "Shift" }, "d", spawn("dotfiles-lazydocker")),
     awful.key({ "Mod4" }, "p", spawn("dotfiles-display")),
-    awful.key({ modkey }, "Tab", spawn("rofi -modi window,drun -show window")),
+    awful.key({ modkey }, "Tab", function() previews.switch(false) end),
+    awful.key({ modkey, "Shift" }, "Tab", function() previews.switch(true) end),
+    awful.key({ modkey, "Control" }, "Tab", spawn("rofi -modi window,drun -show window")),
     awful.key({ modkey }, "Return", spawn("dotfiles-terminal")), awful.key({ "Control", modkey }, "t", spawn("dotfiles-terminal")), awful.key({ modkey }, "space", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "d", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "F2", spawn("dotfiles-app-launcher")),
     awful.key({ modkey }, "b", spawn("brave --new-window")), awful.key({ modkey }, "e", spawn("dotfiles-terminal -- yazi")), awful.key({ "Control", modkey }, "e", spawn("thunar")), awful.key({ modkey }, "w", spawn("dotfiles-wallpaper choose")), awful.key({ modkey }, "c", spawn("dotfiles-clipboard")), awful.key({ "Control", "Shift" }, "b", spawn("dotfiles-lock")), awful.key({ modkey, "Shift" }, "e", function() awesome.quit() end),
     awful.key({ modkey }, "q", function() if client.focus then client.focus:kill() end end), awful.key({ modkey }, "v", toggle_floating), awful.key({ modkey }, "F9", function() if client.focus then client.focus.minimized = true end end), awful.key({ "Mod4" }, "space", spawn("dotfiles-keyboard-toggle")),

@@ -4,6 +4,7 @@ require("awful.autofocus")
 local gears = require("gears")
 local beautiful = require("theme")
 local naughty = require("naughty")
+require("notification-center").start()
 if awesome.startup_errors then naughty.notify({ preset = naughty.config.presets.critical, title = "Awesome startup error", text = awesome.startup_errors }) end
 awful.layout.layouts = { awful.layout.suit.tile, awful.layout.suit.tile.left, awful.layout.suit.floating, awful.layout.suit.max }
 awful.screen.connect_for_each_screen(function(s)
@@ -18,6 +19,7 @@ require("vm-input-capture").start()
 require("appearance").start()
 require("polybar-workarea").start()
 require("polybar-tags").start()
+require("window-previews").start()
 require("window-memory").start()
 client.connect_signal("manage", function(c) if awesome.startup and not c.size_hints.user_position and not c.size_hints.program_position then awful.placement.no_offscreen(c) end end)
 

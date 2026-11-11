@@ -69,6 +69,17 @@ aplicación enfocada, en lavanda y con la misma JetBrainsMono de la barra. Cambi
 con el foco de Awesome, sin consultas periódicas, y solo aparece en el monitor
 de esa ventana. No muestra títulos de ventanas.
 
+Al dejar el cursor sobre los escritorios 1–4 aparece su distribución en miniatura.
+La vista y las tarjetas de **Alt+Tab** muestran el contenido de las ventanas
+visibles. Para las ventanas de otros escritorios usan la última miniatura
+guardada en memoria. Hasta que una ventana se haya mostrado, aparece su icono.
+Suelta Alt para abrir la
+selección o pulsa Escape para cancelar. **Ctrl+Alt+Tab** abre el buscador Rofi.
+
+La campana al lado del reloj abre el historial de notificaciones, agrupado por
+aplicación. Guarda los últimos 40 avisos en memoria durante la sesión. El botón
+**Do Not Disturb** silencia los avisos emergentes y los mantiene en el historial.
+
 El panel incluye interruptores directos de red, Bluetooth, modo avión y luz
 nocturna. El icono de red distingue Ethernet y Wi-Fi según la conexión activa;
 en Wi-Fi enciende/apaga la radio y en Ethernet desconecta/reconecta el dispositivo.

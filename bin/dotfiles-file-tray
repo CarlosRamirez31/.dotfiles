@@ -145,6 +145,7 @@ def main():
             display = Gdk.Display.get_default()
             display.connect('monitor-added', self.setup_edges)
             display.connect('monitor-removed', self.setup_edges)
+            Gdk.Screen.get_default().connect('composited-changed', self.setup_edges)
 
         def provide(self, _widget, selection, _info, _time):
             target = selection.get_target().name()
@@ -292,6 +293,8 @@ def main():
             for monitor, handler in self.monitor_handlers:
                 monitor.disconnect(handler)
             self.edges, self.monitor_handlers = [], []
+            if not Gdk.Screen.get_default().is_composited():
+                return
             display = Gdk.Display.get_default()
             for index in range(display.get_n_monitors()):
                 monitor = display.get_monitor(index)
@@ -306,7 +309,11 @@ def main():
                 edge.set_type_hint(Gdk.WindowTypeHint.DOCK)
                 edge.set_skip_taskbar_hint(True)
                 edge.set_skip_pager_hint(True)
-                Gtk.Widget.set_opacity(edge, 0.01)
+                edge.set_app_paintable(True)
+                visual = edge.get_screen().get_rgba_visual()
+                if visual:
+                    edge.set_visual(visual)
+                edge.connect('draw', self.draw_edge)
                 width = min(640, area.width - 40)
                 edge.set_default_size(width, 5)
                 edge.move(area.x + (area.width - width) // 2, area.y + area.height - 5)
@@ -320,6 +327,12 @@ def main():
                 self.edges.append(edge)
                 handler = monitor.connect('notify::geometry', self.setup_edges)
                 self.monitor_handlers.append((monitor, handler))
+
+        def draw_edge(self, _widget, cr):
+            cr.set_operator(cairo.OPERATOR_SOURCE)
+            cr.set_source_rgba(0, 0, 0, 0)
+            cr.paint()
+            return True
 
         def drag_motion(self, _widget, context, _x, _y, timestamp, monitor=None):
             if not any(atom.name() == 'text/uri-list' for atom in context.list_targets()):

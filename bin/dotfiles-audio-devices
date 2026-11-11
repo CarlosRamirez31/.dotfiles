@@ -45,6 +45,20 @@ def outputs():
     return rows
 
 
+def inputs():
+    default = pulse('get-default-source')
+    rows = []
+    for source in listing('sources'):
+        if source.get('monitor_of_sink') not in (None, 4294967295, '4294967295') or source['name'].endswith('.monitor'):
+            continue
+        identifier = str(int(source['index']))
+        rows.append(('source', identifier, '-', int(source['name'] == default), clean(source['description'])))
+        for key, port in ports(source).items():
+            if available(port.get('availability')):
+                rows.append(('source-port', identifier, key, int(source.get('active_port') == key), clean(port['description'])))
+    return rows
+
+
 def route(sink):
     pulse('set-default-sink', sink['name'])
     failed = False
@@ -59,7 +73,19 @@ def route(sink):
 
 
 def apply(kind, identifier, key):
-    if kind in ('sink', 'port'):
+    if kind in ('source', 'source-port'):
+        source = next((item for item in listing('sources') if str(item['index']) == identifier), None)
+        if not source or source.get('monitor_of_sink') not in (None, 4294967295, '4294967295') or source['name'].endswith('.monitor'):
+            raise ValueError('This input is no longer available.')
+        if kind == 'source-port':
+            port = ports(source).get(key)
+            if not port or not available(port.get('availability')):
+                raise ValueError('This input connector is unavailable.')
+            pulse('set-source-port', source['name'], key)
+        pulse('set-default-source', source['name'])
+        for stream in listing('source-outputs'):
+            pulse('move-source-output', str(int(stream['index'])), source['name'])
+    elif kind in ('sink', 'port'):
         sink = next((item for item in listing('sinks') if str(item['index']) == identifier), None)
         if not sink: raise ValueError('This output is no longer connected.')
         if kind == 'port':
@@ -81,6 +107,8 @@ def apply(kind, identifier, key):
 def main():
     if len(sys.argv) == 1:
         for row in outputs(): print(*row, sep='\t')
+    elif sys.argv[1:] == ['inputs']:
+        for row in inputs(): print(*row, sep='\t')
     elif len(sys.argv) == 4:
         apply(*sys.argv[1:])
     else:

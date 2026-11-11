@@ -7,6 +7,7 @@ local M = {}
 local helper = os.getenv('HOME') .. '/.local/bin/dotfiles-audio-devices'
 local generation, pending, tab, page = 0, false, 'outputs', 1
 local anchor, output = nil, ''
+local mode = 'outputs'
 local popup = awful.popup({ visible = false, ontop = true, type = 'dialog',
     width = 410, minimum_width = 410, maximum_width = 410, bg = colors.base, border_width = 1, border_color = colors.border,
     widget = wibox.widget.textbox(),
@@ -36,15 +37,15 @@ end
 render = function(failed)
     local rows = wibox.layout.fixed.vertical()
     rows.spacing = 8
-    rows:add(wibox.widget({style.text('Audio devices',11,colors.lavender,28),nil,
+    rows:add(wibox.widget({style.text(mode=='inputs' and 'Audio inputs' or 'Audio devices',11,colors.lavender,28),nil,
         style.action('×',hide),layout=wibox.layout.align.horizontal}))
-    rows:add(wibox.widget({style.action('Outputs',function() tab='outputs';page=1;render() end,
+    if mode~='inputs' then rows:add(wibox.widget({style.action('Outputs',function() tab='outputs';page=1;render() end,
         tab=='outputs' and colors.lavender or colors.muted),
         style.action('Profiles',function() tab='profiles';page=1;render() end,
-        tab=='profiles' and colors.lavender or colors.muted),spacing=8,layout=wibox.layout.flex.horizontal}))
+        tab=='profiles' and colors.lavender or colors.muted),spacing=8,layout=wibox.layout.flex.horizontal})) end
     local entries={}
     for kind,id,key,active,label in output:gmatch('([^\t\n]+)\t(%d+)\t([^\t\n]+)\t([01])\t([^\n]+)\n') do
-        if (tab=='profiles') == (kind=='profile') then
+        if (mode=='inputs' and (kind=='source' or kind=='source-port')) or (mode~='inputs' and (tab=='profiles') == (kind=='profile')) then
             entries[#entries+1]={kind=kind,id=id,key=key,active=active=='1',label=label}
         end
     end
@@ -64,7 +65,7 @@ render = function(failed)
         style.text(page..' / '..pages,9,colors.muted,28),
         style.action('›',function() page=math.min(pages,page+1);render() end),
         layout=wibox.layout.align.horizontal})) end
-    rows:add(style.text(tab=='outputs' and 'Select an output to move current playback.'
+    rows:add(style.text(mode=='inputs' and 'Select an input to move current recording.' or tab=='outputs' and 'Select an output to move current playback.'
         or 'Profiles may also change microphone availability.',8,colors.muted,30))
     popup.widget=wibox.container.margin(rows,12,12,12,12)
     style.reveal(popup)
@@ -74,7 +75,8 @@ refresh=function()
     if pending then return end
     pending=true
     local token=generation
-    awful.spawn.easy_async({helper},function(data,_,_,code)
+    local command = mode=='inputs' and {helper,'inputs'} or {helper}
+    awful.spawn.easy_async(command,function(data,_,_,code)
         if token~=generation then return end
         pending=false
         output=code==0 and data or ''
@@ -82,10 +84,11 @@ refresh=function()
     end)
 end
 timer=gears.timer({timeout=3,callback=refresh})
-function M.toggle()
+function M.toggle(requested)
     if popup.visible or pending then hide();return end
     anchor=mouse.coords()
     popup.screen=mouse.screen or awful.screen.focused()
+    mode=requested=='inputs' and 'inputs' or 'outputs'
     tab,page='outputs',1
     refresh()
     timer:start()

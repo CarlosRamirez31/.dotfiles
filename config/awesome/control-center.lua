@@ -76,13 +76,14 @@ function M.refresh(callback, on_change)
             rows.spacing = 10
             rows:add(style.text('CONTROLS', 11, colors.lavender, 30))
             local volume = tonumber(data.volume:match('^Volume:%s+([%d.]+)'))
-            rows:add(slider('󰕾  Output volume', volume and math.floor(volume * 100 + .5), colors.lavender,
+            local muted = data.volume:find('[MUTED]', 1, true) ~= nil
+            rows:add(slider((muted and '󰖁' or '󰕾') .. '  Output volume', volume and math.floor(volume * 100 + .5), colors.lavender,
                 function(v) return { 'wpctl', 'set-volume', '--limit', '1', '@DEFAULT_AUDIO_SINK@', v .. '%' } end,
                 data.volume:find('[MUTED]', 1, true)))
             rows:add(slider('󰃠  Brightness', tonumber(data.brightness:match('(%d+)%%')), colors.yellow,
                 function(v) return { helper, '--brightness', 'set', tostring(v) } end))
-            rows:add(wibox.widget({ style.action('󰖁  Mute', function()
-                apply({ 'wpctl', 'set-mute', '@DEFAULT_AUDIO_SINK@', 'toggle' }) end),
+            rows:add(wibox.widget({ style.action(muted and '󰖁  Muted · On' or '󰕾  Mute · Off', function()
+                apply({ 'wpctl', 'set-mute', '@DEFAULT_AUDIO_SINK@', 'toggle' }) end, muted and colors.lavender or colors.muted),
                 style.action(require('naughty').is_suspended() and '󰂛  Quiet · On' or '󰂚  Quiet · Off', function()
                     local notices = require('notification-center')
                     notices.set_quiet(not require('naughty').is_suspended())
@@ -91,6 +92,10 @@ function M.refresh(callback, on_change)
             rows:add(style.action('󰓃  Outputs & profiles   ·   Alt+F5', function()
                 require('desktop-panels').hide()
                 require('audio-devices').toggle()
+            end, colors.lavender))
+            rows:add(style.action('󰍬  Inputs   ›', function()
+                require('desktop-panels').hide()
+                require('audio-devices').toggle('inputs')
             end, colors.lavender))
             rows:add(style.text('APPLICATION AUDIO', 9, colors.muted, 25))
             rows:add(mixer.section(data.apps, function(id, v) apply({ audio, id, tostring(v) }) end))

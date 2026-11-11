@@ -11,6 +11,18 @@ loader.exec_module(audio)
 
 
 class AudioDevicesTest(unittest.TestCase):
+    def test_input_selection_moves_recording_streams(self):
+        source = {'index': 4, 'name': 'mic.usb'}
+        with patch.object(audio, 'listing', side_effect=lambda kind: [source] if kind == 'sources' else [{'index': 8}]), patch.object(audio, 'pulse') as pulse:
+            audio.apply('source', '4', '-')
+            self.assertEqual([call.args for call in pulse.call_args_list], [('set-default-source', 'mic.usb'), ('move-source-output', '8', 'mic.usb')])
+
+    def test_input_list_excludes_playback_monitors(self):
+        sources = [{'index': 4, 'name': 'mic.usb', 'description': 'USB microphone', 'monitor_of_sink': 4294967295},
+                   {'index': 5, 'name': 'sink.monitor', 'description': 'Monitor', 'monitor_of_sink': 1}]
+        with patch.object(audio, 'listing', return_value=sources), patch.object(audio, 'pulse', return_value='mic.usb'):
+            self.assertEqual(audio.inputs(), [('source', '4', '-', 1, 'USB microphone')])
+
     def test_real_sink_port_array_is_supported(self):
         sink = {'index': 2, 'name': 'sink.two', 'description': 'Speakers', 'active_port': 'speaker',
                 'ports': [{'name': 'speaker', 'description': 'Speaker', 'availability': 'availability unknown'},

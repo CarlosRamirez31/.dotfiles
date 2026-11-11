@@ -138,6 +138,13 @@ Las notificaciones usan esquinas redondeadas e iconos, con las acciones nativas
 de la aplicación. El historial conserva hasta 40 avisos en memoria, con iconos
 limitados a 28 × 28 píxeles.
 
+El botón de silencio muestra **Muted · On** con icono y acento activo cuando
+la salida está silenciada, y **Mute · Off** cuando tiene sonido.
+Debajo de **Outputs & profiles**, **Inputs** abre el selector de micrófonos y
+conectores de entrada disponibles. Marca la entrada actual y al elegir otra
+actualiza la predeterminada y las grabaciones activas. No incluye monitores de
+reproducción; cambiar de entrada no activa ni desactiva su silencio.
+
 ## Salidas y perfiles de audio
 
 `Alt+F5` y **Outputs & profiles** en el centro de control abren el selector.

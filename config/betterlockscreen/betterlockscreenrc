@@ -36,5 +36,7 @@ lockargs+=(--time-pos="x+w/2:y+h*0.19" --time-align=0 --time-size=64)
 lockargs+=(--date-str="%A, %d %B" --date-pos="x+w/2:y+h*0.19+29"
     --date-align=0 --date-size=14 --date-color=cdd6f4ff --date-font="$font")
 lockargs+=(--ind-pos="x+w/2:y+h*0.79" --radius=27 --ring-width=4)
-lockargs+=(--layout-pos="ix:iy+56" --layout-align=0)
+# Keep the active keyboard layout and modifier warnings clear of auth messages.
+lockargs+=(--keylayout=0 --layout-pos="ix:iy+82" --layout-align=0)
+lockargs+=(--modif-pos="ix:iy-50" --modif-align=0)
 lockargs+=(--verif-pos="ix:iy+49" --verif-align=0 --wrong-pos="ix:iy+49" --wrong-align=0)

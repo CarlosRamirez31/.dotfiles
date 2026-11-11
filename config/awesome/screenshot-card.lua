@@ -62,7 +62,8 @@ function M.show(path)
             return
         end
         local output = path:gsub("%.png$", ""):gsub("%%", "%%%%") .. "-edited-%Y%m%d-%H%M%S.png"
-        run({ editor, "--filename", path, "--initial-tool", "brush", "--output-filename", output,
+        run({ "/usr/bin/env", "ADW_DEBUG_COLOR_SCHEME=prefer-dark", editor,
+            "--filename", path, "--initial-tool", "brush", "--output-filename", output,
             "--copy-command", "xclip -selection clipboard -t image/png -i" })()
     end
     hide()

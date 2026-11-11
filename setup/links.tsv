@@ -60,6 +60,7 @@ desktop-tools	bin/dotfiles-clipboard	.local/bin/dotfiles-clipboard
 desktop-tools	bin/dotfiles-clipboard-clear	.local/bin/dotfiles-clipboard-clear
 desktop-tools	bin/dotfiles-clipboard-menu	.local/bin/dotfiles-clipboard-menu
 desktop-tools	bin/dotfiles-screenshot	.local/bin/dotfiles-screenshot
+desktop-tools	config/satty/overrides.css	.config/satty/overrides.css
 docker	bin/docker	.local/bin/docker
 doctor	bin/dotfiles-doctor	.local/bin/dotfiles-doctor
 fastfetch	config/fastfetch/config.jsonc	.config/fastfetch/config.jsonc

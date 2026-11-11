@@ -1,0 +1,5 @@
+/* Keep both pages of GTK's color chooser as wide as the swatch grid. */
+window.colorchooser {
+    min-width: 484px;
+    background-color: #20202e;
+}

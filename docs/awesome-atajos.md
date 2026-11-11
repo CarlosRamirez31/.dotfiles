@@ -8,6 +8,7 @@
 | --- | --- |
 | `Alt+Enter` | Abrir terminal. |
 | `Ctrl+Alt+T` | Abrir terminal. |
+| `Alt+F12` | Mostrar u ocultar el Kitty desplegable conservando su sesión. |
 | `Alt+Space`, `Alt+D`, `Alt+F2` | Abrir lanzador de aplicaciones. |
 | `Alt+Shift+D` | Abrir LazyDocker en una ventana flotante y centrada. |
 | `Alt+Shift+M` | Abrir el panel opcional de micrófono y aislamiento. |

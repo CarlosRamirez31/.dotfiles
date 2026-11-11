@@ -20,6 +20,8 @@ awesome	config/awesome/menu-style.lua	.config/awesome/menu-style.lua
 awesome	config/awesome/level-hud.lua	.config/awesome/level-hud.lua
 awesome	config/awesome/notification-center.lua	.config/awesome/notification-center.lua
 awesome	config/awesome/window-previews.lua	.config/awesome/window-previews.lua
+awesome	config/awesome/terminal-drawer.lua	.config/awesome/terminal-drawer.lua
+awesome	config/awesome/screenshot-card.lua	.config/awesome/screenshot-card.lua
 awesome	config/awesome/desktop-panels.lua	.config/awesome/desktop-panels.lua
 awesome	bin/dotfiles-desktop-panel	.local/bin/dotfiles-desktop-panel
 awesome	config/awesome/bindings.lua	.config/awesome/bindings.lua

@@ -9,6 +9,7 @@ Clipmenu guarda el historial que Rofi presenta bajo demanda.
 | Paquete | Función |
 | --- | --- |
 | `maim` | Captura completa o de una región X11. |
+| `satty` | Edición y anotación de capturas. |
 | `slop` | Selecciona la región para captura. |
 | `xclip` | Copia imágenes y texto al portapapeles X11. |
 | `clipmenu` | Historial del portapapeles con `clipmenud` y Rofi. |
@@ -24,6 +25,9 @@ dotfiles-screenshot area
 
 Las imágenes se guardan con fecha y hora en `$(xdg-user-dir PICTURES)/Screenshots`
 y se copian al portapapeles.
+En Awesome aparece una miniatura con **Open**, **Edit** y **Folder**.
+**Edit** abre la captura en Satty con el pincel activo y las herramientas en la
+misma ventana. Al guardar, las anotaciones se escriben en una copia `-edited-…png`.
 
 | Atajo | Acción |
 | --- | --- |

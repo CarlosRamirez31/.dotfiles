@@ -25,4 +25,13 @@ case $mode in
 esac
 
 xclip -selection clipboard -t image/png -i <"$output"
-notify-send -a Screenshot -i "$output" 'Captura guardada' "$(basename -- "$output")"
+if ! shown=$(python3 - "$output" <<'PY' | awesome-client 2>/dev/null
+import os
+import sys
+
+path = "".join("\\%03d" % byte for byte in os.fsencode(sys.argv[1]))
+print('return require("screenshot-card").show("' + path + '")')
+PY
+) || [[ $shown != *"boolean true"* ]]; then
+    notify-send -a Screenshot -i "$output" 'Captura guardada' "$(basename -- "$output")"
+fi

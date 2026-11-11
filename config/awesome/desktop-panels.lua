@@ -203,10 +203,53 @@ local function control(method, seconds)
         end)
 end
 
-local cover_path, cover_surface
+local default_accent = "#a970ff"
+local cover_path, cover_surface, cover_accent
+
+local function artwork_accent(surface)
+    local cairo = lgi.cairo
+    local width, height = gears.surface.get_size(surface)
+    if width < 1 or height < 1 then return default_accent end
+    local side = 16
+    local buffer = require("lgi.core").bytes.new(side * side * 4)
+    local sample = cairo.ImageSurface.create_for_data(buffer, cairo.Format.RGB24, side, side, side * 4)
+    local cr = cairo.Context(sample)
+    cr:scale(side / width, side / height)
+    cr:set_source_surface(surface, 0, 0)
+    cr:paint()
+    sample:flush()
+    local pixels, groups, best = tostring(buffer), {}, nil
+    for offset = 1, #pixels, 4 do
+        local rgb = string.unpack("=I4", pixels, offset)
+        local r, g, b = (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255
+        local high, low = math.max(r, g, b), math.min(r, g, b)
+        if high >= 64 and high - low >= 28 then
+            local key = ((r // 64) * 4 + g // 64) * 4 + b // 64
+            local group = groups[key] or { count = 0, weight = 0, r = 0, g = 0, b = 0 }
+            groups[key] = group
+            group.count, group.weight = group.count + 1, group.weight + high - low
+            group.r, group.g, group.b = group.r + r, group.g + g, group.b + b
+            if not best or group.weight > best.weight then best = group end
+        end
+    end
+    if not best then return default_accent end
+    local function soften(channel) return math.floor(.68 * channel / best.count + .32 * 255 + .5) end
+    return string.format("#%02x%02x%02x", soften(best.r), soften(best.g), soften(best.b))
+end
+
 local function render_music(data)
     body:reset()
     music_data, last_music_data = data, data
+    if cover_path ~= data.cover then
+        cover_path, cover_surface, cover_accent = data.cover, nil, nil
+        if cover_path and cover_path ~= "" then
+            local surface, error = gears.surface.load_uncached_silently(cover_path)
+            if surface and not error then
+                cover_surface = surface
+                cover_accent = artwork_accent(surface)
+            end
+        end
+    end
     local empty = data.state == "empty"
     local available = not empty and data.control == "1"
     local function music_button(symbol, title, method, supported, accent, size)
@@ -230,7 +273,7 @@ local function render_music(data)
     artist.ellipsize, artist.forced_height = "end", 22
     local progress = wibox.widget({ max_value = math.max(tonumber(data.length) or 0, 1),
         value = tonumber(data.position) or 0, forced_height = 6,
-        color = "#a970ff", background_color = "#9ba3ab88",
+        color = cover_accent or default_accent, background_color = "#9ba3ab88",
         shape = gears.shape.rounded_rect, bar_shape = gears.shape.rounded_rect,
         widget = wibox.widget.progressbar })
     local duration = text(timestamp(data.position) .. " / " .. timestamp(data.length), "Bold Italic 8", colors.blue)
@@ -268,14 +311,6 @@ local function render_music(data)
     info.forced_height = 105
     local bottom = wibox.widget({ progress, duration, spacing = 4, layout = wibox.layout.fixed.vertical })
     local overlay = margin(wibox.widget({ info, nil, bottom, layout = wibox.layout.align.vertical }), 10, 8)
-    if cover_path ~= data.cover then
-        cover_path = data.cover
-        cover_surface = nil
-        if cover_path and cover_path ~= "" then
-            local ok, surface = pcall(gears.surface.load_uncached, cover_path)
-            if ok then cover_surface = surface end
-        end
-    end
     local artwork = wibox.widget.base.make_widget(nil, nil, { enable_properties = true })
     artwork.fit = function() return 320, 176 end
     artwork.draw = function(_, _, cr, width, height)

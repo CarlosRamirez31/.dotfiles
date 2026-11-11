@@ -52,7 +52,7 @@ reinicia desde el arranque de Awesome y desde el panel de pantallas cuando proce
 El icono de Arch abre el panel del sistema (usuario, tiempo activo, CPU, RAM,
 disco y accesos a conexiones y sesión). El clic derecho conserva el lanzador
 de aplicaciones. El botón de música después de los escritorios abre el panel
-ligero de Awesome con portada de fondo, progreso morado, controles de reproducción
+ligero de Awesome con portada de fondo, un progreso que toma su acento de la portada, controles de reproducción
 y una tarjeta con la pista actual a la derecha. Controla por MPRIS el último reproductor
 que inició la reproducción, incluido Limusic. Al pausar, el panel conserva su pista
 hasta que otro reproductor empiece a sonar o el actual se cierre. La cola de Limusic

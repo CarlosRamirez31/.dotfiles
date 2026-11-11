@@ -2,8 +2,9 @@
 
 Este componente aporta bloqueo X11 y reglas conservadoras de suspensión. En
 Awesome, Xss-lock observa el salvapantallas de X11 y ejecuta Betterlockscreen,
-con el wallpaper Mocha difuminado y su interfaz de autenticación. Mientras se
-instalan sus dependencias, Xsecurelock es el fallback seguro. No hay un segundo
+con el fondo actual oscurecido, un reloj grande y la fecha. El indicador de
+contraseña aparece al teclear. Mientras se instalan sus dependencias,
+Xsecurelock es el fallback seguro. No hay un segundo
 temporizador DPMS que pueda dejar la pantalla negra al desbloquear. Las VMs no
 se suspenden automáticamente.
 
@@ -18,7 +19,7 @@ dotfiles-can-suspend && echo permitida
 
 `Ctrl+Shift+B` bloquea inmediatamente. Awesome configura un salvapantallas de
 10 minutos y Xss-lock bloquea en ese momento. Betterlockscreen usa el wallpaper
-seleccionado con efecto dim+blur y un prompt de contraseña minimalista.
+seleccionado con efecto de oscurecimiento y un indicador de contraseña minimalista.
 `dotfiles-lock` no inicia una segunda instancia del locker. Si falla la
 generación del fondo o el inicio de Betterlockscreen, intenta Xsecurelock en
 lugar de terminar dejando la sesión sin bloqueo.

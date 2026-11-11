@@ -11,6 +11,16 @@ import tempfile
 BLOCKS = "▁▂▃▄▅▆▇█"
 PLAYERS = ("playerctl", "--all-players", "--no-messages")
 STATUS_FORMAT = "{{playerInstance}} {{status}}"
+RUNTIME = os.environ.get("XDG_RUNTIME_DIR")
+SPECTRUM = Path(RUNTIME) / "dotfiles-music-spectrum" if RUNTIME else None
+
+
+def publish_levels(levels):
+    if SPECTRUM is None:
+        return
+    with contextlib.suppress(OSError), SPECTRUM.open("r+", encoding="ascii") as stream:
+        stream.write(" ".join(map(str, levels)) + "\n")
+        stream.truncate()
 
 
 def remember_player(path, selected):
@@ -53,9 +63,11 @@ async def visualize(idle, gap):
                 bars = gap.join(BLOCKS[level] for level in levels)
                 if bars != previous:
                     print(f"%{{T5}}{bars}%{{T-}}", flush=True)
+                    publish_levels(levels)
                     previous = bars
     finally:
         await stop(cava)
+        publish_levels((0, 0, 0, 0))
         print(idle, flush=True)
 
 

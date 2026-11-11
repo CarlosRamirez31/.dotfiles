@@ -1,16 +1,15 @@
 # BESTerlockscreen-style Betterlockscreen theme for Awesome/X11.
 # The lock layout is Betterlockscreen's native clock + unlock indicator.
 i3lockcolor_bin="i3lock"
-fx_list=(dimblur)
-dim_level=40
-blur_level=1
+fx_list=(dim)
+dim_level=48
 wallpaper_cmd="feh --bg-fill"
 quiet=true
 
 # Native Betterlockscreen composition, tinted to match Mocha Aurora.
-loginbox=11111baa
+loginbox=00000000
 loginshadow=00000000
-locktext="Type password to unlock..."
+locktext=""
 font="JetBrainsMono Nerd Font"
 ringcolor=cba6f7ff
 insidecolor=11111b66
@@ -19,8 +18,8 @@ ringvercolor=89dcebff
 insidevercolor=11111bcc
 ringwrongcolor=f38ba8ff
 insidewrongcolor=f38ba8cc
-time_format="%I:%M:%S %p"
-timecolor=c0caf5ff
+time_format="%H:%M"
+timecolor=e4d2ffff
 greetercolor=cdd6f4ff
 layoutcolor=a6adc8ff
 keyhlcolor=cba6f7ff
@@ -32,9 +31,10 @@ wrongcolor=f38ba8ff
 modifcolor=cba6f7ff
 bgcolor=11111bff
 
-# Betterlockscreen draws the clock/text relative to the unlock circle.  Give
-# the two groups a deliberate gap so they never read as a single crowded unit.
-lockargs+=(--ind-pos="x+400:y+h-80")
-lockargs+=(--time-pos="ix-360:iy-10")
-lockargs+=(--greeter-pos="ix-360:iy+12")
-lockargs+=(--layout-pos="ix-360:iy+32")
+# Keep the clock above the center artwork and the native unlock indicator below.
+lockargs+=(--time-pos="x+w/2:y+h*0.19" --time-align=0 --time-size=64)
+lockargs+=(--date-str="%A, %d %B" --date-pos="x+w/2:y+h*0.19+29"
+    --date-align=0 --date-size=14 --date-color=cdd6f4ff --date-font="$font")
+lockargs+=(--ind-pos="x+w/2:y+h*0.79" --radius=27 --ring-width=4)
+lockargs+=(--layout-pos="ix:iy+56" --layout-align=0)
+lockargs+=(--verif-pos="ix:iy+49" --verif-align=0 --wrong-pos="ix:iy+49" --wrong-align=0)

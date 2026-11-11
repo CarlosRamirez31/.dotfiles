@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Enumerate and select current Pulse/PipeWire outputs, ports and profiles."""
+import json
+import os
+import subprocess
+import sys
+
+
+def pulse(*args):
+    return subprocess.run(('pactl', *args), check=True, capture_output=True, text=True,
+                          timeout=4, env={**os.environ, 'LC_ALL': 'C'}).stdout.strip()
+
+
+def listing(kind):
+    return json.loads(pulse('--format=json', 'list', kind))
+
+
+def clean(value):
+    return ' '.join(str(value).split())[:130]
+
+
+def available(value):
+    return value not in (False, 'no', 'not available')
+
+
+def ports(sink):
+    values = sink.get('ports', {})
+    return values if isinstance(values, dict) else {item['name']: item for item in values}
+
+
+def outputs():
+    default = pulse('get-default-sink')
+    rows = []
+    for sink in listing('sinks'):
+        identifier = str(int(sink['index']))
+        rows.append(('sink', identifier, '-', int(sink['name'] == default), clean(sink['description'])))
+        for key, port in ports(sink).items():
+            if available(port.get('availability')):
+                rows.append(('port', identifier, key, int(sink.get('active_port') == key), clean(port['description'])))
+    for card in listing('cards'):
+        for key, profile in card.get('profiles', {}).items():
+            if profile.get('sinks', 0) > 0 and available(profile.get('available')):
+                rows.append(('profile', str(int(card['index'])), key, int(card.get('active_profile') == key),
+                             clean(card.get('properties', {}).get('device.description', card['name'])) + ' · ' + clean(profile['description'])))
+    return rows
+
+
+def route(sink):
+    pulse('set-default-sink', sink['name'])
+    failed = False
+    for stream in listing('sink-inputs'):
+        try:
+            pulse('move-sink-input', str(int(stream['index'])), sink['name'])
+        except subprocess.SubprocessError:
+            # Streams may disappear while the output is changing.
+            failed = any(item['index'] == stream['index'] for item in listing('sink-inputs')) or failed
+    if failed:
+        raise ValueError('Output selected; some applications could not be moved.')
+
+
+def apply(kind, identifier, key):
+    if kind in ('sink', 'port'):
+        sink = next((item for item in listing('sinks') if str(item['index']) == identifier), None)
+        if not sink: raise ValueError('This output is no longer connected.')
+        if kind == 'port':
+            port = ports(sink).get(key)
+            if not port or not available(port.get('availability')):
+                raise ValueError('This connector is unavailable.')
+            pulse('set-sink-port', sink['name'], key)
+        route(sink)
+    elif kind == 'profile':
+        card = next((item for item in listing('cards') if str(item['index']) == identifier), None)
+        profile = card and card.get('profiles', {}).get(key)
+        if not profile or not profile.get('sinks', 0) or not available(profile.get('available')):
+            raise ValueError('This playback profile is unavailable.')
+        pulse('set-card-profile', card['name'], key)
+    else:
+        raise ValueError('Unknown audio control.')
+
+
+def main():
+    if len(sys.argv) == 1:
+        for row in outputs(): print(*row, sep='\t')
+    elif len(sys.argv) == 4:
+        apply(*sys.argv[1:])
+    else:
+        raise ValueError('Invalid audio command.')
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

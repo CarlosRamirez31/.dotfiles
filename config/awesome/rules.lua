@@ -78,6 +78,51 @@ return {
         callback = function(c) require("emulator-shape").attach(c) end,
     },
     {
+        rule = { role = "dotfiles-file-tray-edge" },
+        properties = { placement = function() end },
+    },
+    {
+        rule = { role = "dotfiles-file-tray" },
+        properties = {
+            floating = true, ontop = true, sticky = true, skip_taskbar = true,
+            focusable = true, border_width = 0, size_hints_honor = true,
+            placement = function() end,
+        },
+        callback = function(c)
+            local function outline(cr, w, h)
+                local wing, rise, r = 16, 16, 22
+                local left, right, k = wing, w - wing, r * 0.55228475
+                local fx, fy = wing * 0.55228475, rise * 0.55228475
+                cr:move_to(0, h)
+                cr:curve_to(fx, h, left, h - rise + fy, left, h - rise)
+                cr:line_to(left, r)
+                cr:curve_to(left, r - k, left + r - k, 0, left + r, 0)
+                cr:line_to(right - r, 0)
+                cr:curve_to(right - r + k, 0, right, r - k, right, r)
+                cr:line_to(right, h - rise)
+                cr:curve_to(right, h - rise + fy, w - fx, h, w, h)
+                cr:close_path()
+            end
+            -- Keep the RGBA edge rendered by GTK; a binary visual mask clips
+            -- its antialiasing. Only the invisible mouse area needs a mask.
+            c.shape = nil
+            c.shape_bounding, c.shape_clip = nil, nil
+            local function input_shape()
+                if not c.valid then return end
+                local cairo = require("lgi").cairo
+                local surface = cairo.ImageSurface(cairo.Format.A1, c.width, c.height)
+                local cr = cairo.Context(surface)
+                outline(cr, c.width, c.height)
+                cr:set_source_rgba(1, 1, 1, 1)
+                cr:fill()
+                c.shape_input = surface._native
+                surface:finish()
+            end
+            c:connect_signal("property::size", input_shape)
+            input_shape()
+        end,
+    },
+    {
         rule = { class = "DotfilesBackup" },
         properties = {
             floating = true,

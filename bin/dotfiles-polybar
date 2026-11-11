@@ -96,13 +96,20 @@ fi
 
 if [[ ${1:-} == --brightness ]]; then
     case ${2:-status} in
-        up | down)
+        up | down | set)
+            if [[ $2 == set ]]; then
+                [[ ${3:-} =~ ^[0-9]{1,3}$ ]] && ((10#${3} <= 100)) || exit 2
+            fi
             card=$(find /sys/class/backlight -mindepth 1 -maxdepth 1 -print -quit)
             [[ -n $card ]] || exit 0
             current=$(<"$card/brightness")
             maximum=$(<"$card/max_brightness")
             step=$(((maximum + 19) / 20))
-            if [[ $2 == up ]]; then target=$((current + step)); else target=$((current - step)); fi
+            case $2 in
+                up) target=$((current + step)) ;;
+                down) target=$((current - step)) ;;
+                set) target=$((maximum * 10#$3 / 100)) ;;
+            esac
             ((target > maximum)) && target=$maximum
             ((target < step)) && target=$step
             if ! brightnessctl --device="${card##*/}" --quiet set "$target" 2>/dev/null; then

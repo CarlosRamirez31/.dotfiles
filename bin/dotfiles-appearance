@@ -17,12 +17,37 @@ CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/dotfiles-{os.getuid()}")) / "dotfiles-appearance"
 SAVED = CONFIG_HOME / "dotfiles/appearance.json"
 BASE = CONFIG_HOME / "picom/picom.conf"
+ANIMATION_EVENTS = {"open": "Al abrir", "close": "Al cerrar", "show": "Al restaurar", "hide": "Al ocultar"}
 DEFAULTS = dict(gap=5, border=0, accent="#cba6f7", corners=10, shadows=True,
-                shadow_radius=18, shadow_opacity=22, fading=True, inactive_opacity=100)
+                shadow_radius=18, shadow_opacity=22, fading=True, inactive_opacity=100,
+                window_animations=False, menu_animations=False, workspace_animations=False,
+                animation_style="zoom", animation_duration=180, blur=False, blur_strength=5,
+                menu_opacity=100)
+for event in ANIMATION_EVENTS:
+    DEFAULTS.update({f"{event}_style": "inherit", f"{event}_direction": "down", f"{event}_duration": 0})
 RANGES = dict(gap=(0, 100), border=(0, 20), corners=(0, 99), shadow_radius=(0, 100),
-              shadow_opacity=(0, 100), inactive_opacity=(0, 100))
+              shadow_opacity=(0, 100), inactive_opacity=(0, 100), animation_duration=(80, 500),
+              blur_strength=(1, 20), menu_opacity=(50, 100))
+RANGES.update({f"{event}_duration": (0, 500) for event in ANIMATION_EVENTS})
+SWITCHES = ("shadows", "fading", "window_animations", "menu_animations", "workspace_animations", "blur")
+STYLES = {"zoom": "Zoom suave", "zoom_large": "Zoom amplio", "shrink": "Zoom inverso",
+          "slide": "Deslizamiento", "fly": "Vuelo", "fade": "Desvanecimiento"}
+EVENT_STYLES = {"inherit": "Usar estilo general", "none": "Sin animación", **STYLES}
+DIRECTIONS = {"left": "Izquierda", "right": "Derecha", "up": "Arriba", "down": "Abajo"}
+CHOICES = {"animation_style": STYLES}
+for event in ANIMATION_EVENTS:
+    CHOICES.update({f"{event}_style": EVENT_STYLES, f"{event}_direction": DIRECTIONS})
 PICOM = dict(corners="corner-radius", shadows="shadow", shadow_radius="shadow-radius",
              shadow_opacity="shadow-opacity", fading="fading", inactive_opacity="inactive-opacity")
+COMPOSITOR_KEYS = tuple(PICOM) + ("window_animations", "menu_animations", "workspace_animations",
+                                 "animation_style", "animation_duration", "blur", "blur_strength", "menu_opacity") + tuple(
+                                     f"{event}_{field}" for event in ANIMATION_EVENTS for field in ("style", "direction", "duration"))
+MENU_MATCH = ("(window_type = 'popup_menu' || window_type = 'dropdown_menu' || window_type = 'menu' "
+              "|| window_type = 'tooltip' || (window_type = 'dialog' "
+              "&& (class_g = 'awesome' || class_g = 'Awesome')))")
+EFFECT_MATCH = ("!fullscreen && window_type != 'dock' && window_type != 'desktop' "
+                "&& class_g != 'Coucou' && class_g != 'coucou' && class_g != 'Emulator' "
+                "&& class_g != 'XSecureLock' && class_g != 'xsecurelock'")
 PRESETS = {
     "Equilibrado": DEFAULTS,
     "Suave": dict(DEFAULTS, gap=8, border=1, corners=14, inactive_opacity=96),
@@ -37,9 +62,12 @@ def validate(value):
     for key, (low, high) in RANGES.items():
         if type(result[key]) is not int or not low <= result[key] <= high:
             raise ValueError(f"Valor fuera de rango: {key}")
-    for key in ("shadows", "fading"):
+    for key in SWITCHES:
         if type(result[key]) is not bool:
             raise ValueError(f"Valor no válido: {key}")
+    for key, choices in CHOICES.items():
+        if not isinstance(result[key], str) or result[key] not in choices:
+            raise ValueError(f"Opción de animación no válida: {key}")
     if not isinstance(result["accent"], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", result["accent"]):
         raise ValueError("El color debe usar el formato #RRGGBB")
     return result
@@ -90,7 +118,77 @@ def picom_config(base, settings):
         line = f"{option} = {literal};"
         pattern = rf"(?m)^\s*{re.escape(option)}\s*=\s*[^;]+;"
         result = re.sub(pattern, lambda _: line, result) if re.search(pattern, result) else result + "\n" + line
+    # Leave the legacy rendering path intact while the new effects are off.
+    if settings["blur"]:
+        result = re.sub(r'(?m)^\s*blur-method\s*=\s*[^;]+;', '', result)
+        result += ('\nblur-method = "dual_kawase";\nblur-background = true;\n'
+                   f'blur-strength = {settings["blur_strength"]};\n'
+                   'blur-background-exclude = [ "!(' + EFFECT_MATCH + ')" ];\n')
+    animated = any(settings[k] for k in ("window_animations", "menu_animations", "workspace_animations"))
+    if animated:
+        # Picom 13 ignores legacy exclusions/opacity when modern rules exist.
+        # Translate this desktop's existing options in the generated file only.
+        if re.search(r'(?m)^\s*(rules|animations|wintypes|opacity-rule)\s*[:=]', result):
+            raise ValueError("La configuración base contiene reglas personalizadas; revisa su compatibilidad con animaciones")
+        rules = []
+        for option, property_value in (("shadow-exclude", "shadow = false;"),
+                                       ("rounded-corners-exclude", "corner-radius = 0;"),
+                                       ("blur-background-exclude", "blur-background = false;")):
+            pattern = rf'(?ms)^\s*{option}\s*=\s*(\[.*?\]);'
+            match = re.search(pattern, result)
+            if match:
+                conditions = json.loads(match[1])
+                condition = " || ".join("(" + c + ")" for c in conditions)
+                if condition:
+                    rules.append('{ match = ' + json.dumps(condition) + '; ' + property_value + ' }')
+                result = re.sub(pattern, '', result)
+        result = re.sub(r'(?m)^\s*inactive-opacity\s*=\s*[^;]+;', '', result)
+        if settings["inactive_opacity"] < 100:
+            rules.append('{ match = "!(focused || group_focused) && !_NET_WM_WINDOW_OPACITY"; opacity = '
+                         + str(settings["inactive_opacity"] / 100) + '; }')
+        rules.append('{ match = "fullscreen"; corner-radius = 0; }')
+        normal = "(" + EFFECT_MATCH + ") && !" + MENU_MATCH + " && (window_type = 'normal' || window_type = 'dialog')"
+        for match, opening, showing in ((normal, settings["window_animations"], settings["workspace_animations"]),
+                                        ("(" + EFFECT_MATCH + ") && " + MENU_MATCH,
+                                         settings["menu_animations"], settings["menu_animations"])):
+            scripts = animation_scripts(settings, opening, showing)
+            if scripts:
+                rules.append('{ match = ' + json.dumps(match) + '; animations = (' + ', '.join(scripts) + '); }')
+        if settings["menu_opacity"] < 100:
+            rules.append('{ match = ' + json.dumps("(" + EFFECT_MATCH + ") && " + MENU_MATCH)
+                         + '; opacity = ' + str(settings["menu_opacity"] / 100) + '; }')
+        result += '\nrules = (\n' + ',\n'.join(rules) + '\n);\n'
+    elif settings["menu_opacity"] < 100:
+        result += '\nopacity-rule = [ ' + json.dumps(str(settings["menu_opacity"]) + ':('
+                  + EFFECT_MATCH + ') && ' + MENU_MATCH) + ' ];\n'
     return result + "\n"
+
+
+def animation_scripts(settings, opening, showing):
+    scripts = []
+    for event in ANIMATION_EVENTS:
+        if not (opening if event in ("open", "close") else showing):
+            continue
+        entering = event in ("open", "show")
+        style = settings.get(f"{event}_style", "inherit")
+        if style == "inherit":
+            style = settings["animation_style"]
+        if style == "none":
+            scripts.append('{ triggers = ' + json.dumps([event])
+                           + '; opacity = "window-raw-opacity"; shadow-opacity = "window-raw-opacity";'
+                           + ' blur-opacity = "window-blur-opacity"; }')
+            continue
+        duration = settings.get(f"{event}_duration", 0) or settings["animation_duration"]
+        if style in ("slide", "fly"):
+            preset = style + ("-in" if entering else "-out")
+            extra = 'direction = "' + settings.get(f"{event}_direction", "down") + '";'
+        else:
+            preset = "appear" if entering else "disappear"
+            scale = {"zoom": 0.96, "zoom_large": 0.75, "shrink": 1.15, "fade": 1.0}[style]
+            extra = f'scale = {scale};'
+        scripts.append('{ triggers = ' + json.dumps([event]) + '; preset = "' + preset + '"; '
+                       + extra + f' duration = {duration / 1000};' + ' }')
+    return scripts
 
 
 def command(args, timeout=12):
@@ -166,7 +264,7 @@ def ensure_compositor():
 
 def apply_live(settings, force=False):
     previous = current()
-    if force or any(previous[k] != settings[k] for k in PICOM):
+    if force or any(previous[k] != settings[k] for k in COMPOSITOR_KEYS):
         compositor(settings)
     wm(settings)
     write(RUNTIME / "live.json", settings)
@@ -268,6 +366,7 @@ def gui(test_hook=None):
                 #appearance .terminal-frame { border: 2px solid #3d4257; padding: 12px; }
                 #appearance .windows .setting-label { color: #89b4fa; }
                 #appearance .effects .setting-label { color: #cba6f7; }
+                #appearance .animations .setting-label { color: #cba6f7; }
                 #appearance .opacity .setting-label { color: #a6e3a1; }
                 #appearance .background .heading { color: #f9e2af; }
                 #appearance button, #appearance combobox button { background: #11151a;
@@ -283,6 +382,7 @@ def gui(test_hook=None):
                     border-top: 2px solid #7299f8; }
                 #appearance stackswitcher button.tab-windows label { color: #89b4fa; }
                 #appearance stackswitcher button.tab-effects label { color: #cba6f7; }
+                #appearance stackswitcher button.tab-animations label { color: #cba6f7; }
                 #appearance stackswitcher button.tab-opacity label { color: #a6e3a1; }
                 #appearance stackswitcher button.tab-background label { color: #f9e2af; }
                 #appearance spinbutton, #appearance entry { background: #0d1117;
@@ -357,8 +457,26 @@ def gui(test_hook=None):
             self.scale(effects, "shadow_radius", "Tamaño de la sombra", "Suavidad y extensión.", "px")
             self.scale(effects, "shadow_opacity", "Intensidad de la sombra", "Una sombra sutil mantiene la lectura limpia.", "%")
             self.switch(effects, "fading", "Desvanecimiento", "Aparición y cierre suaves.")
+            self.switch(effects, "blur", "Desenfoque de fondo", "Dual Kawase. Solo se aprecia detrás de superficies transparentes. Desactivado por defecto.")
+            self.scale(effects, "blur_strength", "Intensidad de desenfoque", "Más intensidad requiere más recursos gráficos.", "niveles")
+            animations = self.page("animations", "Animaciones")
+            self.switch(animations, "window_animations", "Animar apertura y cierre", "Animaciones de ventanas normales. Desactivado por defecto.")
+            self.switch(animations, "menu_animations", "Animar menús y paneles", "Incluye los paneles de Awesome; excluye Polybar y Coucou.")
+            self.switch(animations, "workspace_animations", "Animar ocultar y mostrar", "Incluye minimizar y cambios de espacio que oculten o muestren ventanas; no desliza el escritorio completo.")
+            self.choice(animations, "animation_style", "Estilo general", "Se usa cuando un evento tiene seleccionado Usar estilo general.")
+            self.scale(animations, "animation_duration", "Duración general", "Menos tiempo produce una transición más rápida.", "ms")
+            for event, title in ANIMATION_EVENTS.items():
+                expander = Gtk.Expander(label=title)
+                controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin_top=12)
+                self.choice(controls, f"{event}_style", "Tipo de animación", "Personaliza solo este evento. Sin animación también omite el desvanecimiento en este evento.")
+                self.choice(controls, f"{event}_direction", "Desde qué lado" if event in ("open", "show") else "Hacia qué lado",
+                            "Solo para Deslizamiento y Vuelo: origen al abrir/restaurar y destino al cerrar/ocultar.")
+                self.scale(controls, f"{event}_duration", "Duración (0 = general)", "0 usa la duración general; los demás valores personalizan este evento.", "ms")
+                expander.add(controls)
+                animations.pack_start(expander, False, False, 0)
             opacity = self.page("opacity", "Transparencia")
             self.scale(opacity, "inactive_opacity", "Opacidad de ventanas inactivas", "0% las oculta; 100% es opaco. La ventana activa conserva su opacidad.", "%")
+            self.scale(opacity, "menu_opacity", "Opacidad de menús y paneles", "100% conserva el fondo opaco. Bájala para apreciar el desenfoque. No cambia Polybar ni Coucou.", "%")
             opacity.pack_start(self.label("Las aplicaciones pueden tener su propia transparencia.\nEste ajuste no cambia su configuración interna.", "muted"), False, False, 8)
             background = self.page("background", "Fondo")
             background.pack_start(self.label("Un fondo que combine contigo", "heading"), False, False, 0)
@@ -387,7 +505,7 @@ def gui(test_hook=None):
                 buttons.pack_end(button, False, False, 0)
             self.actions = [reset, cancel, self.try_button, save, content, presets]
             self.buttons = dict(reset=reset, cancel=cancel, preview=self.try_button, save=save)
-            for tab, name in zip(switcher.get_children(), ("windows", "effects", "opacity", "background")):
+            for tab, name in zip(switcher.get_children(), ("windows", "effects", "animations", "opacity", "background")):
                 tab.get_style_context().add_class("tab-" + name)
             root.pack_start(buttons, False, False, 0)
             self.connect("delete-event", self.close)
@@ -441,6 +559,15 @@ def gui(test_hook=None):
             self.widgets[key] = switch
             self.row(page, title, hint, switch)
 
+        def choice(self, page, key, title, hint):
+            combo = Gtk.ComboBoxText()
+            for value, label in CHOICES[key].items():
+                combo.append(value, label)
+            combo.set_active_id(self.values[key])
+            combo.connect("changed", lambda widget: self.changed(key, widget.get_active_id()))
+            self.widgets[key] = combo
+            self.row(page, title, hint, combo)
+
         def changed(self, key, value):
             self.values[key] = value
             self.canvas.queue_draw()
@@ -455,8 +582,10 @@ def gui(test_hook=None):
                 if key == "accent":
                     color = Gdk.RGBA(); color.parse(value); widget.set_rgba(color)
                     self.changed(key, value)
-                elif key in ("shadows", "fading"):
+                elif key in SWITCHES:
                     widget.set_active(value)
+                elif key in CHOICES:
+                    widget.set_active_id(value)
                 else:
                     widget.set_value(value)
 

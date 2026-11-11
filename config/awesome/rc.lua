@@ -20,6 +20,8 @@ require("appearance").start()
 require("polybar-workarea").start()
 require("polybar-tags").start()
 require("window-previews").start()
+require("music-scene").start()
+require("session-welcome").start()
 require("window-memory").start()
 client.connect_signal("manage", function(c) if awesome.startup and not c.size_hints.user_position and not c.size_hints.program_position then awful.placement.no_offscreen(c) end end)
 

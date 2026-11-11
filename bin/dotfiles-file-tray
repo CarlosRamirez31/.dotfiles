@@ -1,0 +1,519 @@
+#!/usr/bin/env python3
+"""Session-only file references and an X11 file clipboard, shared with Yazi."""
+import os
+from pathlib import Path
+import sys
+from urllib.parse import unquote, urlsplit
+
+LIMIT = 500
+PANEL_WING = 16
+PANEL_FOOT_HEIGHT = 16
+
+
+def panel_path(cr, width, height):
+    """Open outline: rounded top and outward feet joining the screen edge."""
+    left, right, radius = PANEL_WING, width - PANEL_WING, 22
+    corner = radius * 0.55228475
+    foot_x, foot_y = PANEL_WING * 0.55228475, PANEL_FOOT_HEIGHT * 0.55228475
+    cr.move_to(0, height)
+    cr.curve_to(foot_x, height, left, height - PANEL_FOOT_HEIGHT + foot_y, left, height - PANEL_FOOT_HEIGHT)
+    cr.line_to(left, radius)
+    cr.curve_to(left, radius - corner, left + radius - corner, 0, left + radius, 0)
+    cr.line_to(right - radius, 0)
+    cr.curve_to(right - radius + corner, 0, right, radius - corner, right, radius)
+    cr.line_to(right, height - PANEL_FOOT_HEIGHT)
+    cr.curve_to(right, height - PANEL_FOOT_HEIGHT + foot_y, width - foot_x, height, width, height)
+
+
+def local_paths(values):
+    paths = []
+    for value in values:
+        if value.startswith('file:'):
+            uri = urlsplit(value)
+            if uri.netloc not in ('', 'localhost') or uri.query or uri.fragment:
+                raise ValueError('Only local files are supported.')
+            value = unquote(uri.path)
+        path = Path(value)
+        if not path.is_absolute() or '\0' in value or not os.path.lexists(path):
+            raise ValueError('A selected file is no longer available.')
+        path = os.path.abspath(path)
+        if path not in paths:
+            paths.append(path)
+        if len(paths) > LIMIT:
+            raise ValueError(f'Select up to {LIMIT} files at a time.')
+    return paths
+
+
+def clipboard_payload(paths, cut=False):
+    uris = [Path(path).as_uri() for path in paths]
+    return {'text/uri-list': ('\r\n'.join(uris) + '\r\n').encode(),
+            'x-special/gnome-copied-files': (('cut' if cut else 'copy') + '\n' + '\n'.join(uris)).encode(),
+            'application/x-kde-cutselection': b'1' if cut else b'0',
+            'UTF8_STRING': '\n'.join(paths).encode(), 'text/plain;charset=utf-8': '\n'.join(paths).encode()}
+
+
+def parse_file_clipboard(data, native=True, kde_cut=False):
+    if not data or len(data) > 1048576:
+        raise ValueError('The clipboard does not contain a valid file selection.')
+    lines = data.decode('utf-8').splitlines()
+    cut = kde_cut
+    if native:
+        if not lines or lines[0] not in ('copy', 'cut'):
+            raise ValueError('Unknown file clipboard operation.')
+        cut = lines.pop(0) == 'cut'
+    uris = [line for line in lines if line and not line.startswith('#')]
+    if not uris or any(not uri.startswith('file:') for uri in uris):
+        raise ValueError('Copy or cut local files before pasting.')
+    return local_paths(uris), cut
+
+
+def paste_into(destination, Gtk, Gdk, Gio, GLib):
+    destination = Path(destination)
+    if not destination.is_absolute() or not destination.is_dir():
+        raise ValueError('Choose a local destination folder in Yazi.')
+    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+
+    def read(target):
+        loop, result = GLib.MainLoop(), []
+        def received(_clipboard, selection, _user_data):
+            result.append(selection.get_data())
+            loop.quit()
+        timeout = GLib.timeout_add(3000, lambda: (loop.quit(), False)[1])
+        clipboard.request_contents(Gdk.Atom.intern(target, False), received, None)
+        if not result:
+            loop.run()
+        if result:
+            GLib.source_remove(timeout)
+            return result[0]
+        raise ValueError('The clipboard owner did not respond. Copy the files again.')
+
+    data = read('x-special/gnome-copied-files')
+    if data:
+        paths, cut = parse_file_clipboard(data)
+    else:
+        data = read('text/uri-list')
+        cut_data = read('application/x-kde-cutselection')
+        paths, cut = parse_file_clipboard(data, native=False, kde_cut=cut_data == b'1')
+    proxy = Gio.DBusProxy.new_for_bus_sync(Gio.BusType.SESSION, Gio.DBusProxyFlags.NONE, None,
+                                         'org.xfce.FileManager', '/org/xfce/FileManager', 'org.xfce.FileManager', None)
+    # The existing file manager supplies recursive transfers, progress and conflict dialogs.
+    proxy.call_sync('MoveInto' if cut else 'CopyInto',
+                    GLib.Variant('(sassss)', (str(destination), paths, str(destination), os.environ.get('DISPLAY', ''), '')),
+                    Gio.DBusCallFlags.NONE, 10000, None)
+
+
+def main():
+    import cairo
+    import gi
+    gi.require_version('Gtk', '3.0')
+    from gi.repository import Gtk, Gdk, Gio, GLib, Pango
+
+    if sys.argv[1:] == ['paste']:
+        try:
+            paste_into(Path.cwd(), Gtk, Gdk, Gio, GLib)
+            return 0
+        except (ValueError, GLib.Error) as error:
+            dialog = Gtk.MessageDialog(message_type=Gtk.MessageType.ERROR, buttons=Gtk.ButtonsType.CLOSE,
+                                       text='Could not paste files', title='File paste')
+            dialog.format_secondary_text(str(error))
+            dialog.run()
+            dialog.destroy()
+            return 1
+
+    class FileTray(Gtk.Application):
+        def __init__(self):
+            super().__init__(application_id='io.github.dotfiles.FileTray', flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+            self.paths, self.payload, self.window = [], {}, None
+            self.owner = None
+            self.edges, self.monitor_handlers = [], []
+            self.background, self.manual = False, False
+            self.progress, self.target, self.animation, self.hide_timer = 0, 0, 0, 0
+            self.drag_inside, self.outgoing_drag = False, False
+            self.monitor = None
+
+        def do_startup(self):
+            Gtk.Application.do_startup(self)
+            self.hold()
+            self.owner = Gtk.Invisible()
+            self.owner.realize()
+            self.owner.connect('selection-get', self.provide)
+            self.owner.connect('selection-clear-event', self.lost_clipboard)
+            self.atom = Gdk.Atom.intern('CLIPBOARD', False)
+            self.targets = [Gtk.TargetEntry.new(name, 0, i) for i, name in enumerate(clipboard_payload(['/']).keys())]
+            Gtk.selection_add_targets(self.owner, self.atom, self.targets)
+            self.setup_edges()
+            display = Gdk.Display.get_default()
+            display.connect('monitor-added', self.setup_edges)
+            display.connect('monitor-removed', self.setup_edges)
+
+        def provide(self, _widget, selection, _info, _time):
+            target = selection.get_target().name()
+            if target in self.payload:
+                selection.set(selection.get_target(), 8, self.payload[target])
+
+        def lost_clipboard(self, *_args):
+            self.payload = {}
+            self.maybe_quit()
+            return False
+
+        def maybe_quit(self):
+            if not self.background and not self.paths and not self.payload and not (self.window and self.window.get_visible()):
+                self.quit()
+
+        def copy(self, cut=False):
+            paths = self.selected()
+            if not paths:
+                self.status.set_text('Choose files first.')
+                return
+            try:
+                self.set_clipboard(paths, cut)
+            except ValueError as error:
+                self.status.set_text(str(error))
+                return
+            self.status.set_text(('Cut' if cut else 'Copied') + f' {len(paths)} file(s). Paste in your destination with Ctrl+V.')
+
+        def set_clipboard(self, paths, cut=False):
+            self.payload = clipboard_payload(local_paths(paths), cut)
+            if not Gtk.selection_owner_set(self.owner, self.atom, Gdk.CURRENT_TIME):
+                raise ValueError('The file clipboard is unavailable.')
+
+        def selected(self):
+            model, rows = self.tree.get_selection().get_selected_rows()
+            return [model[row][0] for row in rows] if rows else list(self.paths)
+
+        def refresh(self):
+            self.store.clear()
+            for path in self.paths:
+                self.store.append([path, Path(path).name, str(Path(path).parent)])
+            self.count.set_markup('<span foreground="#cba6f7" weight="bold">󰉋  FILE TRAY</span>'
+                                  f'  ·  {len(self.paths)} files')
+
+        def hide(self, *_args):
+            self.cancel_hide()
+            self.manual = False
+            if self.window and self.window.get_visible():
+                self.animate(0)
+            return True
+
+        def remove(self, all_files=False):
+            remove = self.paths if all_files else self.selected()
+            self.paths = [path for path in self.paths if path not in remove]
+            self.refresh()
+            self.status.set_text('Removed from the tray. Original files are unchanged.')
+
+        def drag_data(self, _widget, _context, selection, _info, _time):
+            try:
+                paths = local_paths(self.selected())
+                selection.set_uris([Path(path).as_uri() for path in paths])
+            except ValueError as error:
+                self.status.set_text(str(error))
+
+        def dropped(self, _widget, context, _x, _y, selection, _info, timestamp):
+            success = False
+            try:
+                paths = local_paths(selection.get_uris() or [])
+                self.drag_inside = False
+                self.add(paths)
+                success = True
+            except ValueError as error:
+                self.status.set_text(str(error))
+            Gtk.drag_finish(context, success, False, timestamp)
+
+        def add(self, paths):
+            combined = list(dict.fromkeys(self.paths + paths))
+            if len(combined) > LIMIT:
+                raise ValueError(f'The tray holds up to {LIMIT} files.')
+            self.paths = combined
+            self.show(temporary=True, focus=False)
+            for index, path in enumerate(self.paths):
+                if path in paths:
+                    self.tree.get_selection().select_path(Gtk.TreePath.new_from_indices([index]))
+            self.status.set_text(f'Added {len(paths)} file(s) · Copy, Cut or drag them to another app.')
+
+        def cancel_hide(self):
+            if self.hide_timer:
+                GLib.source_remove(self.hide_timer)
+                self.hide_timer = 0
+
+        def monitor_at_pointer(self):
+            display = Gdk.Display.get_default()
+            _screen, x, y = display.get_default_seat().get_pointer().get_position()
+            return display.get_monitor_at_point(x, y)
+
+        def over_panel(self):
+            if not self.window or not self.window.get_visible():
+                return False
+            _screen, x, y = self.window.get_display().get_default_seat().get_pointer().get_position()
+            wx, wy = self.window.get_position()
+            width, height = self.window.get_size()
+            return wx <= x < wx + width and wy <= y < wy + height
+
+        def arm_hide(self, delay=2800):
+            self.cancel_hide()
+            if self.manual:
+                return
+            def expire():
+                self.hide_timer = 0
+                if self.manual:
+                    return False
+                if self.drag_inside or self.outgoing_drag or self.over_panel():
+                    self.arm_hide(600)
+                else:
+                    self.hide()
+                return False
+            self.hide_timer = GLib.timeout_add(delay, expire)
+
+        def animate(self, target):
+            self.target = target
+            if self.animation:
+                GLib.source_remove(self.animation)
+            started, initial = GLib.get_monotonic_time(), self.progress
+            def frame():
+                elapsed = min(1, (GLib.get_monotonic_time() - started) / 240000)
+                eased = 1 - (1 - elapsed) ** 3
+                self.progress = initial + (target - initial) * eased
+                area = self.monitor.get_geometry()
+                width, height = self.window.get_size()
+                self.window.move(area.x + (area.width - width) // 2,
+                                 area.y + area.height - round(height * self.progress))
+                if elapsed < 1:
+                    return True
+                self.animation = 0
+                if target == 0:
+                    self.window.hide()
+                    self.maybe_quit()
+                return False
+            frame()
+            self.animation = GLib.timeout_add(16, frame)
+
+        def setup_edges(self, *_args):
+            for edge in self.edges:
+                edge.destroy()
+            for monitor, handler in self.monitor_handlers:
+                monitor.disconnect(handler)
+            self.edges, self.monitor_handlers = [], []
+            display = Gdk.Display.get_default()
+            for index in range(display.get_n_monitors()):
+                monitor = display.get_monitor(index)
+                area = monitor.get_geometry()
+                edge = Gtk.Window()
+                edge.set_title('File tray edge')
+                edge.set_role('dotfiles-file-tray-edge')
+                edge.set_decorated(False)
+                edge.set_accept_focus(False)
+                edge.set_focus_on_map(False)
+                edge.set_keep_above(True)
+                edge.set_type_hint(Gdk.WindowTypeHint.DOCK)
+                edge.set_skip_taskbar_hint(True)
+                edge.set_skip_pager_hint(True)
+                Gtk.Widget.set_opacity(edge, 0.01)
+                width = min(640, area.width - 40)
+                edge.set_default_size(width, 5)
+                edge.move(area.x + (area.width - width) // 2, area.y + area.height - 5)
+                targets = [Gtk.TargetEntry.new('text/uri-list', 0, 0)]
+                edge.drag_dest_set(Gtk.DestDefaults.ALL, targets, Gdk.DragAction.COPY)
+                edge.drag_dest_set_track_motion(True)
+                edge.connect('drag-motion', self.drag_motion, monitor)
+                edge.connect('drag-leave', self.drag_leave)
+                edge.connect('drag-data-received', self.dropped)
+                edge.show_all()
+                self.edges.append(edge)
+                handler = monitor.connect('notify::geometry', self.setup_edges)
+                self.monitor_handlers.append((monitor, handler))
+
+        def drag_motion(self, _widget, context, _x, _y, timestamp, monitor=None):
+            if not any(atom.name() == 'text/uri-list' for atom in context.list_targets()):
+                return False
+            self.drag_inside = True
+            self.cancel_hide()
+            if not self.window or not self.window.get_visible() or self.target == 0:
+                self.show(temporary=True, focus=False, monitor=monitor)
+                self.cancel_hide()
+            Gdk.drag_status(context, Gdk.DragAction.COPY, timestamp)
+            return True
+
+        def drag_leave(self, *_args):
+            self.drag_inside = False
+            self.arm_hide(800)
+
+        def drag_begin(self, *_args):
+            self.outgoing_drag = True
+            self.cancel_hide()
+
+        def drag_end(self, *_args):
+            self.outgoing_drag = False
+            self.arm_hide()
+
+        def show(self, temporary=False, focus=True, monitor=None):
+            self.build_window()
+            if not temporary:
+                self.cancel_hide()
+                self.manual = True
+            self.monitor = monitor or self.monitor_at_pointer()
+            self.refresh()
+            area = self.monitor.get_geometry()
+            self.window.resize(min(480 + 2 * PANEL_WING, area.width - 40), min(280, area.height - 80))
+            self.window.set_accept_focus(focus)
+            if not self.window.get_visible():
+                self.progress = 0
+                width, _height = self.window.get_size()
+                self.window.move(area.x + (area.width - width) // 2, area.y + area.height)
+            self.window.show_all()
+            self.animate(1)
+            if focus:
+                self.window.present()
+            if temporary:
+                self.arm_hide()
+
+        def build_window(self):
+            if not self.window:
+                self.window = Gtk.ApplicationWindow(application=self, title='File tray')
+                self.window.set_role('dotfiles-file-tray')
+                self.window.set_default_size(480 + 2 * PANEL_WING, 280)
+                self.window.set_decorated(False)
+                self.window.set_resizable(False)
+                self.window.set_type_hint(Gdk.WindowTypeHint.DOCK)
+                self.window.set_skip_taskbar_hint(True)
+                self.window.set_skip_pager_hint(True)
+                self.window.set_keep_above(True)
+                self.window.set_focus_on_map(False)
+                self.window.set_name('tray-panel')
+                self.window.set_app_paintable(True)
+                self.window.connect('draw', self.draw_panel)
+                visual = self.window.get_screen().get_rgba_visual()
+                if visual:
+                    self.window.set_visual(visual)
+                self.window.connect('delete-event', self.hide)
+                css = Gtk.CssProvider()
+                css.load_from_data(b'''
+                    window { background: transparent; color: #cdd6f4; font-family: JetBrainsMono Nerd Font; }
+                    #tray-panel { background: transparent; border: 0; }
+                    #tray-close { padding: 4px 10px; color: #a6adc8; }
+                    #tray-close:hover { background: #493344; color: #f38ba8; }
+                    treeview { background: transparent; color: #cdd6f4; padding: 3px; }
+                    treeview:selected { background: #45405b; color: #cdd6f4; }
+                    button { background: #313244; color: #cdd6f4; border: 0; border-radius: 9px; padding: 6px;
+                        box-shadow: none; text-shadow: none; }
+                    button:hover { background: #45405b; }
+                    #drag-card { background: rgba(203,166,247,0.08); border-radius: 10px; color: #cba6f7; }
+                ''')
+                Gtk.StyleContext.add_provider_for_screen(self.window.get_screen(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin=14)
+                box.set_margin_start(PANEL_WING + 14)
+                box.set_margin_end(PANEL_WING + 14)
+                self.window.add(box)
+                header = Gtk.Box(spacing=12)
+                self.count = Gtk.Label(xalign=0)
+                header.pack_start(self.count, True, True, 0)
+                close = Gtk.Button(label='×')
+                close.set_name('tray-close')
+                close.connect('clicked', self.hide)
+                header.pack_end(close, False, False, 0)
+                box.pack_start(header, False, False, 0)
+                self.store = Gtk.ListStore(str, str, str)
+                self.tree = Gtk.TreeView(model=self.store)
+                self.tree.set_headers_visible(False)
+                self.tree.set_tooltip_column(0)
+                self.tree.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+                for index, name in ((1, 'File'),):
+                    renderer = Gtk.CellRendererText(ellipsize=Pango.EllipsizeMode.MIDDLE)
+                    column = Gtk.TreeViewColumn(name, renderer, text=index)
+                    column.set_expand(True)
+                    column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
+                    self.tree.append_column(column)
+                scroll = Gtk.ScrolledWindow()
+                scroll.set_min_content_height(76)
+                scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+                scroll.add(self.tree)
+                box.pack_start(scroll, True, True, 0)
+                card = Gtk.EventBox()
+                card.set_name('drag-card')
+                drag_label = Gtk.Label(label='󰆿  Drag files from here', margin_top=7, margin_bottom=7)
+                card.add(drag_label)
+                targets = [Gtk.TargetEntry.new('text/uri-list', 0, 0)]
+                card.drag_source_set(Gdk.ModifierType.BUTTON1_MASK, targets, Gdk.DragAction.COPY)
+                card.connect('drag-data-get', self.drag_data)
+                card.connect('drag-begin', self.drag_begin)
+                card.connect('drag-end', self.drag_end)
+                card.drag_source_set_icon_name('edit-copy')
+                box.pack_start(card, False, False, 0)
+                self.window.drag_dest_set(Gtk.DestDefaults.ALL, targets, Gdk.DragAction.COPY)
+                self.window.connect('drag-data-received', self.dropped)
+                self.window.drag_dest_set_track_motion(True)
+                self.window.connect('drag-motion', self.drag_motion)
+                self.window.connect('drag-leave', self.drag_leave)
+                buttons = Gtk.Box(spacing=8)
+                for label, action in (('Copy', lambda *_: self.copy()), ('Cut', lambda *_: self.copy(True)),
+                                      ('Remove', lambda *_: self.remove()), ('Clear', lambda *_: self.remove(True))):
+                    button = Gtk.Button(label=label)
+                    button.connect('clicked', action)
+                    buttons.pack_start(button, True, True, 0)
+                box.pack_start(buttons, False, False, 0)
+                self.status = Gtk.Label(label='')
+                self.status.connect('notify::label', lambda label, _spec: self.window.set_tooltip_text(label.get_text()))
+                self.status.set_ellipsize(Pango.EllipsizeMode.END)
+                self.status.set_max_width_chars(48)
+                self.window.connect('key-press-event', self.key)
+
+        def draw_panel(self, widget, cr):
+            cr.save()
+            cr.set_antialias(cairo.ANTIALIAS_BEST)
+            cr.set_operator(cairo.OPERATOR_SOURCE)
+            cr.set_source_rgba(0, 0, 0, 0)
+            cr.paint()
+            cr.set_operator(cairo.OPERATOR_OVER)
+            panel_path(cr, widget.get_allocated_width(), widget.get_allocated_height())
+            cr.set_source_rgb(30 / 255, 30 / 255, 46 / 255)
+            cr.fill_preserve()
+            cr.set_source_rgba(203 / 255, 166 / 255, 247 / 255, 0.5)
+            cr.set_line_width(1)
+            cr.stroke()
+            cr.restore()
+            return False
+
+        def key(self, _widget, event):
+            if event.keyval == Gdk.KEY_Escape:
+                self.hide()
+                return True
+            if event.state & Gdk.ModifierType.CONTROL_MASK:
+                if event.keyval in (Gdk.KEY_c, Gdk.KEY_x):
+                    self.copy(event.keyval == Gdk.KEY_x)
+                    return True
+                if event.keyval == Gdk.KEY_a:
+                    self.tree.get_selection().select_all()
+                    return True
+            if event.keyval == Gdk.KEY_Delete:
+                self.remove()
+                return True
+            return False
+
+        def do_command_line(self, command):
+            args = command.get_arguments()[1:]
+            action = args[0] if args else 'show'
+            try:
+                paths = local_paths(args[1:])
+                if action in ('copy', 'cut'):
+                    if not paths: raise ValueError('Select at least one file.')
+                    self.set_clipboard(paths, action == 'cut')
+                elif action == 'add':
+                    self.add(paths)
+                elif action == 'show':
+                    if self.window and self.window.get_visible() and self.manual and self.target == 1:
+                        self.hide()
+                    else:
+                        self.show()
+                elif action == 'background':
+                    self.background = True
+                else:
+                    raise ValueError('Use show, add, copy, cut or background.')
+            except ValueError as error:
+                command.printerr(str(error) + '\n')
+                self.maybe_quit()
+                return 2
+            return 0
+
+    return FileTray().run(sys.argv)
+
+
+if __name__ == '__main__':
+    sys.exit(main())

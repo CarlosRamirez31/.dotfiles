@@ -44,6 +44,63 @@ de la sesión; las que ya estaban abiertas pueden necesitar reiniciarse. Una
 aplicación que utiliza su propio selector en lugar del portal no queda controlada
 por esta configuración. Yazi también sigue disponible con `Alt+E`.
 
+## Copiar, cortar, arrastrar y reunir archivos
+
+En la lista de archivos de Yazi, `Space` marca varios archivos. `Ctrl+C` pone
+la selección (o el archivo bajo el cursor si no hay selección) en el portapapeles
+de archivos del sistema. En Thunar u otra aplicación compatible, `Ctrl+V` pega
+los archivos. En el propio Yazi, **Ctrl+V** pega en la carpeta que estás viendo,
+tanto si copiaste como si cortaste desde File tray, Yazi u otro gestor compatible.
+El pegado usa el motor de transferencias de Thunar, sin abrir su navegador;
+conserva el progreso y los diálogos de conflicto. `Ctrl+X` prepara un corte: los archivos se mueven cuando el destino
+acepta y ejecuta el pegado. Estos atajos conservan la selección y no alteran
+los campos para editar nombres; `y`/`x` y `p` siguen siendo los controles
+propios de Yazi. `Ctrl+Shift+C` de Kitty conserva su copia de texto.
+
+| Acción en Yazi | Atajo |
+| --- | --- |
+| Copiar archivos al portapapeles del sistema conservando la selección | `Ctrl+C` |
+| Preparar el corte para pegar dentro o fuera de Yazi | `Ctrl+X` |
+| Pegar archivos copiados o cortados del portapapeles en la carpeta actual | `Ctrl+V` |
+| Añadir archivos a la bandeja temporal | `Alt+A` |
+
+Para arrastrar, mantén el botón izquierdo sobre uno de los archivos seleccionados
+y llévalo a una aplicación que acepte archivos. No mantengas Shift: Kitty reserva
+esa tecla para seleccionar texto del terminal. Se usa el DnD nativo de
+[Yazi](https://yazi-rs.github.io/docs/dnd/) y Kitty, sin herramientas adicionales.
+
+`Alt+A` dentro de Yazi añade los archivos seleccionados a **File tray**.
+`Alt+A` muestra brevemente los archivos añadidos en un panel compacto que sale
+animado desde abajo. Se oculta solo al terminar de interactuar; pasar el puntero
+encima o mantener un arrastre lo conserva abierto.
+
+`Alt+Shift+F8` abre ese mismo panel desde cualquier ventana y lo mantiene visible
+para revisarlo. El mismo atajo, **×** o `Esc` con el panel enfocado lo cierran con
+animación. Puedes ir a otra carpeta y añadir más archivos. La bandeja conserva hasta 500 referencias únicas
+en memoria durante la sesión; no duplica el contenido ni guarda una lista en disco.
+
+| Acción en File tray | Control |
+| --- | --- |
+| Copiar filas seleccionadas, o todas si no hay selección | `Ctrl+C` o **Copy** |
+| Preparar corte para pegar en otro gestor de archivos | `Ctrl+X` o **Cut** |
+| Seleccionar todas las filas | `Ctrl+A` |
+| Retirar filas de la bandeja sin borrar originales | `Delete` o **Remove** |
+| Vaciar las referencias sin borrar originales | **Clear** |
+| Ocultar conservando la bandeja | `Esc` |
+
+Durante un arrastre desde Yazi u otra aplicación, acerca los archivos al centro
+del borde inferior de la pantalla: el panel se revela sin interrumpir el arrastre.
+Puedes soltarlos sobre el borde o dentro del panel para añadirlos a la bandeja.
+La apertura funciona en cada monitor y no se activa al pasar el puntero sin archivos.
+
+La tarjeta inferior permite arrastrar la selección de la bandeja; también puedes
+soltar archivos sobre ella para añadirlos. El arrastre de la bandeja anuncia copia.
+El destino decide cómo procesar la entrega. La copia/corte publica los formatos
+URI-list, GNOME y KDE para ampliar la compatibilidad; una aplicación que solo
+acepta texto puede recibir las rutas. En sesiones remotas como Citrix, la
+transferencia depende además de las capacidades y políticas del cliente/servidor.
+El portapapeles sigue disponible tras cerrar Yazi mientras conserve su propietario.
+
 ## Vistas previas y apertura desde Yazi
 
 Kitty muestra las vistas previas con su protocolo gráfico nativo, detectado por

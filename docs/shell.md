@@ -36,6 +36,8 @@ Instala Zsh, Starship, eza, bat, FZF, fd, ripgrep, zoxide, vivid, plugins de sug
 | `serve [PUERTO] [IP]` | HTTP del directorio actual; por defecto `8000` en `127.0.0.1`. |
 | `cheat COMANDO` | Página resumida de tldr. |
 | `pathlist` | PATH, una entrada por línea. |
+| `Ctrl+R` | Buscar en el historial del shell con FZF. |
+| `Ctrl+T` | Buscar archivos con FZF e insertar la ruta elegida. |
 
 FZF: `Ctrl+R` busca historial y `Ctrl+T` archivos, con previews de Bat/eza.
 FZF también define `Alt+C` para directorios, pero Awesome reserva esa combinación
@@ -61,15 +63,15 @@ describe el host Arch.
 
 Los comandos interactivos de los dotfiles tienen nombres cortos, mientras los scripts internos conservan el prefijo `dotfiles-` para evitar conflictos:
 
-| Comando | Implementación interna |
-| --- | --- |
-| `doctor` | `dotfiles-doctor` |
-| `maintain` | `dotfiles-maintain` |
-| `backup` | `dotfiles-backup` |
-| `lab-firewall` | `dotfiles-firewall` |
-| `htb-target` | `dotfiles-htb-target` |
-| `screenshot` | `dotfiles-screenshot` |
-| `clip` / `clip-clear` | Historial y limpieza del portapapeles. |
+| Comando | Implementación interna | Uso |
+| --- | --- | --- |
+| `doctor` | `dotfiles-doctor` | Comprobar el estado de los dotfiles y sus dependencias. |
+| `maintain` | `dotfiles-maintain` | Abrir el menú de mantenimiento del sistema. |
+| `backup` | `dotfiles-backup` | Gestionar las copias de seguridad de la configuración. |
+| `lab-firewall` | `dotfiles-firewall` | Consultar o ajustar el cortafuegos local del laboratorio. |
+| `htb-target` | `dotfiles-htb-target` | Configurar el objetivo de laboratorio que muestra Polybar. |
+| `screenshot` | `dotfiles-screenshot` | Tomar una captura completa o de un área. |
+| `clip` / `clip-clear` | `dotfiles-clipboard` / `dotfiles-clipboard-clear` | Consultar o limpiar el historial del portapapeles. |
 
 ## Red y laboratorios autorizados
 
@@ -87,6 +89,11 @@ Los comandos interactivos de los dotfiles tienen nombres cortos, mientras los sc
 Usa Nmap únicamente sobre sistemas propios o autorizados. Para listeners editables: `rlwrap nc -lvnp PUERTO`.
 
 ## VPN en segundo plano
+
+| Comando | Uso |
+| --- | --- |
+| `vpn-on PERFIL` | Iniciar en segundo plano la VPN con el perfil OpenVPN indicado. |
+| `vpn-off` | Cerrar la sesión de OpenVPN iniciada por `vpn-on`. |
 
 ```bash
 vpn-on /ruta/perfil.ovpn

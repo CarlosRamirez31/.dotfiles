@@ -53,6 +53,7 @@ end
 
 local function hide()
     generation = generation + 1
+    require("control-center").close()
     if dragging then mousegrabber.stop(); dragging = false end
     if popup then popup.visible = false end
     if timer then timer:stop(); timer = nil end
@@ -82,8 +83,11 @@ local function toggle_switch(kind)
     end)
 end
 
-local function render_system(data)
+local function render_system(data, controls)
     body:reset()
+    local destination = body
+    local body = wibox.layout.fixed.vertical()
+    body.spacing, body.forced_width = 10, 266
     local cpu
     local total, idle = tonumber(data.cpu_total), tonumber(data.cpu_idle)
     if previous_cpu and total > previous_cpu.total then
@@ -181,6 +185,8 @@ local function render_system(data)
     body:add(wibox.widget({ night, terminal, appearance,
         spacing = 7, layout = wibox.layout.flex.horizontal }))
     body:add(text(" " .. data.temperature, 9, colors.pink))
+    destination:add(wibox.widget({ body, wibox.container.margin(controls, 8, 0, 0, 0),
+        spacing = 12, layout = wibox.layout.fixed.horizontal }))
 end
 
 local function timestamp(value)
@@ -206,36 +212,6 @@ end
 local default_accent = "#a970ff"
 local cover_path, cover_surface, cover_accent
 
-local function artwork_accent(surface)
-    local cairo = lgi.cairo
-    local width, height = gears.surface.get_size(surface)
-    if width < 1 or height < 1 then return default_accent end
-    local side = 16
-    local buffer = require("lgi.core").bytes.new(side * side * 4)
-    local sample = cairo.ImageSurface.create_for_data(buffer, cairo.Format.RGB24, side, side, side * 4)
-    local cr = cairo.Context(sample)
-    cr:scale(side / width, side / height)
-    cr:set_source_surface(surface, 0, 0)
-    cr:paint()
-    sample:flush()
-    local pixels, groups, best = tostring(buffer), {}, nil
-    for offset = 1, #pixels, 4 do
-        local rgb = string.unpack("=I4", pixels, offset)
-        local r, g, b = (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255
-        local high, low = math.max(r, g, b), math.min(r, g, b)
-        if high >= 64 and high - low >= 28 then
-            local key = ((r // 64) * 4 + g // 64) * 4 + b // 64
-            local group = groups[key] or { count = 0, weight = 0, r = 0, g = 0, b = 0 }
-            groups[key] = group
-            group.count, group.weight = group.count + 1, group.weight + high - low
-            group.r, group.g, group.b = group.r + r, group.g + g, group.b + b
-            if not best or group.weight > best.weight then best = group end
-        end
-    end
-    if not best then return default_accent end
-    local function soften(channel) return math.floor(.68 * channel / best.count + .32 * 255 + .5) end
-    return string.format("#%02x%02x%02x", soften(best.r), soften(best.g), soften(best.b))
-end
 
 local function render_music(data)
     body:reset()
@@ -246,7 +222,7 @@ local function render_music(data)
             local surface, error = gears.surface.load_uncached_silently(cover_path)
             if surface and not error then
                 cover_surface = surface
-                cover_accent = artwork_accent(surface)
+                cover_accent = require("artwork-style").accent(surface)
             end
         end
     end
@@ -372,7 +348,7 @@ local function render_music(data)
 end
 
 refresh = function()
-    if busy or dragging or not active then return end
+    if busy or dragging or not active or require("control-center").busy() then return end
     local token, kind = generation, active
     busy = true
     awful.spawn.easy_async({ helper, kind }, function(stdout, _, _, code)
@@ -385,8 +361,19 @@ refresh = function()
         end
         heading.text = ""
         local data = parse(stdout)
-        if kind == "system" then render_system(data) else render_music(data) end
-        menu_style.reveal(popup)
+        if kind == "system" then
+            busy = true
+            require("control-center").refresh(function(controls)
+                if token ~= generation then return end
+                busy = false
+                controls.forced_width = 302
+                render_system(data, controls)
+                menu_style.reveal(popup)
+            end, refresh)
+        else
+            render_music(data)
+            menu_style.reveal(popup)
+        end
     end)
 end
 
@@ -404,8 +391,8 @@ function M.toggle(kind)
         layout = wibox.layout.fixed.vertical })
     popup = awful.popup({ screen = s, ontop = true, visible = kind == "music", type = "dialog",
         bg = colors.base, border_width = 1, border_color = colors.border,
-        minimum_width = kind == "system" and 286 or 510,
-        maximum_width = kind == "system" and 286 or 510,
+        minimum_width = kind == "system" and 620 or 510,
+        maximum_width = kind == "system" and 620 or 510,
         shape = function(cr, w, h) gears.shape.rounded_rect(cr, w, h, 14) end,
         widget = kind == "music" and margin(body, 10, 8) or margin(wibox.widget({
             { heading, nil, close, layout = wibox.layout.align.horizontal }, body,

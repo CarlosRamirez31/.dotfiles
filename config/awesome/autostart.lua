@@ -1,5 +1,11 @@
 local awful = require("awful")
 
+-- Keep the native Xdnd edge receiver available before the first file drag.
+local file_tray = os.getenv("HOME") .. "/.local/bin/dotfiles-file-tray"
+if require("gears").filesystem.file_readable(file_tray) then
+    awful.spawn({ file_tray, "background" }, false)
+end
+
 local function once(process, command)
     local match = "-x " .. process
     awful.spawn.with_shell(

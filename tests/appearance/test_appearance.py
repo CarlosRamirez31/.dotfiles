@@ -43,6 +43,168 @@ class AppearanceTest(unittest.TestCase):
         self.assertIn("corner-radius = 20;", result)
         self.assertIn("shadow-opacity = 0.3;", result)
 
+    def test_old_preferences_keep_all_new_effects_disabled(self):
+        old = dict(gap=5, border=2, accent="#cba6f7", corners=14, shadows=True,
+                   shadow_radius=16, shadow_opacity=30, fading=True, inactive_opacity=100)
+        app.write(app.SAVED, old)
+        migrated = app.saved()
+        for key in ("window_animations", "menu_animations", "workspace_animations", "blur"):
+            self.assertIs(migrated[key], False)
+        self.assertEqual(migrated["menu_opacity"], 100)
+        for key, value in old.items():
+            self.assertEqual(migrated[key], value)
+        self.assertEqual(app.read(app.SAVED), old, "reading must not rewrite old preferences")
+        base = app.BASE.read_text()
+        config = app.picom_config(base, migrated)
+        for option in ("rules =", "animations =", "blur-background =", "opacity-rule ="):
+            self.assertNotIn(option, config)
+        self.assertIn('blur-method = "none";', config)
+        self.assertIn('rounded-corners-exclude =', config)
+
+    def test_rejects_invalid_effect_controls(self):
+        for value in (dict(window_animations=1), dict(menu_animations="false"),
+                      dict(workspace_animations=None), dict(blur="true"),
+                      dict(animation_style='zoom";bad'), dict(animation_style=[]),
+                      dict(animation_duration=79), dict(blur_strength=21), dict(menu_opacity=49)):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                app.validate(value)
+
+    def test_animation_triggers_are_independent_and_styles_are_supported(self):
+        for style in app.STYLES:
+            settings = dict(app.DEFAULTS, animation_style=style)
+            opening = ' '.join(app.animation_scripts(settings, True, False))
+            showing = ' '.join(app.animation_scripts(settings, False, True))
+            self.assertIn('["open"]', opening)
+            self.assertIn('["close"]', opening)
+            self.assertNotIn('"hide"', opening)
+            self.assertIn('["show"]', showing)
+            self.assertIn('["hide"]', showing)
+            self.assertNotIn('"open"', showing)
+            self.assertIn('duration = 0.18;', opening)
+            expected = style + '-in' if style in ('slide', 'fly') else 'appear'
+            self.assertIn(f'preset = "{expected}";', opening)
+            if style not in ('slide', 'fly'):
+                scale = {'zoom': 0.96, 'zoom_large': 0.75, 'shrink': 1.15, 'fade': 1.0}[style]
+                self.assertIn(f'scale = {scale};', opening)
+            self.assertEqual(app.animation_scripts(settings, False, False), [])
+
+    def test_each_event_has_independent_style_direction_and_duration(self):
+        settings = app.validate(dict(open_style='fly', open_direction='left', open_duration=320,
+                                     close_style='slide', close_direction='down', close_duration=150,
+                                     show_style='zoom_large', show_duration=250, hide_style='none'))
+        scripts = dict(zip(app.ANIMATION_EVENTS, app.animation_scripts(settings, True, True)))
+        self.assertIn('preset = "fly-in";', scripts['open'])
+        self.assertIn('direction = "left";', scripts['open'])
+        self.assertIn('duration = 0.32;', scripts['open'])
+        self.assertIn('preset = "slide-out";', scripts['close'])
+        self.assertIn('direction = "down";', scripts['close'])
+        self.assertIn('duration = 0.15;', scripts['close'])
+        self.assertIn('scale = 0.75;', scripts['show'])
+        self.assertIn('duration = 0.25;', scripts['show'])
+        self.assertNotIn('preset =', scripts['hide'])
+        self.assertNotIn('duration =', scripts['hide'])
+        self.assertIn('opacity = "window-raw-opacity";', scripts['hide'])
+        for event, script in scripts.items():
+            self.assertIn(f'triggers = ["{event}"]', script)
+
+    def test_event_defaults_preserve_previous_general_preferences(self):
+        old = dict(app.DEFAULTS, animation_style='slide', animation_duration=240)
+        for key in tuple(old):
+            if key.startswith(tuple(event + '_' for event in app.ANIMATION_EVENTS)):
+                del old[key]
+        settings = app.validate(old)
+        for script in app.animation_scripts(settings, True, True):
+            self.assertIn('direction = "down";', script)
+            self.assertIn('duration = 0.24;', script)
+        self.assertFalse(settings['window_animations'])
+
+    def test_all_event_options_validate_and_persist(self):
+        for event in app.ANIMATION_EVENTS:
+            for style in app.EVENT_STYLES:
+                for direction in app.DIRECTIONS:
+                    changed = app.validate({f'{event}_style': style, f'{event}_direction': direction})
+                    app.commit(changed)
+                    self.assertEqual(app.saved(), changed)
+                    self.assertEqual(len(app.animation_scripts(changed, True, True)), 4)
+            for value in ({f'{event}_style': 'invalid'}, {f'{event}_direction': 'diagonal'},
+                          {f'{event}_duration': -1}, {f'{event}_duration': 501}, {f'{event}_style': []}):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    app.validate(value)
+
+    def test_animation_rules_preserve_exclusions_and_client_opacity(self):
+        base = app.BASE.read_text()
+        for key in ("window_animations", "menu_animations", "workspace_animations"):
+            config = app.picom_config(base, dict(app.DEFAULTS, **{key: True}))
+            self.assertIn('backend = "glx";', config)
+            self.assertIn('shadow = false;', config)
+            self.assertIn("_NET_WM_STATE@ *= '_NET_WM_STATE_FULLSCREEN'", config)
+            self.assertIn('match = "fullscreen"; corner-radius = 0;', config)
+            self.assertIn("class_g != 'Coucou'", config)
+            self.assertIn("class_g != 'Emulator'", config)
+            self.assertNotIn('opacity = 1.0;', config)
+            self.assertNotIn('shadow-exclude =', config)
+        config = app.picom_config(base, dict(app.DEFAULTS, window_animations=True, inactive_opacity=90))
+        self.assertIn('!_NET_WM_WINDOW_OPACITY', config)
+        self.assertIn('group_focused', config)
+        self.assertIn('opacity = 0.9;', config)
+        for base_option in ('rules = ();', 'animations = ();', 'wintypes: {};', 'opacity-rule = [];'):
+            with self.subTest(base_option=base_option), self.assertRaises(ValueError):
+                app.picom_config(base + base_option, dict(app.DEFAULTS, window_animations=True))
+
+    def test_blur_and_menu_opacity_work_with_and_without_animations(self):
+        for animated in (False, True):
+            settings = dict(app.DEFAULTS, blur=True, blur_strength=8, menu_opacity=85,
+                            menu_animations=animated)
+            config = app.picom_config(app.BASE.read_text(), settings)
+            self.assertEqual(config.count('blur-method ='), 1)
+            self.assertIn('blur-method = "dual_kawase";', config)
+            self.assertIn('blur-background = true;', config)
+            self.assertIn('blur-strength = 8;', config)
+            self.assertIn('opacity = 0.85;' if animated else 'opacity-rule = [ "85:', config)
+            self.assertIn('blur-background = false;' if animated else 'blur-background-exclude =', config)
+
+    def test_new_effects_restart_compositor_and_trial_restores_them(self):
+        changed = dict(app.DEFAULTS, window_animations=True, menu_animations=True,
+                       workspace_animations=True, blur=True, menu_opacity=85)
+        token = app.preview(changed)
+        self.compositor.assert_called_once_with(changed)
+        self.assertFalse(app.SAVED.exists())
+        self.assertTrue(app.revert(token))
+        self.compositor.assert_called_with(app.DEFAULTS)
+        self.assertEqual(app.current(), app.DEFAULTS)
+        for key in app.COMPOSITOR_KEYS:
+            if key in app.RANGES:
+                low, high = app.RANGES[key]
+                change = high if app.DEFAULTS[key] != high else low
+            elif key in app.SWITCHES:
+                change = not app.DEFAULTS[key]
+            else:
+                change = next(value for value in app.CHOICES[key] if value != app.DEFAULTS[key])
+            self.compositor.reset_mock()
+            app.apply_live(dict(app.DEFAULTS, **{key: change}))
+            self.compositor.assert_called_once()
+            app.write(app.RUNTIME / 'live.json', app.DEFAULTS)
+
+    def test_effects_can_be_saved_reopened_and_disabled(self):
+        enabled = dict(app.DEFAULTS, window_animations=True, menu_animations=True,
+                       workspace_animations=True, animation_style='slide', blur=True, menu_opacity=85)
+        app.commit(enabled)
+        self.assertEqual(app.saved(), enabled)
+        app.commit(app.DEFAULTS)
+        config = app.picom_config(app.BASE.read_text(), app.saved())
+        self.assertEqual(app.saved(), app.DEFAULTS)
+        self.assertNotIn('animations =', config)
+        self.assertNotIn('opacity-rule =', config)
+        self.assertIn('blur-method = "none";', config)
+
+    def test_invalid_candidate_is_rejected_before_stopping_running_compositor(self):
+        with patch.object(app, 'command', side_effect=RuntimeError('Invalid config')), \
+                patch.object(app.subprocess, 'run') as run:
+            with self.assertRaisesRegex(RuntimeError, 'Invalid config'):
+                app.launch_compositor('bad config')
+            run.assert_not_called()
+            self.process.assert_not_called()
+
     def test_preview_reverts_without_creating_saved_preferences(self):
         changed = dict(app.DEFAULTS, corners=20, gap=12)
         token = app.preview(changed)
@@ -186,9 +348,13 @@ class AppearanceTest(unittest.TestCase):
                         self.assertEqual(window.values[key], value)
                     window.widgets[key].set_value(limits[1] + 999)
                     self.assertEqual(window.values[key], limits[1], "GTK must clamp oversized input")
-                for key in ("shadows", "fading"):
+                for key in app.SWITCHES:
                     for value in (False, True):
                         window.widgets[key].set_active(value)
+                        self.assertEqual(window.values[key], value)
+                for key, choices in app.CHOICES.items():
+                    for value in choices:
+                        window.widgets[key].set_active_id(value)
                         self.assertEqual(window.values[key], value)
                 color = Gdk.RGBA(); color.parse("#123456")
                 window.widgets["accent"].set_rgba(color)

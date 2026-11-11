@@ -63,6 +63,13 @@ permiten seguir usando las aplicaciones y los atajos del escritorio.
 Durante la reproducción, el botón de música muestra cuatro barras lavanda
 que reaccionan a la salida de audio con Cava. Al pausar o cerrar el reproductor,
 vuelve la nota musical. El clic sigue abriendo el mismo panel.
+En un escritorio vacío, Awesome muestra la portada y la pista en una esquina.
+Unos trazos lavanda reaccionan a las mismas bandas de Cava. La escena se oculta
+al pausar o al abrir una ventana en ese monitor.
+
+El clic izquierdo en el volumen abre **App volume**. Arrastra la barra de una
+aplicación para cambiar su nivel o pulsa su icono para silenciarla. La rueda y
+el clic derecho del indicador ajustan y silencian el volumen general.
 
 Junto al icono de música aparece un punto separador y el nombre corto de la
 aplicación enfocada, en lavanda y con la misma JetBrainsMono de la barra. Cambia
@@ -109,6 +116,41 @@ El clima se obtiene de wttr.in, se guarda durante 20 minutos y usa Santo Domingo
 por defecto. `DOTFILES_WEATHER_CITY` permite cambiar la ciudad en la sesión.
 El contador de actualizaciones usa la base local de pacman; no sincroniza
 repositorios. El avatar usa `~/.face` si existe y el icono de Arch en su ausencia.
+
+## Centro de control y acabado visual
+
+El logo de Arch conserva el panel del sistema; `Alt+F6` también lo abre. Su
+columna de controles permite ajustar volumen global y brillo con el ratón,
+silenciar la salida y cambiar No molestar. Muestra hasta tres aplicaciones con
+audio, cada una con volumen y silencio propios; **All applications** abre el
+mezclador completo cuando hay más. El brillo conserva un mínimo del 5 % y usa
+el respaldo de logind si brightnessctl no puede escribir.
+
+Las consultas de controles se ejecutan solo mientras el panel está abierto y
+los cambios por arrastre se envían al soltar el ratón. Un control sin dispositivo
+disponible muestra **Unavailable**. Los interruptores existentes de red y Bluetooth
+siguen disponibles a la izquierda.
+
+La escena musical y el panel de música comparten un acento obtenido de la
+portada. Las imágenes sin un color suficiente usan lavanda. La portada de la
+escena llena su recuadro con un recorte centrado que conserva las proporciones.
+Las notificaciones usan esquinas redondeadas e iconos, con las acciones nativas
+de la aplicación. El historial conserva hasta 40 avisos en memoria, con iconos
+limitados a 28 × 28 píxeles.
+
+## Salidas y perfiles de audio
+
+`Alt+F5` y **Outputs & profiles** en el centro de control abren el selector.
+**Outputs** muestra salidas y sus conectores disponibles, por ejemplo altavoces,
+audífonos o HDMI. Elegir una salida la establece como predeterminada y mueve
+las reproducciones activas. El punto lavanda marca la selección vigente.
+
+**Profiles** muestra perfiles de reproducción disponibles, incluidos los de
+Bluetooth cuando el dispositivo esté conectado. Cambiar el perfil de una tarjeta
+puede cambiar también la disponibilidad de su micrófono; se conserva la elección
+explícita del usuario y no se aplica una preferencia automática de micrófono.
+Las listas se actualizan mientras el panel está abierto y se validan otra vez
+al elegir. Se conservan el volumen global y el mezclador por aplicación.
 
 ## Diagnóstico
 

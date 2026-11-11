@@ -11,20 +11,20 @@ if command -v betterlockscreen >/dev/null 2>&1 && command -v bc >/dev/null 2>&1 
     # screen always matches what is actually on screen, not a hard-coded file.
     wallpaper=$(awk -F\' '/feh .*--bg/ { print $2; exit }' "$HOME/.fehbg" 2>/dev/null || true)
     [[ -r $wallpaper ]] || wallpaper="$HOME/.config/wallpapers/mocha-aurora.png"
-    cache_image="${XDG_CACHE_HOME:-"$HOME/.cache"}/betterlockscreen/current/lock_dimblur.png"
-    cache_source="${XDG_CACHE_HOME:-"$HOME/.cache"}/betterlockscreen/current/dotfiles-wallpaper"
+    cache_image="${XDG_CACHE_HOME:-"$HOME/.cache"}/betterlockscreen/current/lock_dim.png"
+    cache_source="${XDG_CACHE_HOME:-"$HOME/.cache"}/betterlockscreen/current/dotfiles-wallpaper-dim-v1"
 
     # Betterlockscreen owns the cache and the actual lock screen.  Refresh it
     # whenever its source is changed, even when an older wallpaper is selected.
     cache_ready=true
     if [[ ! -s $cache_image || ! -r $cache_source || $(<"$cache_source") != "$wallpaper" ]]; then
-        if betterlockscreen --update "$wallpaper" --fx dimblur; then
+        if betterlockscreen --update "$wallpaper" --fx dim; then
             printf '%s\n' "$wallpaper" >"$cache_source" || cache_ready=false
         else
             cache_ready=false
         fi
     fi
-    if [[ $cache_ready == true ]] && betterlockscreen --lock dimblur; then
+    if [[ $cache_ready == true ]] && betterlockscreen --lock dim; then
         exit 0
     fi
     printf 'Betterlockscreen failed; starting Xsecurelock fallback.\n' >&2

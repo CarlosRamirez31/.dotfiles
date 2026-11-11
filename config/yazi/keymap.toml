@@ -22,3 +22,23 @@ desc = "Ir a Imágenes"
 on = [ "g", "h" ]
 run = "cd ~"
 desc = "Ir al inicio"
+
+[[mgr.prepend_keymap]]
+on = "<C-c>"
+run = "shell --orphan -- dotfiles-file-tray copy %s"
+desc = "Copy files to the system clipboard"
+
+[[mgr.prepend_keymap]]
+on = "<C-x>"
+run = "shell --orphan -- dotfiles-file-tray cut %s"
+desc = "Cut files for pasting outside Yazi"
+
+[[mgr.prepend_keymap]]
+on = "<C-v>"
+run = "shell --orphan -- dotfiles-file-tray paste"
+desc = "Paste copied or cut files into this folder"
+
+[[mgr.prepend_keymap]]
+on = "<A-a>"
+run = "shell --orphan -- dotfiles-file-tray add %s"
+desc = "Add selected files to the temporary tray"

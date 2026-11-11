@@ -7,6 +7,9 @@ source "$component_root/../lib.sh"
 require_arch_user
 install_packages \
     yazi \
+    python-gobject \
+    python-cairo \
+    gtk3 \
     thunar \
     thunar-volman \
     tumbler \

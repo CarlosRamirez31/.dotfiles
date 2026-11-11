@@ -2,15 +2,25 @@
 
 `Alt` es la tecla modificadora principal del escritorio. `Super` es la tecla Windows. Estos son los atajos configurados actualmente, agrupados por función.
 
+**Alt+F1** abre la guía de consulta. Puedes buscar por tecla, comando o
+descripción, o filtrar por Escritorio, Kitty, Yazi y Terminal. **Enter** muestra
+el detalle de la fila y **Esc** cierra la guía.
+
 ## Aplicaciones y sesión
 
 | Atajo | Acción |
 | --- | --- |
 | `Alt+Enter` | Abrir terminal. |
 | `Ctrl+Alt+T` | Abrir terminal. |
+| `Alt+F1` | Consultar la guía de atajos y comandos. |
 | `Alt+F12` | Mostrar u ocultar el Kitty desplegable conservando su sesión. |
 | `Alt+F10` | Activar o salir del modo enfoque en la ventana actual. |
 | `Alt+F11` | Llevar la ventana a una esquina y mantenerla encima en todos los escritorios del monitor, o devolverla a su sitio. |
+| `Alt+F3` | Abrir el organizador visual de ventanas; elegir con 1–6 y cancelar con Esc. |
+| `Alt+F5` | Elegir salida, conector o perfil de audio. |
+| `Alt+Shift+F8` | Mostrar u ocultar el panel inferior de archivos; la apertura manual permanece hasta cerrarlo. |
+| `Alt+F6` | Abrir o cerrar el centro de control: brillo, volumen y audio por aplicación. |
+| `Alt+F7` | Mostrar el panel de bienvenida de la sesión. |
 | `Alt+F8` | Abrir o cerrar el panel de descargas recientes. |
 | `Alt+Space`, `Alt+D`, `Alt+F2` | Abrir lanzador de aplicaciones. |
 | `Alt+Shift+D` | Abrir LazyDocker en una ventana flotante y centrada. |
@@ -18,7 +28,9 @@
 | `Alt+Ctrl+M` / tecla de silenciar micrófono | Apagar/encender el micrófono. |
 | `Alt+Ctrl+N` | Activar/desactivar el aislamiento de ruido. |
 | `Alt+Ctrl+V` | Activar/desactivar Solo mi voz, después de registrar la voz. |
-| `Alt+Tab` | Abrir selector de ventanas. También permite volver a una ventana minimizada. |
+| `Alt+Tab` | Cambiar de ventana con miniaturas. También permite volver a una ventana minimizada. |
+| `Alt+Shift+Tab` | Recorrer las miniaturas de ventanas en orden inverso. |
+| `Ctrl+Alt+Tab` | Buscar ventanas abiertas o aplicaciones con Rofi. |
 | `Alt+B` | Abrir Brave. |
 | `Alt+E` | Abrir Yazi, el gestor de archivos en terminal. |
 | `Ctrl+Alt+E` | Abrir Thunar. |
@@ -90,6 +102,7 @@ las pantallas.
 | `Ctrl+Backspace` | Borrar la palabra anterior en Zsh. |
 | `Shift+←/→` | Seleccionar caracteres en la línea de comandos. |
 | `Ctrl+Shift+←/→` | Seleccionar palabras en la línea de comandos. |
+| `Ctrl+Shift+F12` | Abrir otra ventana de Kitty en el directorio actual. |
 
 ## Yazi (después de abrirlo con `Alt+E`)
 
@@ -100,3 +113,18 @@ las pantallas.
 | `G D` | Ir a Descargas. |
 | `G P` | Ir a Imágenes. |
 | `G H` | Ir a tu carpeta personal. |
+
+## Bienvenida
+
+La bienvenida aparece una vez por sesión de usuario durante nueve segundos,
+con reloj, fecha y la canción seleccionada, si existe. Pasar el puntero encima
+conserva la tarjeta abierta. `Alt+F7` permite volver a consultarla.
+
+## Organización visual de ventanas
+
+`Alt+F3` muestra seis distribuciones con miniaturas: principal a la izquierda,
+a la derecha, tres columnas, cuadrícula, maximizada y flotante. Se aplican al
+escritorio seleccionado; las ventanas que ya flotan conservan su independencia.
+Las tres columnas requieren al menos tres ventanas en mosaico. El menú ofrece
+**Undo last arrangement** después de aplicar un cambio, también con `U` dentro del menú. Sal de pantalla completa
+antes de reorganizar.

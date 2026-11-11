@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Show the shortcuts and shell commands documented by the dotfiles."""
+import html
+import os
+from pathlib import Path
+import re
+import sys
+import unicodedata
+
+
+ROOT = Path(__file__).resolve().parents[1]
+RECORD_SEPARATOR = "\x1e"
+MODES = {
+    "all": "Todos",
+    "desktop": "Escritorio",
+    "kitty": "Kitty",
+    "yazi": "Yazi",
+    "terminal": "Terminal",
+}
+
+
+def text(cell):
+    return " ".join(cell.replace(r"\|", "|").replace("`", "").split())
+
+
+def tables(filename):
+    section = ""
+    columns = []
+    for line in (ROOT / "docs" / filename).read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            section = line[3:]
+        if not line.startswith("|"):
+            columns = []
+            continue
+        cells = [text(cell) for cell in re.split(r"(?<!\\)\|", line[1:-1])]
+        if not columns:
+            columns = cells
+        elif len(cells) == len(columns) and not all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+            yield section, columns, cells
+
+
+def entries():
+    for section, header, cells in tables("awesome-atajos.md"):
+        if header != ["Atajo", "Acción"]:
+            continue
+        if section.startswith("Terminal Kitty"):
+            yield "kitty", "Kitty", *cells
+        elif section.startswith("Yazi"):
+            yield "yazi", "Yazi", *cells
+        else:
+            yield "desktop", section, *cells
+
+    for section, header, cells in tables("files.md"):
+        category = {
+            ("Acción", "Control en el selector"): "Selector de archivos",
+            ("Acción en Yazi", "Atajo"): "Yazi",
+            ("Acción en File tray", "Control"): "File tray",
+        }.get(tuple(header))
+        if category:
+            description, shortcut = cells
+            yield "yazi", category, shortcut, description
+
+    for section, header, cells in tables("shell.md"):
+        if header[0] == "Comando":
+            yield "terminal", section, cells[0], cells[-1]
+
+
+def option(name, value):
+    print(f"\0{name}\x1f{value}", end=RECORD_SEPARATOR)
+
+
+def display_rows(mode):
+    rows = [entry for entry in entries() if mode == "all" or entry[0] == mode]
+    ret = os.environ.get("ROFI_RETV", "0")
+    if ret == "0":
+        print(f"\0delim\x1f{RECORD_SEPARATOR}")
+    option("markup-rows", "true")
+    option("no-custom", "true")
+    option("keep-filter", "true")
+    option("keep-selection", "true")
+    selected = os.environ.get("ROFI_INFO", "")
+    if ret == "1" and selected.isascii() and selected.isdecimal():
+        index = int(selected)
+        if index < len(rows):
+            category, section, command, description = rows[index]
+            option("message", f'<b>{html.escape(command)}</b>\n{html.escape(description)}\n'
+                   f'<span foreground="#a6adc8">{html.escape(MODES[category] + " · " + section)}</span>')
+
+    for index, (category, section, command, description) in enumerate(rows):
+        short = command if len(command) <= 31 else command[:30].rstrip() + "…"
+        left = html.escape(short.ljust(32))
+        right = html.escape(description)
+        terms = f"{MODES[category]} {section} {command} {command.replace('+', ' ')} {description}"
+        plain = "".join(ch for ch in unicodedata.normalize("NFD", terms) if not unicodedata.combining(ch))
+        print(f'<span foreground="#cba6f7" weight="bold">{left}</span> {right}'
+              f'\0info\x1f{index}\x1fmeta\x1f{terms} {plain}', end=RECORD_SEPARATOR)
+
+
+def main():
+    if len(sys.argv) >= 3 and sys.argv[1] == "--rows" and sys.argv[2] in MODES:
+        display_rows(sys.argv[2])
+        return
+    launcher_dir = Path(__file__).absolute().parent
+    os.environ["PATH"] = os.pathsep.join((str(launcher_dir), os.environ.get("PATH", os.defpath)))
+    modes = ",".join(f"{name}:dotfiles-shortcuts --rows {key}" for key, name in MODES.items())
+    os.execvp("rofi", ["rofi", "-no-config", "-theme", str(ROOT / "config/rofi/shortcuts.rasi"),
+                       "-modes", modes, "-show", "Todos", "-sidebar-mode", "-matching", "normal", "-no-sort"])
+
+
+if __name__ == "__main__":
+    main()

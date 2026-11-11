@@ -121,7 +121,13 @@ render = function()
             message.wrap = "word_char"
             row:add(message)
         end
-        local card = wibox.widget({ { row, left = 8, right = 8, top = 5, bottom = 5, widget = wibox.container.margin },
+        local glyph = item.icon and wibox.widget({ image = item.icon, resize = true,
+            forced_width = 28, forced_height = 28, widget = wibox.widget.imagebox })
+            or style.icon("󰂚", 16, colors.lavender, 28, 28)
+        local content = wibox.widget({ wibox.container.margin(glyph, 0, 8, 3, 0), row,
+            layout = wibox.layout.fixed.horizontal })
+        row.forced_width = 266
+        local card = wibox.widget({ { content, left = 8, right = 8, top = 5, bottom = 5, widget = wibox.container.margin },
             bg = colors.surface, shape = function(cr, w, h) gears.shape.rounded_rect(cr, w, h, 8) end,
             widget = wibox.container.background })
         local detail = item.title == "" and item.message or item.title .. "\n" .. item.message
@@ -147,6 +153,31 @@ local function compact(value, limit)
     return cut and (cleaned:sub(1, cut - 1) .. "…") or cleaned
 end
 
+local function thumbnail(icon)
+    if not icon then return end
+    if type(icon) == "string" then
+        if icon:sub(1, 7) == "file://" then
+            icon = icon:sub(8):gsub("%%(%x%x)", function(byte) return string.char(tonumber(byte, 16)) end)
+        elseif not gears.filesystem.file_readable(icon) then
+            icon = require("menubar.utils").lookup_icon(icon)
+        end
+        if not icon then return end
+    end
+    local source, err = gears.surface.load_uncached_silently(icon)
+    if err or not source then return end
+    local width, height = gears.surface.get_size(source)
+    if width <= 0 or height <= 0 then return end
+    local cairo = require("lgi").cairo
+    local result = cairo.ImageSurface.create(cairo.Format.ARGB32, 28, 28)
+    local cr = cairo.Context(result)
+    local scale = math.min(28 / width, 28 / height)
+    cr:translate((28 - width * scale) / 2, (28 - height * scale) / 2)
+    cr:scale(scale, scale)
+    cr:set_source_surface(source, 0, 0)
+    cr:paint()
+    return result
+end
+
 function M.start()
     if M.started then publish(); return end
     M.started = true
@@ -156,13 +187,21 @@ function M.start()
         if not args then return end
         local preset = args.preset or {}
         local app = compact(args.appname or preset.appname or "System", 45)
+        args.shape = args.shape or function(cr, w, h) gears.shape.rounded_rect(cr, w, h, 14) end
+        args.margin = args.margin or 13
+        args.icon_size = args.icon_size or 40
+        args.border_width = args.border_width or 1
+        if not args.icon and not preset.icon then
+            args.icon = require("menubar.utils").lookup_icon(app:lower())
+                or require("menubar.utils").lookup_icon("dialog-information")
+        end
         local title = compact(args.title or preset.title, 120)
         local message = compact(args.text or preset.text, 240)
         local last = history[1]
         if (title ~= "" or message ~= "") and not
             (last and last.app == app and last.title == title and last.message == message) then
             table.insert(history, 1, { app = app ~= "" and app or "System", title = title,
-                message = message, time = os.date("%H:%M") })
+                message = message, time = os.date("%H:%M"), icon = thumbnail(args.icon or preset.icon) })
             if #history > 40 then table.remove(history) end
             if popup.visible then render() else unread = math.min(40, unread + 1) end
             publish()

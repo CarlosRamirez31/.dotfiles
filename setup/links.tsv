@@ -10,6 +10,8 @@ awesome	share/applications/dotfiles-appearance.desktop	.local/share/applications
 awesome	bin/dotfiles-htb-target	.local/bin/dotfiles-htb-target
 awesome	bin/dotfiles-htb-vpn-status	.local/bin/dotfiles-htb-vpn-status
 awesome	bin/dotfiles-keyboard-toggle	.local/bin/dotfiles-keyboard-toggle
+awesome	bin/dotfiles-shortcuts	.local/bin/dotfiles-shortcuts
+awesome	config/rofi/shortcuts.rasi	.config/rofi/shortcuts.rasi
 awesome	config/awesome/autostart.lua	.config/awesome/autostart.lua
 awesome	config/awesome/appearance.lua	.config/awesome/appearance.lua
 awesome	config/awesome/bar.lua	.config/awesome/bar.lua
@@ -18,6 +20,9 @@ awesome	config/awesome/battery-menu.lua	.config/awesome/battery-menu.lua
 awesome	config/awesome/calendar-menu.lua	.config/awesome/calendar-menu.lua
 awesome	config/awesome/menu-style.lua	.config/awesome/menu-style.lua
 awesome	config/awesome/level-hud.lua	.config/awesome/level-hud.lua
+awesome	config/awesome/music-scene.lua	.config/awesome/music-scene.lua
+awesome	config/awesome/audio-mixer.lua	.config/awesome/audio-mixer.lua
+awesome	bin/dotfiles-audio-mixer	.local/bin/dotfiles-audio-mixer
 awesome	config/awesome/notification-center.lua	.config/awesome/notification-center.lua
 awesome	config/awesome/window-previews.lua	.config/awesome/window-previews.lua
 awesome	config/awesome/terminal-drawer.lua	.config/awesome/terminal-drawer.lua
@@ -276,3 +281,10 @@ agent-skills	config/agent-skills/oil-ui/tests/test_oiloil_image.py	.config/agent
 agent-skills	config/agent-skills/oil-ui/tests/test_prep_image.py	.config/agent-skills/oil-ui/tests/test_prep_image.py
 agent-skills	config/agent-skills/oil-ui/tests/test_shoot.py	.config/agent-skills/oil-ui/tests/test_shoot.py
 agent-skills	config/agent-skills/oil-ui/tests/test_workdir.py	.config/agent-skills/oil-ui/tests/test_workdir.py
+awesome	config/awesome/control-center.lua	.config/awesome/control-center.lua
+awesome	config/awesome/session-welcome.lua	.config/awesome/session-welcome.lua
+awesome	config/awesome/artwork-style.lua	.config/awesome/artwork-style.lua
+files	bin/dotfiles-file-tray	.local/bin/dotfiles-file-tray
+awesome	bin/dotfiles-audio-devices	.local/bin/dotfiles-audio-devices
+awesome	config/awesome/audio-devices.lua	.config/awesome/audio-devices.lua
+awesome	config/awesome/window-organizer.lua	.config/awesome/window-organizer.lua

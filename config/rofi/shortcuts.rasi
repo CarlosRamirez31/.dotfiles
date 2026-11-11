@@ -1,0 +1,107 @@
+@import "theme.rasi"
+
+window {
+    width: 900px;
+    background-color: #171722;
+    border-color: #39394f;
+    border-radius: 16px;
+}
+
+mainbox {
+    padding: 17px;
+    spacing: 10px;
+    children: [ textbox-title, inputbar, mode-switcher, message, listview, textbox-help ];
+}
+
+textbox-title {
+    expand: false;
+    str: "Atajos y comandos";
+    font: "JetBrainsMono Nerd Font Bold 14";
+    text-color: @accent;
+    background-color: transparent;
+}
+
+inputbar {
+    border-radius: 9px;
+    padding: 9px 12px;
+    children: [ textbox-search, entry ];
+}
+
+textbox-search {
+    expand: false;
+    str: "Buscar";
+    font: "JetBrainsMono Nerd Font Bold 10";
+    background-color: transparent;
+    text-color: @accent;
+}
+
+entry {
+    placeholder: "Atajo, comando o descripción…";
+    text-color: @foreground;
+}
+
+mode-switcher {
+    spacing: 6px;
+    background-color: transparent;
+}
+
+button {
+    padding: 7px;
+    border-radius: 7px;
+    horizontal-align: 0.5;
+    background-color: @surface;
+    text-color: @muted;
+}
+
+button selected {
+    background-color: #3b314a;
+    text-color: @accent;
+}
+
+message {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background-color: @surface;
+}
+
+textbox {
+    background-color: transparent;
+    text-color: @foreground;
+}
+
+listview {
+    columns: 1;
+    lines: 9;
+    fixed-height: true;
+    spacing: 3px;
+    scrollbar: true;
+}
+
+scrollbar {
+    width: 4px;
+    handle-color: @surface-hover;
+    background-color: transparent;
+}
+
+element {
+    padding: 7px 10px;
+    border-radius: 7px;
+    background-color: @surface;
+}
+
+element selected {
+    background-color: #3b314a;
+    text-color: @foreground;
+}
+
+textbox-help {
+    expand: false;
+    str: "Enter  Ver detalle      Esc  Cerrar";
+    font: "JetBrainsMono Nerd Font Medium 9";
+    background-color: transparent;
+    text-color: @muted;
+}
+
+@media ( max-width: 940px ) {
+    window { width: 94%; }
+}

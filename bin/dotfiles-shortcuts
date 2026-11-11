@@ -55,6 +55,7 @@ def entries():
             ("Acción", "Control en el selector"): "Selector de archivos",
             ("Acción en Yazi", "Atajo"): "Yazi",
             ("Acción en File tray", "Control"): "File tray",
+            ("Acción", "Atajo o comando"): "Unidades externas",
         }.get(tuple(header))
         if category:
             description, shortcut = cells

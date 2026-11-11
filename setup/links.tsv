@@ -288,3 +288,5 @@ files	bin/dotfiles-file-tray	.local/bin/dotfiles-file-tray
 awesome	bin/dotfiles-audio-devices	.local/bin/dotfiles-audio-devices
 awesome	config/awesome/audio-devices.lua	.config/awesome/audio-devices.lua
 awesome	config/awesome/window-organizer.lua	.config/awesome/window-organizer.lua
+files	bin/dotfiles-removable	.local/bin/dotfiles-removable
+files	system/systemd/user/dotfiles-removable.service	.config/systemd/user/dotfiles-removable.service

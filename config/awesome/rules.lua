@@ -123,7 +123,7 @@ return {
         end,
     },
     {
-        rule = { class = "DotfilesBackup" },
+        rule_any = { class = { "DotfilesBackup", "DotfilesMount" } },
         properties = {
             floating = true,
             ontop = true,
@@ -131,7 +131,7 @@ return {
         },
         callback = function(c)
             local area = c.screen.workarea
-            c:geometry({ width = math.min(560, math.floor(area.width * 0.9)), height = math.min(280, math.floor(area.height * 0.8)) })
+            c:geometry({ width = math.min(560, math.floor(area.width * 0.9)), height = math.min(c.class == "DotfilesMount" and 430 or 280, math.floor(area.height * 0.8)) })
             awful.placement.centered(c, { honor_workarea = true })
         end,
     },

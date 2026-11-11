@@ -1,0 +1,14 @@
+[Unit]
+Description=Ask before mounting newly connected external drives
+PartOf=graphical-session.target
+
+[Service]
+Type=exec
+ExecStart=%h/.local/bin/dotfiles-removable watch
+Restart=on-failure
+RestartSec=3
+RuntimeDirectory=dotfiles-removable
+RuntimeDirectoryMode=0700
+
+[Install]
+WantedBy=graphical-session.target

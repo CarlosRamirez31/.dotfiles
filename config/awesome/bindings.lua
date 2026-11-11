@@ -37,6 +37,7 @@ local function toggle_floating()
 end
 
 local keys = gears.table.join(
+    awful.key({ modkey }, "m", spawn("dotfiles-removable menu")),
     awful.key({ modkey, "Shift" }, "m", spawn("dotfiles-microphone")),
     awful.key({ modkey, "Control" }, "m", spawn("dotfiles-polybar --microphone toggle")),
     awful.key({ modkey, "Control" }, "n", spawn("dotfiles-microphone noise toggle")),

@@ -1,0 +1,362 @@
+#!/usr/bin/env python3
+"""Ask before mounting hotplugged external filesystems through UDisks2."""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import select
+import subprocess
+import sys
+import time
+import unicodedata
+
+NAME = 'org.freedesktop.UDisks2'
+ROOT = '/org/freedesktop/UDisks2'
+BLOCK, DRIVE, FILESYSTEM = (NAME + '.' + item for item in ('Block', 'Drive', 'Filesystem'))
+HOME = Path.home()
+SELF = str(Path(__file__).resolve())
+LAVENDER, MUTED, GREEN, RED, RESET = '\033[38;2;203;166;247m', '\033[38;2;166;173;200m', '\033[38;2;166;227;161m', '\033[38;2;243;139;168m', '\033[0m'
+
+
+def clean(value, limit=44):
+    return ''.join(char for char in str(value) if not unicodedata.category(char).startswith('C'))[:limit]
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+
+
+def generation(drive):
+    return digest([drive.get('Id'), drive.get('TimeDetected'), drive.get('TimeMediaDetected')])
+
+
+def external(drive):
+    return bool(drive.get('Removable') or drive.get('MediaRemovable') or
+                drive.get('ConnectionBus') in ('usb', 'ieee1394', 'thunderbolt'))
+
+
+def volumes(objects, drive_path=None, include_mounted=False):
+    result = []
+    for path, interfaces in objects.items():
+        block, fs = interfaces.get(BLOCK), interfaces.get(FILESYSTEM)
+        if not block or fs is None or block.get('IdUsage') != 'filesystem':
+            continue
+        if block.get('HintSystem', True) or block.get('HintIgnore', False) or (fs.get('MountPoints') and not include_mounted):
+            continue
+        drive_key = block.get('Drive', '/')
+        drive = objects.get(drive_key, {}).get(DRIVE, {})
+        if not external(drive) or (drive_path and drive_key != drive_path):
+            continue
+        identity = digest([generation(drive), block.get('DeviceNumber'), block.get('IdUUID'),
+                           block.get('IdType'), block.get('Size')])
+        result.append(dict(path=path, mounted=bool(fs.get('MountPoints')), drive=drive_key, generation=generation(drive), identity=identity,
+                           label=clean(block.get('IdLabel') or path.rsplit('/', 1)[-1]),
+                           model=clean(' '.join((drive.get('Vendor', ''), drive.get('Model', ''))).strip() or 'External drive'),
+                           size=int(block.get('Size', 0)), kind=clean(block.get('IdType', ''), 14)))
+    return sorted(result, key=lambda item: (item['model'], item['label'], item['path']))
+
+
+class UDisks:
+    def __init__(self):
+        import gi
+        from gi.repository import Gio, GLib
+        self.Gio, self.GLib = Gio, GLib
+        self.bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+
+    def snapshot(self):
+        return self.bus.call_sync(NAME, ROOT, 'org.freedesktop.DBus.ObjectManager', 'GetManagedObjects',
+                                  None, self.GLib.VariantType.new('(a{oa{sa{sv}}})'),
+                                  self.Gio.DBusCallFlags.NONE, 5000, None).unpack()[0]
+
+    def mount(self, path):
+        return self.bus.call_sync(NAME, path, FILESYSTEM, 'Mount', self.GLib.Variant('(a{sv})', ({},)),
+                                  self.GLib.VariantType.new('(s)'), self.Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
+                                  120000, None).unpack()[0]
+
+
+    def unmount(self, path):
+        self.bus.call_sync(NAME, path, FILESYSTEM, 'Unmount', self.GLib.Variant('(a{sv})', ({},)),
+                           self.GLib.VariantType.new('()'), self.Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION,
+                           120000, None)
+
+
+def size_label(size):
+    return f'{size / 1024 ** 3:.1f} GiB' if size >= 1024 ** 3 else f'{size / 1024 ** 2:.0f} MiB'
+
+
+def header(subtitle):
+    print('\033[2J\033[H\n' + LAVENDER + '  ◇  EXTERNAL DRIVE' + RESET + '\n')
+    print('  ' + subtitle + '\n')
+
+
+def read_line(prompt, timeout=120):
+    print(prompt, end='', flush=True)
+    if not select.select([sys.stdin], [], [], timeout)[0]:
+        print()
+        return ''
+    return sys.stdin.readline().strip().casefold()
+
+
+def confirm(backend, selected):
+    header('Ready when you are.')
+    print(f'  {LAVENDER}{selected["label"]}{RESET}')
+    print(f'  {MUTED}{selected["model"]}{RESET}')
+    print(f'  {size_label(selected["size"])}  ·  {selected["kind"]}\n')
+    unmounting = selected.get('mounted', False)
+    verb = 'Unmount' if unmounting else 'Mount'
+    while True:
+        answer = read_line(f'  {verb} this volume? [yes/no] › ')
+        if answer in ('', 'no'):
+            print('\n  ' + MUTED + ('Left mounted.' if unmounting else 'Left unmounted.') + RESET)
+            return False
+        if answer == 'yes':
+            break
+        print('  Please type yes or no.\n')
+    current = next((entry for entry in volumes(backend.snapshot(), include_mounted=True) if entry['path'] == selected['path']), None)
+    if not current or current['identity'] != selected['identity'] or current['mounted'] != unmounting:
+        print('\n  ' + RED + 'The volume or its mount state changed. Open the menu again.' + RESET)
+        return False
+    if unmounting:
+        backend.unmount(current['path'])
+        header('Your external volume is unmounted.')
+        print('  ' + GREEN + '✓  Unmounted successfully.' + RESET + '\n')
+        return True
+    mountpoint = backend.mount(current['path'])
+    header('Your external volume is ready.')
+    print('  ' + GREEN + '✓  Mounted successfully.' + RESET)
+    print('  ' + selected['label'])
+    print('  ' + clean(mountpoint, 100) + '\n')
+    return True
+
+
+def choose(backend, drive_path=None, expected_generation=None):
+    while True:
+        objects = backend.snapshot()
+        if drive_path:
+            drive = objects.get(drive_path, {}).get(DRIVE)
+            if not drive or generation(drive) != expected_generation:
+                return False
+        entries = volumes(objects, drive_path, include_mounted=drive_path is None)
+        if not entries:
+            header('No external volumes available.')
+            read_line('  Enter to close › ')
+            return False
+        if drive_path and len(entries) == 1:
+            return confirm(backend, entries[0])
+        header('Choose an external volume.')
+        # Page the list so a multi-partition disk fits the same terminal.
+        try:
+            rows = os.get_terminal_size().lines
+        except OSError:
+            rows = 24
+        page, per_page = 0, max(1, min(6, (rows - 10) // 2))
+        while True:
+            for index in range(page * per_page, min(len(entries), (page + 1) * per_page)):
+                entry = entries[index]
+                print(f'  {LAVENDER}[{index + 1}]{RESET} {entry["label"][:28]}  ·  {size_label(entry["size"])} · {"mounted" if entry["mounted"] else "unmounted"}')
+                print(f'      {MUTED}{entry["model"][:44]}{RESET}')
+            print('\n  ' + MUTED + 'Number: select · r: refresh · no: close' + RESET)
+            if len(entries) > per_page:
+                print('  ' + MUTED + 'n / p: next / previous page' + RESET)
+            answer = read_line('\n  Choose › ')
+            if answer in ('', 'no', 'q'):
+                return False
+            if answer == 'r':
+                break
+            if answer in ('n', 'p'):
+                page = min((len(entries) - 1) // per_page, max(0, page + (1 if answer == 'n' else -1)))
+                header('Choose an external volume.')
+                continue
+            if answer.isascii() and answer.isdecimal() and 1 <= int(answer) <= len(entries):
+                return confirm(backend, entries[int(answer) - 1])
+            print('  Choose a listed number or type no.\n')
+
+
+def popup_lock(name='popup.lock'):
+    runtime = Path(os.environ['XDG_RUNTIME_DIR']) / 'dotfiles-removable'
+    runtime.mkdir(mode=0o700, exist_ok=True)
+    if runtime.is_symlink() or runtime.stat().st_uid != os.getuid():
+        raise ValueError('Invalid runtime directory.')
+    fd = os.open(runtime / name, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        return None
+    return fd
+
+
+def terminal_args(drive_path=None, epoch=None):
+    command = [str(HOME / '.local/bin/dotfiles-terminal'), '--class', 'DotfilesMount',
+               '--override', 'window_padding_width=18 22.5', '--override', 'initial_window_width=64c',
+               '--override', 'initial_window_height=24c', '--title', 'External drives', '--', SELF, 'choose']
+    if drive_path:
+        command += ['--drive', drive_path, '--generation', epoch]
+    return command
+
+
+class Arrivals:
+    """One prompt per physical insertion, never for the initial inventory."""
+    def __init__(self, objects):
+        self.announced = {path: generation(data[DRIVE]) for path, data in objects.items() if DRIVE in data}
+        self.pending = {}
+
+    def update(self, objects, now):
+        drives = {path: generation(data[DRIVE]) for path, data in objects.items() if DRIVE in data}
+        self.announced = {path: epoch for path, epoch in self.announced.items() if path in drives}
+        self.pending = {path: request for path, request in self.pending.items() if drives.get(path) == request[0]}
+        for entry in volumes(objects):
+            path, epoch = entry['drive'], entry['generation']
+            if self.announced.get(path) != epoch:
+                self.announced[path] = epoch
+                self.pending[path] = (epoch, now + 1)
+        eligible = {entry['drive'] for entry in volumes(objects)}
+        self.pending = {path: request for path, request in self.pending.items() if path in eligible}
+        return drives
+
+
+class Watcher:
+    def __init__(self, backend):
+        self.backend, self.GLib = backend, backend.GLib
+        self.arrivals = Arrivals(backend.snapshot())
+        self.active, self.tick_id, self.refresh_id = None, 0, 0
+        self.failed = False
+        self.loop = self.GLib.MainLoop()
+
+    def changed(self, *_args):
+        if not self.refresh_id:
+            self.refresh_id = self.GLib.idle_add(self.refresh)
+
+    def owner_changed(self, *_args):
+        # Restart with a new baseline if UDisks itself restarts.
+        self.failed = True
+        self.loop.quit()
+
+    def refresh(self):
+        self.refresh_id = 0
+        try:
+            objects = self.backend.snapshot()
+        except Exception as error:
+            print('UDisks unavailable: ' + clean(error, 160), file=sys.stderr)
+            self.failed = True
+            self.loop.quit()
+            return False
+        drives = self.arrivals.update(objects, time.monotonic())
+        if self.active and drives.get(self.active[1]) != self.active[2] and self.active[0].poll() is None:
+            self.active[0].terminate()
+        if (self.arrivals.pending or self.active) and not self.tick_id:
+            self.tick_id = self.GLib.timeout_add(250, self.tick)
+        return False
+
+    def tick(self):
+        if self.active and self.active[0].poll() is not None:
+            os.close(self.active[3])
+            self.active = None
+        if not self.active:
+            for drive, (epoch, ready) in list(self.arrivals.pending.items()):
+                if time.monotonic() < ready:
+                    continue
+                # Re-read immediately before opening a queued prompt.
+                try:
+                    self.arrivals.update(self.backend.snapshot(), time.monotonic())
+                except Exception as error:
+                    print('UDisks unavailable: ' + clean(error, 160), file=sys.stderr)
+                    self.failed = True
+                    self.loop.quit()
+                    return False
+                if self.arrivals.pending.get(drive) != (epoch, ready):
+                    continue
+                lock = popup_lock()
+                if lock is None:
+                    break
+                try:
+                    process = subprocess.Popen(terminal_args(drive, epoch))
+                except Exception:
+                    os.close(lock)
+                    self.failed = True
+                    self.loop.quit()
+                    return False
+                self.active = (process, drive, epoch, lock)
+                self.arrivals.pending.pop(drive, None)
+                break
+        if not self.active and not self.arrivals.pending:
+            self.tick_id = 0
+            return False
+        return True
+
+    def run(self):
+        bus, Gio = self.backend.bus, self.backend.Gio
+        ids = [bus.signal_subscribe(NAME, 'org.freedesktop.DBus.ObjectManager', None, ROOT, None,
+                                    Gio.DBusSignalFlags.NONE, self.changed),
+               bus.signal_subscribe(NAME, 'org.freedesktop.DBus.Properties', 'PropertiesChanged', None, None,
+                                    Gio.DBusSignalFlags.NONE, self.changed),
+               bus.signal_subscribe('org.freedesktop.DBus', 'org.freedesktop.DBus', 'NameOwnerChanged',
+                                    '/org/freedesktop/DBus', NAME, Gio.DBusSignalFlags.NONE, self.owner_changed)]
+        try:
+            self.loop.run()
+        finally:
+            for identifier in ids:
+                bus.signal_unsubscribe(identifier)
+            if self.active:
+                if self.active[0].poll() is None:
+                    self.active[0].terminate()
+                os.close(self.active[3])
+        if self.failed:
+            raise OSError('External-drive watcher stopped; the service will retry.')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=('watch', 'menu', 'choose', 'list', 'preview'))
+    parser.add_argument('--drive')
+    parser.add_argument('--generation')
+    args = parser.parse_args()
+    if args.action == 'menu':
+        lock = popup_lock()
+        if lock is not None:
+            try:
+                return subprocess.call(terminal_args())
+            finally:
+                os.close(lock)
+        return 0
+    if args.action == 'preview':
+        header('An external drive is ready.')
+        print('  USB drive\n  Portable storage · 64.0 GiB\n')
+        print('  Mount this volume? [yes/no] ›\n')
+        print('  ' + MUTED + 'Preview only · no device will be mounted.' + RESET + '\n')
+        read_line('  Enter to close › ')
+        return 0
+    backend = UDisks()
+    if args.action == 'list':
+        for entry in volumes(backend.snapshot()):
+            print(entry['label'], size_label(entry['size']), entry['model'], sep='\t')
+    elif args.action == 'watch':
+        lock = popup_lock('watch.lock')
+        if lock is not None:
+            try:
+                Watcher(backend).run()
+            finally:
+                os.close(lock)
+    elif args.action == 'choose':
+        if not sys.stdin.isatty():
+            raise ValueError('Open this menu from a terminal or use dotfiles-removable menu.')
+        try:
+            mounted = choose(backend, args.drive, args.generation)
+            if mounted:
+                read_line('  Enter to close › ')
+        except Exception as error:
+            print('\n  ' + RED + 'Could not change the mount state. The volume may be busy.' + RESET)
+            print('  ' + clean(error, 120) + '\n')
+            read_line('  Enter to close › ')
+            return 1
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, KeyError) as error:
+        print(clean(error, 160), file=sys.stderr)
+        sys.exit(1)

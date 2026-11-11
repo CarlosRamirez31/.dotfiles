@@ -43,6 +43,17 @@ install_aur_packages xdg-desktop-portal-termfilechooser
 link_component "files"
 xdg-user-dirs-update
 
+# Let the yes/no prompt own automatic mounting; manual Thunar mounts still work.
+for property in /automount-drives/enabled /automount-media/enabled /autobrowse/enabled; do
+    xfconf-query -c thunar-volman -p "$property" --create --type bool --set false
+done
+systemctl --user daemon-reload
+systemctl --user enable dotfiles-removable.service
+if [[ -n ${DISPLAY:-} ]]; then
+    systemctl --user import-environment DISPLAY XAUTHORITY
+    systemctl --user start dotfiles-removable.service
+fi
+
 # Re-evaluate portal priorities immediately when running inside a graphical
 # user session. On a TTY the configuration is simply picked up at next login.
 if systemctl --user --quiet is-active xdg-desktop-portal.service 2>/dev/null; then

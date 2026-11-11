@@ -43,7 +43,8 @@ awful.spawn.with_shell(
         "dbus-update-activation-environment --systemd DISPLAY XAUTHORITY " ..
         "XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE GTK_USE_PORTAL; " ..
         "systemctl --user import-environment DISPLAY XAUTHORITY; " ..
-        "systemctl --user start dotfiles-touchpad-typing.service"
+        "systemctl --user start dotfiles-touchpad-typing.service; " ..
+        "if [ -x \"$HOME/.local/bin/dotfiles-removable\" ]; then systemctl --user start dotfiles-removable.service; fi"
 )
 
 -- The island is attached to Polybar by coucou-polybar.lua.

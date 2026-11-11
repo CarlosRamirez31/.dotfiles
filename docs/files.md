@@ -44,6 +44,42 @@ de la sesión; las que ya estaban abiertas pueden necesitar reiniciarse. Una
 aplicación que utiliza su propio selector en lugar del portal no queda controlada
 por esta configuración. Yazi también sigue disponible con `Alt+E`.
 
+## Confirmación de montaje de unidades externas
+
+Al conectar una unidad USB, disco externo o medio extraíble con un sistema de
+archivos compatible sin montar, aparece una terminal flotante con el estilo de
+backups. Muestra nombre, tamaño y formato, y pregunta **Mount this volume?
+[yes/no]**. Escribe `yes` y Enter para montar; `no`, Enter vacío, cerrar la
+terminal o dejar vencer la espera cancelan. No basta escribir `y`.
+
+**Alt+M** abre el mismo menú manualmente: muestra volúmenes montados y sin montar. Selecciona su número para
+montar o desmontar según su estado y confirma con `yes` o `no`. Cada entrada indica su estado. Desmontar pregunta **Unmount this volume? [yes/no]**;
+si la unidad está ocupada, se informa del error sin forzar el desmontaje. `r` actualiza y `n`/`p` cambian de página si hay varios.
+Si una unidad tiene varias particiones, el aviso también permite elegir una.
+
+| Acción | Atajo o comando |
+| --- | --- |
+| Elegir una unidad externa sin montar y confirmar su montaje | `Alt+M` |
+| Abrir el selector desde una terminal | `dotfiles-removable menu` |
+| Consultar volúmenes externos pendientes, sin montar | `dotfiles-removable list` |
+| Ver una muestra del diálogo sin operar sobre dispositivos | `dotfiles-removable preview` |
+
+El montaje usa UDisks2 y su autorización nativa. La ubicación aparece al terminar;
+no abre otra aplicación automáticamente. Retirar o sustituir el disco cancela el
+aviso; se vuelve a comprobar la identidad del volumen antes de montarlo. No se
+ofrecen discos internos, volúmenes ya montados ni contenedores cifrados que aún
+requieren desbloqueo. Para estos últimos, desbloquea primero desde Thunar.
+
+El servicio de usuario `dotfiles-removable.service` observa eventos del sistema;
+no pregunta por unidades que ya estaban conectadas al arrancar. El instalador
+files desactiva únicamente el montaje automático y la apertura automática de
+thunar-volman; el montaje manual de Thunar sigue disponible.
+
+```bash
+systemctl --user status dotfiles-removable.service
+journalctl --user -u dotfiles-removable.service -n 30
+```
+
 ## Copiar, cortar, arrastrar y reunir archivos
 
 En la lista de archivos de Yazi, `Space` marca varios archivos. `Ctrl+C` pone

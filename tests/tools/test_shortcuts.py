@@ -17,3 +17,5 @@ class ShortcutsTest(unittest.TestCase):
         self.assertTrue(any(category == 'File tray' and 'Ctrl+X' in key and 'corte' in description
                             for _, category, key, description in entries))
         self.assertTrue(any(key == 'Alt+F5' for _, _, key, _ in entries))
+        self.assertTrue(any(key == 'Alt+M' for _, _, key, _ in entries))
+        self.assertTrue(any(key == 'dotfiles-removable menu' for _, _, key, _ in entries))

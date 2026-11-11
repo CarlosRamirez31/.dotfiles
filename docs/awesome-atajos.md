@@ -24,6 +24,7 @@ el detalle de la fila y **Esc** cierra la guía.
 | `Alt+F8` | Abrir o cerrar el panel de descargas recientes. |
 | `Alt+Space`, `Alt+D`, `Alt+F2` | Abrir lanzador de aplicaciones. |
 | `Alt+Shift+D` | Abrir LazyDocker en una ventana flotante y centrada. |
+| `Alt+M` | Montar o desmontar un volumen externo, confirmando con yes/no. |
 | `Alt+Shift+M` | Abrir el panel opcional de micrófono y aislamiento. |
 | `Alt+Ctrl+M` / tecla de silenciar micrófono | Apagar/encender el micrófono. |
 | `Alt+Ctrl+N` | Activar/desactivar el aislamiento de ruido. |

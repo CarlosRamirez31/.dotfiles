@@ -58,6 +58,7 @@ fi
 # user session. On a TTY the configuration is simply picked up at next login.
 if systemctl --user --quiet is-active xdg-desktop-portal.service 2>/dev/null; then
     systemctl --user set-environment GTK_USE_PORTAL=1
+    systemctl --user try-restart xdg-desktop-portal-termfilechooser.service
     systemctl --user restart xdg-desktop-portal.service
 fi
 

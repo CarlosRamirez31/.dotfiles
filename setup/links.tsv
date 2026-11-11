@@ -72,6 +72,7 @@ docker	bin/docker	.local/bin/docker
 doctor	bin/dotfiles-doctor	.local/bin/dotfiles-doctor
 fastfetch	config/fastfetch/config.jsonc	.config/fastfetch/config.jsonc
 files	bin/dotfiles-filechooser	.local/bin/dotfiles-filechooser
+files	config/systemd/user/xdg-desktop-portal-termfilechooser.service.d/path.conf	.config/systemd/user/xdg-desktop-portal-termfilechooser.service.d/path.conf
 files	config/imv/config	.config/imv/config
 files	config/mimeapps.list	.config/mimeapps.list
 files	config/mpv/mpv.conf	.config/mpv/mpv.conf

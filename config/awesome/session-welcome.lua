@@ -8,10 +8,18 @@ local runtime = os.getenv('XDG_RUNTIME_DIR')
 local marker = runtime and (runtime .. '/dotfiles-welcome-shown')
 local token = 0
 local popup = awful.popup({ visible = false, ontop = true, type = 'notification',
-    minimum_width = 390, maximum_width = 390, bg = '#171722f5', fg = colors.text,
+    width = 390, minimum_width = 390, maximum_width = 390, bg = '#171722f5', fg = colors.text,
     border_width = 1, border_color = colors.border,
     shape = function(cr, w, h) gears.shape.rounded_rect(cr, w, h, 18) end,
     widget = wibox.widget.textbox() })
+local function center()
+    if not popup.visible then return end
+    local area = popup.screen.workarea
+    popup.x = area.x + math.floor((area.width - popup.width) / 2)
+    popup.y = area.y + math.floor((area.height - popup.height) / 2)
+end
+popup:connect_signal('property::width', center)
+popup:connect_signal('property::height', center)
 local hide = gears.timer({ timeout = 9, single_shot = true, callback = function() popup.visible = false end })
 popup:connect_signal('mouse::enter', function() if hide.started then hide:stop() end end)
 popup:connect_signal('mouse::leave', function() hide:again() end)
@@ -39,9 +47,7 @@ function M.show()
     popup.screen = awful.screen.focused()
     popup.widget = wibox.container.margin(rows, 20, 20, 16, 16)
     style.reveal(popup)
-    local area = popup.screen.workarea
-    popup.x = area.x + math.floor((area.width - popup.width) / 2)
-    popup.y = area.y + math.min(60, math.floor(area.height * .08))
+    center()
     hide:again()
     awful.spawn.easy_async({ os.getenv('HOME') .. '/.local/bin/dotfiles-desktop-panel', 'music' }, function(output)
         if token ~= generation then return end

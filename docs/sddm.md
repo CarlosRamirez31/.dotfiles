@@ -37,6 +37,20 @@ Si falla la configuración de pantallas, permite continuar el inicio de SDDM.
 El tema muestra el reloj y los controles de acceso solo en el monitor principal;
 los secundarios conservan únicamente el fondo.
 
+## Cambiar el fondo desde Apariencia
+
+En **Apariencia → Fondo**, pulsa **Elegir imagen para SDDM**, selecciona un
+PNG, JPG o WebP y pulsa **Guardar**. La vista previa permite revisar la selección
+antes de autorizar su instalación. **Usar fondo predeterminado** seguido de
+**Guardar** recupera el fondo del tema.
+
+La imagen se valida y convierte a PNG sin privilegios, con un máximo de 64 MB,
+64 megapíxeles de origen y una copia de hasta 3840×2160. Solo la instalación de
+esa copia en `/usr/share/backgrounds/dotfiles-sddm.png` solicita autorización
+del sistema. Cancelar conserva el fondo anterior. La copia es independiente de
+la imagen original y sobrevive a reinstalar el tema. No cambia el fondo del
+escritorio ni el de Betterlockscreen. Se verá en el siguiente inicio de SDDM.
+
 Para instalar únicamente este ajuste, sin reinstalar el tema ni cerrar sesión:
 
 ```bash

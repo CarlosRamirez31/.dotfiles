@@ -46,3 +46,9 @@ awful.spawn.with_shell(
         "systemctl --user start dotfiles-touchpad-typing.service; " ..
         "if [ -x \"$HOME/.local/bin/dotfiles-removable\" ]; then systemctl --user start dotfiles-removable.service; fi"
 )
+
+-- Graphical authorization for SDDM avatar changes and other privileged actions.
+awful.spawn.with_shell(
+    "if ! pgrep -u \"$(id -u)\" -f '^/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1$' >/dev/null; then " ..
+    "exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1; fi"
+)

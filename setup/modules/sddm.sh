@@ -33,6 +33,9 @@ sudo cp -a "$theme_source"/. "$theme_target"/
 sudo cp -a "$theme_target/fonts"/. "$font_target"/
 sudo fc-cache -f "$font_target"
 sudo install -m 0644 "$config_source" /etc/sddm.conf.d/10-silent.conf
+if [[ ! -e /usr/share/backgrounds/dotfiles-sddm.png ]]; then
+    sudo install -D -m 0644 "$DOTFILES_ROOT/system/sddm/default-background.png" /usr/share/backgrounds/dotfiles-sddm.png
+fi
 install_displays
 
 printf 'SilentSDDM is installed. Test it with: sddm-greeter-qt6 --test-mode --theme %s\n' "$theme_target"

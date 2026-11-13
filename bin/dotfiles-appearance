@@ -55,6 +55,42 @@ PRESETS = {
 }
 
 
+SDDM_BACKGROUND = Path("/usr/share/backgrounds/dotfiles-sddm.png")
+
+
+def sddm_background_image(filename=None):
+    import gi
+    gi.require_version("GdkPixbuf", "2.0")
+    from gi.repository import GdkPixbuf
+    if filename is None:
+        image = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 1, 1)
+        image.fill(0)
+        return image
+    path = Path(filename).resolve(strict=True)
+    if not path.is_file() or path.stat().st_size > 64 * 1024 * 1024:
+        raise ValueError("Elige una imagen de hasta 64 MB.")
+    fmt, width, height = GdkPixbuf.Pixbuf.get_file_info(str(path))
+    if fmt is None or fmt.get_name() not in ("png", "jpeg", "webp"):
+        raise ValueError("Elige una imagen PNG, JPG o WebP.")
+    if width <= 0 or height <= 0 or width * height > 64_000_000:
+        raise ValueError("La imagen supera el límite de 64 megapíxeles.")
+    return GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), min(width, 3840), min(height, 2160), True)
+
+
+def install_sddm_background(image):
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="dotfiles-sddm-background-") as directory:
+        filename = Path(directory) / "background.png"
+        image.savev(str(filename), "png", [], [])
+        try:
+            subprocess.run(["pkexec", "/usr/bin/install", "-D", "-m", "0644", "--",
+                            str(filename), str(SDDM_BACKGROUND)], check=True)
+        except subprocess.CalledProcessError as error:
+            if error.returncode in (126, 127):
+                raise RuntimeError("Autorización cancelada o denegada. El fondo anterior se conserva.") from error
+            raise
+
+
 def validate(value):
     if not isinstance(value, dict) or set(value) - set(DEFAULTS):
         raise ValueError("Configuración de apariencia no válida")
@@ -479,12 +515,34 @@ def gui(test_hook=None):
             self.scale(opacity, "menu_opacity", "Opacidad de menús y paneles", "100% conserva el fondo opaco. Bájala para apreciar el desenfoque. No cambia Polybar.", "%")
             opacity.pack_start(self.label("Las aplicaciones pueden tener su propia transparencia.\nEste ajuste no cambia su configuración interna.", "muted"), False, False, 8)
             background = self.page("background", "Fondo")
-            background.pack_start(self.label("Un fondo que combine contigo", "heading"), False, False, 0)
+            background.pack_start(self.label("Fondo del escritorio", "heading"), False, False, 0)
             background.pack_start(self.label("Usa tu selector habitual de fondos.\nEl fondo se guarda desde ese selector.", "muted"), False, False, 0)
             wallpaper = Gtk.Button(label="Elegir fondo de pantalla")
             self.wallpaper_button = wallpaper
             wallpaper.connect("clicked", lambda _: subprocess.Popen([str(Path.home() / ".local/bin/dotfiles-wallpaper-picker")]))
             background.pack_start(wallpaper, False, False, 6)
+            background.set_spacing(8)
+            background.pack_start(Gtk.Separator(), False, False, 8)
+            background.pack_start(self.label("Fondo del inicio de sesión (SDDM)", "heading"), False, False, 0)
+            background.pack_start(self.label("Elige una imagen y pulsa Guardar. Se verá al volver al inicio de sesión.\nPuede pedir autorización del sistema.", "muted"), False, False, 0)
+            self.sddm_image = sddm_background_image()
+            self.sddm_background_changed = False
+            self.sddm_preview = Gtk.Image()
+            if SDDM_BACKGROUND.is_file():
+                try:
+                    self.sddm_image = sddm_background_image(SDDM_BACKGROUND)
+                    self.show_sddm_background()
+                except (OSError, ValueError, GLib.Error):
+                    pass
+            sddm_buttons = Gtk.Box(spacing=8)
+            self.sddm_choose = Gtk.Button(label="Elegir imagen para SDDM")
+            self.sddm_choose.connect("clicked", self.choose_sddm_background)
+            self.sddm_reset = Gtk.Button(label="Usar fondo predeterminado")
+            self.sddm_reset.connect("clicked", self.reset_sddm_background)
+            sddm_buttons.pack_start(self.sddm_choose, False, False, 0)
+            sddm_buttons.pack_start(self.sddm_reset, False, False, 0)
+            background.pack_start(sddm_buttons, False, False, 0)
+            background.pack_start(self.sddm_preview, False, False, 6)
             self.status = self.label("Los cambios no se guardan hasta pulsar Guardar.", "muted")
             self.status.set_line_wrap(True)
             root.pack_start(self.status, False, False, 0)
@@ -508,10 +566,67 @@ def gui(test_hook=None):
             for tab, name in zip(switcher.get_children(), ("windows", "effects", "animations", "opacity", "background")):
                 tab.get_style_context().add_class("tab-" + name)
             root.pack_start(buttons, False, False, 0)
+            def background_actions(*_):
+                name = self.stack.get_visible_child_name()
+                if name == "background":
+                    self.try_button.set_sensitive(False)
+                    reset.set_sensitive(False)
+                    self.status.set_text("Guardar aplica el fondo seleccionado a SDDM; puede pedir autorización.")
+                elif name != "avatar":
+                    self.try_button.set_sensitive(True)
+                    reset.set_sensitive(True)
+            self.stack.connect("notify::visible-child", background_actions)
+            background_actions()
             self.connect("delete-event", self.close)
             if visible:
                 self.show_all()
             GLib.timeout_add_seconds(1, self.tick)
+
+        def show_sddm_background(self):
+            from gi.repository import GdkPixbuf
+            width, height = self.sddm_image.get_width(), self.sddm_image.get_height()
+            scale = min(400 / width, 120 / height, 1)
+            preview = self.sddm_image.scale_simple(max(1, round(width * scale)),
+                                                  max(1, round(height * scale)),
+                                                  GdkPixbuf.InterpType.BILINEAR)
+            self.sddm_preview.set_from_pixbuf(preview)
+
+        def choose_sddm_background(self, *_):
+            dialog = Gtk.FileChooserNative(title="Fondo de SDDM", transient_for=self, modal=True,
+                                           action=Gtk.FileChooserAction.OPEN,
+                                           accept_label="Elegir", cancel_label="Cancelar")
+            images = Gtk.FileFilter(); images.set_name("Imágenes PNG, JPG y WebP")
+            for mime in ("image/png", "image/jpeg", "image/webp"):
+                images.add_mime_type(mime)
+            dialog.add_filter(images)
+            try:
+                if dialog.run() == Gtk.ResponseType.ACCEPT:
+                    self.sddm_image = sddm_background_image(dialog.get_filename())
+                    self.sddm_background_changed = True
+                    self.show_sddm_background()
+                    self.status.set_text("Imagen seleccionada. Pulsa Guardar para aplicarla a SDDM.")
+            except (OSError, ValueError, GLib.Error) as error:
+                self.status.set_text("No se pudo cargar la imagen: " + str(error))
+            finally:
+                dialog.destroy()
+
+        def reset_sddm_background(self, *_):
+            self.sddm_image = sddm_background_image()
+            self.sddm_background_changed = True
+            self.show_sddm_background()
+            self.status.set_text("Pulsa Guardar para restaurar el fondo predeterminado de SDDM.")
+
+        def save_sddm_background(self):
+            if not self.sddm_background_changed:
+                self.status.set_text("Elige una imagen o el fondo predeterminado antes de Guardar.")
+                return
+            image = self.sddm_image.copy()
+            def done(_):
+                self.sddm_background_changed = False
+                self.try_button.set_sensitive(False)
+                self.buttons["reset"].set_sensitive(False)
+                self.status.set_text("Fondo de SDDM guardado. Se verá al volver al inicio de sesión.")
+            self.task(lambda: install_sddm_background(image), done)
 
         def label(self, value, style=None):
             label = Gtk.Label(label=value, xalign=0)
@@ -605,6 +720,9 @@ def gui(test_hook=None):
                 self.working = False
                 for widget in self.actions:
                     widget.set_sensitive(True)
+                if self.stack.get_visible_child_name() == "background":
+                    self.try_button.set_sensitive(False)
+                    self.buttons["reset"].set_sensitive(False)
                 try:
                     result = future.result()
                 except Exception as error:
@@ -638,6 +756,9 @@ def gui(test_hook=None):
             self.task(lambda: revert(token) if token else None, done)
 
         def save(self):
+            if self.stack.get_visible_child_name() == "background":
+                self.save_sddm_background()
+                return
             values = dict(self.values)
             def done(_):
                 self.original = values

@@ -213,6 +213,13 @@ Item {
             autoPaddingEnabled: false
         }
 
+        Image {
+            // Transparent by default; Appearance installs a personal background here.
+            anchors.fill: parent
+            source: "file:///usr/share/backgrounds/dotfiles-sddm.png"
+            fillMode: Image.PreserveAspectCrop
+        }
+
         Item {
             id: screenContainer
             anchors.fill: parent

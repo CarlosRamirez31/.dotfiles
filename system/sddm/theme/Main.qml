@@ -1,5 +1,6 @@
 import "."
 import QtQuick
+import QtQuick.Window
 import SddmComponents
 import QtQuick.Effects
 import QtMultimedia
@@ -216,6 +217,9 @@ Item {
             id: screenContainer
             anchors.fill: parent
             anchors.top: parent.top
+            // Keep the background on every screen, with login controls only on the primary.
+            visible: Screen.virtualX === mainFrame.geometry.x && Screen.virtualY === mainFrame.geometry.y
+            enabled: visible
 
             LockScreen {
                 id: lockScreen

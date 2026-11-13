@@ -34,6 +34,8 @@ principal. Con la tapa cerrada, apaga el panel interno solo después de comproba
 que hay un externo activo. Sin externos conserva el panel interno. No lee ni
 ejecuta scripts de usuario como administrador ni modifica archivos del paquete.
 Si falla la configuración de pantallas, permite continuar el inicio de SDDM.
+El tema muestra el reloj y los controles de acceso solo en el monitor principal;
+los secundarios conservan únicamente el fondo.
 
 Para instalar únicamente este ajuste, sin reinstalar el tema ni cerrar sesión:
 

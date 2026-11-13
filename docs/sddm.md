@@ -26,6 +26,27 @@ instalador nunca termina la sesión gráfica actual.
 | `/usr/share/sddm/themes/silent` | Tema SilentSDDM incluido en este repositorio. |
 | `/usr/share/fonts/silent-sddm` | Fuentes del tema. |
 | `/etc/sddm.conf.d/10-silent.conf` | Activa el tema y el teclado virtual de Qt. |
+| `/usr/local/libexec/dotfiles-sddm-Xsetup` | Activa los monitores conectados antes de mostrar el login. |
+| `/etc/sddm.conf.d/20-dotfiles-displays.conf` | Selecciona el script de pantallas para SDDM/X11. |
+
+El inicio de sesión activa los externos como una fila, con el primero como
+principal. Con la tapa cerrada, apaga el panel interno solo después de comprobar
+que hay un externo activo. Sin externos conserva el panel interno. No lee ni
+ejecuta scripts de usuario como administrador ni modifica archivos del paquete.
+Si falla la configuración de pantallas, permite continuar el inicio de SDDM.
+
+Para instalar únicamente este ajuste, sin reinstalar el tema ni cerrar sesión:
+
+```bash
+./setup/modules/sddm.sh --displays-only
+```
+
+Para revertirlo, elimina `/etc/sddm.conf.d/20-dotfiles-displays.conf`; SDDM
+volverá a usar su script predeterminado en el siguiente inicio. Este ajuste no
+modifica Betterlockscreen ni la política de energía. En Awesome,
+`dotfiles-display --auto` comprueba además el estado almacenado de Xorg para
+restaurar la disposición al reconectar los mismos monitores, sin sondear la GPU
+en cada comprobación.
 
 La copia incluida procede de
 [uiriansan/SilentSDDM](https://github.com/uiriansan/SilentSDDM), bajo GPL-3.0;

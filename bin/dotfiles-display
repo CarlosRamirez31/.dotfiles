@@ -212,6 +212,17 @@ def query(current=False):
     return outputs
 
 
+def randr_topology():
+    """Read Xorg's cached output state without probing connectors."""
+    try:
+        result = subprocess.run(['xrandr', '--current'], capture_output=True,
+                                text=True, check=True, timeout=3)
+        return [line for line in result.stdout.splitlines()
+                if re.match(r'^\S+ (?:dis)?connected\b', line)]
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def hardware_topology():
     """Read cached kernel connector state without asking Xorg to probe GPUs."""
     try:
@@ -220,7 +231,7 @@ def hardware_topology():
                    if path.with_name('edid').exists() else '')
                   for path in sorted(Path('/sys/class/drm').glob('card*-*/status'))]
         if states:
-            return json.dumps([states, lid_closed()])
+            return json.dumps([states, lid_closed(), randr_topology()])
     except OSError:
         pass
     return None
@@ -1348,7 +1359,9 @@ def main():
         hardware = hardware_topology() if auto else None
         if hardware is not None:
             hardware = 'apps-scale-v6:' + hardware
-        if hardware is not None and hardware_stamp.exists() and hardware_stamp.read_text() == hardware:
+        hardware_changed = (hardware is not None and hardware_stamp.exists()
+                            and hardware_stamp.read_text() != hardware)
+        if hardware is not None and hardware_stamp.exists() and not hardware_changed:
             return
         cleaned = disable_disconnected_outputs() if auto else False
         outputs = query(current=auto and hardware is None)
@@ -1368,7 +1381,7 @@ def main():
             # layout over the live session every five seconds.
             topology = key(outputs)
             stamp = runtime / 'dotfiles-display-topology'
-            if cleaned or not stamp.exists() or stamp.read_text() != topology:
+            if hardware_changed or cleaned or not stamp.exists() or stamp.read_text() != topology:
                 automatic(outputs)
                 stamp.write_text(topology)
             if hardware is not None:

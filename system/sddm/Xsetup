@@ -1,0 +1,65 @@
+#!/usr/bin/python3
+"""Activate connected monitors before SDDM starts its X11 greeter."""
+from pathlib import Path
+import re
+import subprocess
+import sys
+import time
+
+
+def run(args):
+    return subprocess.run(args, check=True, capture_output=True, text=True, timeout=10)
+
+
+def connected():
+    return re.findall(r'^(\S+) connected\b', run(['xrandr', '--query']).stdout, re.M)
+
+
+def internal(name):
+    return name.startswith(('eDP', 'LVDS', 'DSI'))
+
+
+def lid_closed():
+    for path in Path('/proc/acpi/button/lid').glob('*/state'):
+        try:
+            if re.search(r'\bclosed\b', path.read_text()):
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def configure():
+    outputs = connected()
+    # A secondary GPU/adapter may expose its connectors a little after Xorg.
+    for _ in range(4):
+        if any(not internal(name) for name in outputs):
+            break
+        time.sleep(0.5)
+        outputs = connected()
+    external = [name for name in outputs if not internal(name)]
+    panels = [name for name in outputs if internal(name)]
+    closed = lid_closed()
+    targets = external + ([] if closed and external else panels)
+    if not targets:
+        return
+    args = ['xrandr']
+    for index, name in enumerate(targets):
+        args += ['--output', name, '--auto']
+        args += ['--primary', '--pos', '0x0'] if index == 0 else ['--right-of', targets[index - 1]]
+    run(args + ['--dryrun'])
+    run(args)
+    if closed and external and panels:
+        # Keep the laptop panel as a fallback until an external is truly active.
+        active = run(['xrandr', '--current']).stdout
+        if any(re.search(r'^' + re.escape(name) + r' connected (?:primary )?\d+x\d+\+', active, re.M)
+               for name in external):
+            run(['xrandr'] + [arg for name in panels for arg in ('--output', name, '--off')])
+
+
+if __name__ == '__main__':
+    try:
+        configure()
+    except (OSError, subprocess.SubprocessError) as error:
+        # An unavailable adapter must never prevent the login screen starting.
+        print('SDDM monitor setup:', error, file=sys.stderr)

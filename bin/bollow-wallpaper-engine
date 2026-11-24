@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+engine="$HOME/Documents/Programacion/linux-wallpaperengine/build/output"
+export LD_LIBRARY_PATH="$HOME/.local/share/bollow-picker/engine-deps/usr/lib:$engine${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+cd "$engine"
+exec "$engine/linux-wallpaperengine" "$@"

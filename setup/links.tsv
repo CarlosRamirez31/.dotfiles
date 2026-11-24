@@ -275,3 +275,12 @@ awesome	config/awesome/audio-devices.lua	.config/awesome/audio-devices.lua
 awesome	config/awesome/window-organizer.lua	.config/awesome/window-organizer.lua
 files	bin/dotfiles-removable	.local/bin/dotfiles-removable
 files	system/systemd/user/dotfiles-removable.service	.config/systemd/user/dotfiles-removable.service
+wallpaper	bin/dotfiles-wallpaper-sync	.local/bin/dotfiles-wallpaper-sync
+awesome	config/awesome/wallpaper-pause.lua	.config/awesome/wallpaper-pause.lua
+wallpaper	bin/dotfiles-wallpaper-pause	.local/bin/dotfiles-wallpaper-pause
+wallpaper	bin/bollow-wallpaper-picker	.local/bin/bollow-wallpaper-picker
+wallpaper	bin/bollow-wallpaper-engine	.local/bin/bollow-wallpaper-engine
+wallpaper	libexec/wallpaper/quickshell	.local/share/bollow-picker/bin/quickshell
+wallpaper	system/systemd/user/bollow-wallpaper-sync.service	.config/systemd/user/bollow-wallpaper-sync.service
+wallpaper	system/systemd/user/bollow-wallpaper-sync.path	.config/systemd/user/bollow-wallpaper-sync.path
+wallpaper	system/systemd/user/bollow-wallpaper-confirm.timer	.config/systemd/user/bollow-wallpaper-confirm.timer

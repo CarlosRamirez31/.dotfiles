@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -x "$HOME/.local/bin/bollow-wallpaper-picker" && -f "$HOME/Documents/Programacion/qs-wallpaper-picker/Main.qml" && -x "$HOME/.local/share/bollow-picker/runtime/usr/bin/quickshell" ]]; then
+    exec "$HOME/.local/bin/bollow-wallpaper-picker"
+fi
+
 wallpaper_dir=${1:-"$HOME/Pictures/Wallpapers"}
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/dotfiles
 state_file="$state_dir/wallpaper"

@@ -180,6 +180,10 @@ def main():
             values = set_saving(args.action == 'saving-on')
         else:
             values = apply(args.profile) if args.action == 'apply' else status()
+    if args.action != 'status':
+        # Restart only our running wallpaper; it reads the confirmed profile.
+        subprocess.run(['systemctl', '--user', 'try-restart', 'bollow-wallpaper.service'],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if args.tsv:
         tsv(values)
     else:

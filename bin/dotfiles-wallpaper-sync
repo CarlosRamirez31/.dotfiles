@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo 'Sincronizando fondos de Steam…'
+systemctl --user start bollow-wallpaper-sync.service
+echo 'Archivos y catálogo sincronizados. Comprobando miniaturas y animaciones…'
+python3 "$HOME/Documents/Programacion/qs-wallpaper-picker/scripts/steam_sync_status.py"
+echo 'Las bajas nuevas conservan la confirmación de seguridad de un minuto.'

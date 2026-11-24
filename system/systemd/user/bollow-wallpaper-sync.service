@@ -1,0 +1,10 @@
+[Unit]
+Description=Sincronizar copia independiente tras cambios de Steam
+[Service]
+Type=oneshot
+Nice=19
+CPUQuota=25%
+IOWeight=10
+ExecStart=/usr/bin/python3 %h/Documents/Programacion/qs-wallpaper-picker/scripts/steam_library.py --event
+[Install]
+WantedBy=default.target

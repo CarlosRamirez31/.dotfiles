@@ -1,0 +1,7 @@
+[Unit]
+Description=Confirmar una baja pendiente de fondos (una sola vez)
+[Timer]
+OnActiveSec=65s
+AccuracySec=1s
+RemainAfterElapse=no
+Unit=bollow-wallpaper-sync.service

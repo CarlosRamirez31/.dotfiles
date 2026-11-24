@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+runtime="$HOME/.local/share/bollow-picker/runtime/usr"
+export LD_LIBRARY_PATH="$runtime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export QML_IMPORT_PATH="$runtime/lib/qt6/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+export QT_QPA_PLATFORM=xcb
+exec "$runtime/bin/quickshell" "$@"

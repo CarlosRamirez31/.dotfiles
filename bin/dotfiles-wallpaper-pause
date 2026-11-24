@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Pause only the wallpaper players on covered screens; picker pauses all."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+
+runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}'))
+marker = runtime / 'dotfiles-wallpaper-covered'
+cache = Path(os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache')) / 'wallpaper_picker'
+cache.mkdir(parents=True, exist_ok=True)
+with (runtime / 'dotfiles-wallpaper-pause.lock').open('a') as mutex:
+    fcntl.flock(mutex, fcntl.LOCK_EX)
+    action = sys.argv[1] if len(sys.argv) > 1 else 'refresh'
+    if action == 'screens':
+        bounds = [list(map(int, item.split(','))) for item in sys.argv[2:]]
+        if any(len(item) != 4 for item in bounds):
+            raise SystemExit('Geometría inválida')
+        marker.write_text(json.dumps({'screens': bounds}))
+    elif action == 'covered':
+        marker.write_text('{"all":true}')
+    elif action == 'visible':
+        marker.unlink(missing_ok=True)
+    elif action != 'refresh':
+        raise SystemExit('Uso: dotfiles-wallpaper-pause [screens x,y,w,h ...|refresh]')
+    try:
+        policy = json.loads(marker.read_text())
+    except (OSError, ValueError):
+        policy = {}
+    picker_open = False
+    with (cache / 'picker.lock').open('a') as picker:
+        try:
+            fcntl.flock(picker, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            picker_open = True
+    try:
+        data = json.loads((runtime / 'dotfiles-wallpaper-players.json').read_text())
+        main = int(subprocess.check_output(['systemctl', '--user', 'show',
+                   'bollow-wallpaper.service', '-p', 'MainPID', '--value'], text=True))
+        if main != data['controller'] or main == 0:
+            raise SystemExit(0)
+        for player in data['players']:
+            try:
+                pid = player['pid']
+                fields = (Path('/proc') / str(pid) / 'stat').read_text().rsplit(')', 1)[1].split()
+                if int(fields[1]) != main or fields[19] != player['start'] or os.getpgid(pid) != pid:
+                    continue
+                ready = not player['ready'] or Path(player['ready']).is_file()
+                covered = policy.get('all', False) or player['bounds'] in policy.get('screens', [])
+                pause = ready and (picker_open or covered)
+                os.killpg(pid, signal.SIGSTOP if pause else signal.SIGCONT)
+            except (ProcessLookupError, FileNotFoundError):
+                continue
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+        pass

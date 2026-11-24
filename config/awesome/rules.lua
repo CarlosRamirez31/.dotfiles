@@ -57,6 +57,16 @@ return {
         },
     },
     {
+        rule = { name = "Bollow Wallpaper" },
+        properties = {
+            floating = true, ontop = true, skip_taskbar = true,
+            border_width = 0, titlebars_enabled = false,
+            placement = function(c)
+                awful.placement.centered(c, { honor_workarea = false })
+            end,
+        },
+    },
+    {
         rule_any = { type = { "dock" }, class = { "Polybar" } },
         properties = {
             border_width = 0,

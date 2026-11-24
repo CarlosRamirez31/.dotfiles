@@ -1,0 +1,12 @@
+[Unit]
+Description=Escuchar cambios de fondos de Steam
+[Path]
+PathChanged=%h/.local/share/Steam/logs/workshop_log.txt
+PathChanged=%h/.local/share/Steam/steamapps/workshop/appworkshop_431960.acf
+PathChanged=%h/.local/share/Steam/steamapps/appmanifest_431960.acf
+PathChanged=%h/.local/share/Steam/steamapps/workshop/content/431960
+PathChanged=%h/.local/share/Steam/steamapps/common/wallpaper_engine/projects/myprojects
+PathChanged=%h/.local/share/Steam/steamapps/common/wallpaper_engine/projects/defaultprojects
+Unit=bollow-wallpaper-sync.service
+[Install]
+WantedBy=default.target

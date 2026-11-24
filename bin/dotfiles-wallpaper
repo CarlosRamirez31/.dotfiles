@@ -24,6 +24,9 @@ apply_default() {
 
 case ${1:-choose} in
     choose)
+        if [[ -x "$HOME/.local/bin/bollow-wallpaper-picker" && -f "$HOME/Documents/Programacion/qs-wallpaper-picker/Main.qml" && -x "$HOME/.local/share/bollow-picker/runtime/usr/bin/quickshell" ]]; then
+            exec "$HOME/.local/bin/bollow-wallpaper-picker"
+        fi
         if [[ ! -d $wallpaper_dir ]] ||
             ! find "$wallpaper_dir" -type f \
                 \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \
@@ -47,6 +50,9 @@ case ${1:-choose} in
 
         [[ -n $saved && -f $saved ]] || saved=$default_wallpaper
         [[ -f $saved ]] || exit 1
+        if [[ -f "$HOME/Documents/Programacion/qs-wallpaper-picker/scripts/apply_x11.py" ]]; then
+            exec python3 "$HOME/Documents/Programacion/qs-wallpaper-picker/scripts/apply_x11.py" "$saved"
+        fi
         feh --bg-fill "$saved"
         ;;
     *)

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export QS_WALLPAPER_DIR="${QS_WALLPAPER_DIR:-$HOME/Pictures/Wallpapers}"
+export XDG_SESSION_TYPE=x11
+runtime="$HOME/.local/share/bollow-picker/runtime/usr"
+export PATH="$HOME/.local/share/bollow-picker/bin:$PATH"
+exec "$HOME/Documents/Programacion/qs-wallpaper-picker/scripts/open_picker.sh"

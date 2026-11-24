@@ -56,9 +56,11 @@ El código de esta integración vive en tres repositorios. Versiones locales
 compatibles guardadas el 2026-11-24:
 
 - Dotfiles: lanzadores, servicios systemd, perfiles de energía y pausa Awesome.
-- `~/Documents/Programacion/qs-wallpaper-picker`, commit `9308248`: selector,
+- [qs-wallpaper-picker](https://github.com/CarlosRamirez31/qs-wallpaper-picker),
+  en `~/Documents/Programacion/qs-wallpaper-picker`, commit `9308248`: selector,
   biblioteca independiente, previews y controlador X11.
-- `~/Documents/Programacion/linux-wallpaperengine`, commit `fbb6741`: motor nativo,
+- [linux-wallpaperengine](https://github.com/CarlosRamirez31/linux-wallpaperengine),
+  en `~/Documents/Programacion/linux-wallpaperengine`, commit `fbb6741`: motor nativo,
   correcciones de escenas y aviso de primer fotograma.
 
 Los dos últimos commits pertenecen a repositorios separados, no están incluidos

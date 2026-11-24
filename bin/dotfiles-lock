@@ -13,13 +13,15 @@ if command -v betterlockscreen >/dev/null 2>&1 && command -v bc >/dev/null 2>&1 
     [[ -r $wallpaper ]] || wallpaper="$HOME/.config/wallpapers/mocha-aurora.png"
     cache_image="${XDG_CACHE_HOME:-"$HOME/.cache"}/betterlockscreen/current/lock_dim.png"
     cache_source="${XDG_CACHE_HOME:-"$HOME/.cache"}/betterlockscreen/current/dotfiles-wallpaper-dim-v1"
+    # The cached canvas must match connected monitors, including their positions.
+    cache_signature=$(printf '%s\n' "$wallpaper"; xrandr --listactivemonitors 2>/dev/null || true)
 
     # Betterlockscreen owns the cache and the actual lock screen.  Refresh it
     # whenever its source is changed, even when an older wallpaper is selected.
     cache_ready=true
-    if [[ ! -s $cache_image || ! -r $cache_source || $(<"$cache_source") != "$wallpaper" ]]; then
+    if [[ ! -s $cache_image || ! -r $cache_source || $(<"$cache_source") != "$cache_signature" ]]; then
         if betterlockscreen --update "$wallpaper" --fx dim; then
-            printf '%s\n' "$wallpaper" >"$cache_source" || cache_ready=false
+            printf '%s\n' "$cache_signature" >"$cache_source" || cache_ready=false
         else
             cache_ready=false
         fi

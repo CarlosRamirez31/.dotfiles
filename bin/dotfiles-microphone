@@ -785,7 +785,7 @@ def process_voice():
             '--format=' + capture_format, '--rate=' + str(capture_rate), '--channels=1',
             '--latency-msec=20', '--process-time-msec=10'], stdout=subprocess.PIPE, bufsize=0)
         output_rate = audio.NATIVE_RATE if processor is not None else PCM_RATE
-        playback = subprocess.Popen(['pacat', '--playback', '--device=' + BUS,
+        playback = subprocess.Popen(['pacat', '--playback', '--client-name=dotfiles-microphone', '--device=' + BUS,
             '--format=s16le', '--rate=' + str(output_rate), '--channels=1', '--latency-msec=20', '--process-time-msec=10'], stdin=subprocess.PIPE, bufsize=0)
         if processor is not None:
             capture_pcm = PcmInput(capture.stdout, audio.NATIVE_FRAME_BYTES,

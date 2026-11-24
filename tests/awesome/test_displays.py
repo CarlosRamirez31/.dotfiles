@@ -26,6 +26,23 @@ def outputs(count=20):
 
 
 class DisplaysTest(unittest.TestCase):
+    def test_external_lid_inhibitor_respects_docked_policy(self):
+        topology = ['eDP-1 connected 1920x1080+0+0', 'HDMI-1-0 connected primary 1920x1080+1920+0']
+        with patch.object(displays, 'randr_topology', return_value=topology):
+            for action in ('ignore', 'suspend', 'lock', 'poweroff'):
+                with self.subTest(action=action), patch.object(displays, 'lid_policy', return_value=['suspend', 'ignore', action]):
+                    self.assertEqual(displays.inhibit_docked_lid(), action == 'ignore')
+
+    def test_disabled_or_disconnected_external_does_not_inhibit_lid(self):
+        for external in ('HDMI-1 connected', 'HDMI-1 disconnected 1920x1080+0+0'):
+            with self.subTest(external=external), patch.object(displays, 'randr_topology', return_value=[
+                    'eDP-1 connected 1920x1080+0+0', external]), patch.object(displays, 'lid_policy'):
+                self.assertFalse(displays.inhibit_docked_lid())
+
+    def test_failed_randr_query_is_not_reported_as_disconnection(self):
+        with patch.object(displays, 'randr_topology', return_value=None), self.assertRaises(ValueError):
+            displays.inhibit_docked_lid()
+
     def test_unchanged_automatic_checks_do_not_probe_hardware_or_apply_layout(self):
         with tempfile.TemporaryDirectory() as directory:
             Path(directory, 'dotfiles-display-topology').write_text('DP-0')

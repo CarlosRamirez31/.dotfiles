@@ -7,9 +7,11 @@ import json
 import os
 from pathlib import Path
 import select
+import shutil
 import subprocess
 import sys
 import time
+import textwrap
 import unicodedata
 
 NAME = 'org.freedesktop.UDisks2'
@@ -86,9 +88,31 @@ def size_label(size):
     return f'{size / 1024 ** 3:.1f} GiB' if size >= 1024 ** 3 else f'{size / 1024 ** 2:.0f} MiB'
 
 
+def menu_line(value, indent=2, color='', wrap=False):
+    width = max(1, shutil.get_terminal_size((64, 24)).columns - indent - 1)
+    value = clean(value, 4096)
+    if wrap:
+        lines = textwrap.wrap(value, width=width) or ['']
+    else:
+        cells, end = 0, 0
+        for end, char in enumerate(value):
+            cells += 0 if unicodedata.combining(char) else 2 if unicodedata.east_asian_width(char) in ('W', 'F') else 1
+            if cells > width:
+                value = value[:end].rstrip()
+                # Leave room for a visible truncation marker.
+                while value and sum(0 if unicodedata.combining(c) else 2 if unicodedata.east_asian_width(c) in ('W', 'F') else 1 for c in value) >= width:
+                    value = value[:-1]
+                value += '…'
+                break
+        lines = [value]
+    for line in lines:
+        print(' ' * indent + color + line + RESET)
+
+
 def header(subtitle):
     print('\033[2J\033[H\n' + LAVENDER + '  ◇  EXTERNAL DRIVE' + RESET + '\n')
-    print('  ' + subtitle + '\n')
+    menu_line(subtitle, wrap=True)
+    print()
 
 
 def read_line(prompt, timeout=120):
@@ -101,8 +125,8 @@ def read_line(prompt, timeout=120):
 
 def confirm(backend, selected):
     header('Ready when you are.')
-    print(f'  {LAVENDER}{selected["label"]}{RESET}')
-    print(f'  {MUTED}{selected["model"]}{RESET}')
+    menu_line(selected['label'], color=LAVENDER)
+    menu_line(selected['model'], color=MUTED)
     print(f'  {size_label(selected["size"])}  ·  {selected["kind"]}\n')
     unmounting = selected.get('mounted', False)
     verb = 'Unmount' if unmounting else 'Mount'
@@ -148,16 +172,19 @@ def choose(backend, drive_path=None, expected_generation=None):
         header('Choose an external volume.')
         # Page the list so a multi-partition disk fits the same terminal.
         try:
-            rows = os.get_terminal_size().lines
+            rows = shutil.get_terminal_size((64, 24)).lines
         except OSError:
             rows = 24
-        page, per_page = 0, max(1, min(6, (rows - 10) // 2))
+        page, per_page = 0, max(1, min(6, (rows - 12) // 3))
         while True:
             for index in range(page * per_page, min(len(entries), (page + 1) * per_page)):
                 entry = entries[index]
-                print(f'  {LAVENDER}[{index + 1}]{RESET} {entry["label"][:28]}  ·  {size_label(entry["size"])} · {"mounted" if entry["mounted"] else "unmounted"}')
-                print(f'      {MUTED}{entry["model"][:44]}{RESET}')
-            print('\n  ' + MUTED + 'Number: select · r: refresh · no: close' + RESET)
+                menu_line(f'[{index + 1}] {entry["label"]}', color=LAVENDER)
+                menu_line(f'{size_label(entry["size"])} · {"mounted" if entry["mounted"] else "unmounted"}', indent=6)
+                menu_line(entry['model'], indent=6, color=MUTED)
+            print()
+            menu_line('Number: select', color=MUTED, wrap=True)
+            menu_line('r: refresh · no: close', color=MUTED, wrap=True)
             if len(entries) > per_page:
                 print('  ' + MUTED + 'n / p: next / previous page' + RESET)
             answer = read_line('\n  Choose › ')

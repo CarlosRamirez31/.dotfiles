@@ -1,6 +1,9 @@
 # BESTerlockscreen-style Betterlockscreen theme for Awesome/X11.
 # The lock layout is Betterlockscreen's native clock + unlock indicator.
 i3lockcolor_bin="i3lock"
+if [[ -x $HOME/.local/opt/dotfiles-lock/i3lock ]]; then
+    i3lockcolor_bin="$HOME/.local/opt/dotfiles-lock/i3lock"
+fi
 fx_list=(dim)
 dim_level=48
 wallpaper_cmd="feh --bg-fill"
@@ -38,5 +41,6 @@ lockargs+=(--date-str="%A, %d %B" --date-pos="x+w/2:y+h*0.19+29"
 lockargs+=(--ind-pos="x+w/2:y+h*0.79" --radius=27 --ring-width=4)
 # Keep the active keyboard layout and modifier warnings clear of auth messages.
 lockargs+=(--keylayout=0 --layout-pos="ix:iy+82" --layout-align=0)
+lockargs+=(--layout-size=14 --indicator)
 lockargs+=(--modif-pos="ix:iy-50" --modif-align=0)
 lockargs+=(--verif-pos="ix:iy+49" --verif-align=0 --wrong-pos="ix:iy+49" --wrong-align=0)

@@ -1,0 +1,26 @@
+--- a/i3lock.c
++++ b/i3lock.c
+@@ -389,6 +389,14 @@
+     }
+     DEBUG("answer after mode parsing: [%s]\n", answer);
+     // Free symbolic names structures
++    /* Keep Caps Lock visible before authentication, using the existing XKB state. */
++    const bool caps = xkb_state && xkb_state_mod_name_is_active(
++        xkb_state, XKB_MOD_NAME_CAPS, XKB_STATE_MODS_LOCKED) > 0;
++    char *label = NULL;
++    if (asprintf(&label, "%s  |  Caps Lock: %s", answer, caps ? "ON" : "OFF") != -1) {
++        free(answer);
++        answer = label;
++    }
+     return answer;
+ }
+ 
+@@ -2598,6 +2606,8 @@
+      * we should get all key presses/releases due to having grabbed the
+      * keyboard. */
+     (void)load_keymap();
++    free(layout_text);
++    layout_text = get_keylayoutname(keylayout_mode, conn);
+ 
+     /* Initialize the libev event loop. */
+     main_loop = EV_DEFAULT;

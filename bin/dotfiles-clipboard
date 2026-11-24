@@ -3,22 +3,33 @@ set -euo pipefail
 
 # Recover history capture in sessions started before autostart was enabled.
 # clipmenud also holds its own lock to prevent duplicate daemons.
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+if ! xset q >/dev/null 2>&1; then
+    printf 'Clipboard: cannot connect to the current X11 session.\n' >&2
+    exit 1
+fi
+daemon_pattern='^(bash /usr/bin/clipmenud|(/usr/bin/)?clipmenud)$'
 cache_dir="${CM_DIR:-${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}}/clipmenu.6.$USER"
 install -d -m 0700 -- "$cache_dir"
 touch "$cache_dir/line_cache"
-# Apply the bounded configuration to daemons left from an older session.
+# Replace daemons retaining another login's X11 authorization or configuration.
 while read -r pid; do
-    if ! tr '\0' '\n' <"/proc/$pid/environ" | grep -qx 'CM_MAX_CLIPS=90'; then
+    if ! grep -zFxq 'CM_MAX_CLIPS=90' "/proc/$pid/environ" ||
+        ! grep -zFxq 'CM_SELECTIONS=clipboard' "/proc/$pid/environ" ||
+        ! grep -zFxq -- "DISPLAY=${DISPLAY:-}" "/proc/$pid/environ" ||
+        ! grep -zFxq -- "XAUTHORITY=$XAUTHORITY" "/proc/$pid/environ"; then
         kill "$pid" 2>/dev/null || true
         for ((attempt = 0; attempt < 20; attempt++)); do
             kill -0 "$pid" 2>/dev/null || break
             sleep 0.1
         done
     fi
-done < <(pgrep -u "$(id -u)" -x clipmenud || true)
-if ! pgrep -u "$(id -u)" -x clipmenud >/dev/null; then
+done < <(pgrep -u "$(id -u)" -f "$daemon_pattern" || true)
+if ! pgrep -u "$(id -u)" -f "$daemon_pattern" >/dev/null; then
     CM_SELECTIONS=clipboard CM_MAX_CLIPS=90 nohup clipmenud >"$cache_dir/daemon.log" 2>&1 </dev/null &
 fi
+
+[[ ${1:-} == --ensure-daemon ]] && exit 0
 
 target=$(xdotool getactivewindow)
 window_class=$(xprop -id "$target" WM_CLASS 2>/dev/null || true)

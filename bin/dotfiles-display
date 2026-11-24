@@ -223,6 +223,17 @@ def randr_topology():
         return None
 
 
+def inhibit_docked_lid():
+    """Use RandR when logind misses external displays on a secondary GPU."""
+    topology = randr_topology()
+    if topology is None:
+        raise ValueError('No se pudo consultar el estado de las pantallas.')
+    external = any(not internal({'name': line.split()[0]})
+                   and re.search(r' connected\b.*\d+x\d+\+-?\d+\+-?\d+', line)
+                   for line in topology)
+    return bool(external and lid_policy()[2] == 'ignore')
+
+
 def hardware_topology():
     """Read cached kernel connector state without asking Xorg to probe GPUs."""
     try:
@@ -1338,6 +1349,9 @@ def gui(outputs):
 
 
 def main():
+    if '--lid-inhibit-state' in sys.argv:
+        print('1' if inhibit_docked_lid() else '0')
+        return
     if '--lid-policy' in sys.argv:
         configure_lid(sys.argv[sys.argv.index('--lid-policy') + 1:])
         return

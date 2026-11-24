@@ -56,6 +56,7 @@ local keys = gears.table.join(
     awful.key({ modkey }, "F6", function() require("desktop-panels").toggle("system") end),
     awful.key({ modkey }, "F7", function() require("session-welcome").show() end),
     awful.key({ modkey }, "F8", function() require("recent-downloads").toggle() end),
+    awful.key({ modkey, "Shift" }, "F9", spawn("dotfiles-power-timer")),
     awful.key({ modkey }, "F1", spawn("dotfiles-shortcuts")),
     awful.key({ modkey }, "Return", spawn("dotfiles-terminal")), awful.key({ "Control", modkey }, "t", spawn("dotfiles-terminal")), awful.key({ modkey }, "space", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "d", spawn("dotfiles-app-launcher")), awful.key({ modkey }, "F2", spawn("dotfiles-app-launcher")),
     awful.key({ modkey }, "b", spawn("brave --new-window")), awful.key({ modkey }, "e", spawn("dotfiles-terminal -- yazi")), awful.key({ "Control", modkey }, "e", spawn("thunar")), awful.key({ modkey }, "w", spawn("dotfiles-wallpaper choose")), awful.key({ modkey }, "c", spawn("dotfiles-clipboard")), awful.key({ "Control", "Shift" }, "b", spawn("dotfiles-lock")), awful.key({ modkey, "Shift" }, "e", function() awesome.quit() end),

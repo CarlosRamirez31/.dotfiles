@@ -15,9 +15,10 @@ end
 
 -- appearance.start() restores and monitors Picom, including startup failures.
 once("xss-lock", "xss-lock -- $HOME/.local/bin/dotfiles-lock")
+require('lid-guard').start()
 -- Record explicit copies only; tracking PRIMARY also records mouse selections.
 -- Clipmenu batches pruning after ten extra entries: 90 + 10 = 100 maximum.
-once("clipmenud", "env CM_SELECTIONS=clipboard CM_MAX_CLIPS=90 clipmenud")
+awful.spawn({ os.getenv("HOME") .. "/.local/bin/dotfiles-clipboard", "--ensure-daemon" }, false)
 
 -- XSecureLock owns its display state.  A second DPMS timeout could keep the
 -- monitor off after a successful unlock on some X11/VM graphics drivers.
@@ -42,7 +43,9 @@ awful.spawn.with_shell(
         "XDG_SESSION_DESKTOP=awesome GTK_USE_PORTAL=1; " ..
         "dbus-update-activation-environment --systemd DISPLAY XAUTHORITY " ..
         "XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE XCURSOR_THEME XCURSOR_SIZE GTK_USE_PORTAL; " ..
-        "systemctl --user import-environment DISPLAY XAUTHORITY; " ..
+        -- Already-running portals keep the previous X11 authorization until restarted.
+        "systemctl --user import-environment DISPLAY XAUTHORITY && " ..
+        "systemctl --user try-restart xdg-desktop-portal-termfilechooser.service; " ..
         "systemctl --user start dotfiles-touchpad-typing.service; " ..
         "if [ -x \"$HOME/.local/bin/dotfiles-removable\" ]; then systemctl --user start dotfiles-removable.service; fi"
 )

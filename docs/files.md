@@ -223,6 +223,19 @@ systemctl status udisks2.service
 
 Si una aplicación muestra un selector incorrecto, comprueba `~/.config/xdg-desktop-portal/portals.conf` y reinicia los portales de usuario. Si un teléfono no aparece, desbloquéalo y selecciona MTP. Si faltan miniaturas, reinicia Thunar con `thunar -q` y ábrelo otra vez. No ejecutes Thunar como root.
 
+Si guardar no abre Yazi y el registro del selector muestra `Authorization required`
+o `Failed to open display`, actualiza su entorno desde una terminal de la sesión
+gráfica actual y reinicia únicamente ese backend:
+
+```bash
+dbus-update-activation-environment --systemd DISPLAY XAUTHORITY &&
+    systemctl --user restart xdg-desktop-portal-termfilechooser.service
+```
+
+Awesome también reinicia el backend si ya estaba activo después de importar el
+entorno al arrancar. Las descargas que fallaron antes de elegir destino deben
+intentarse de nuevo. En Yazi, `g d` abre Descargas.
+
 ## Fuentes del módulo
 
 Instalador: [`setup/modules/files.sh`](../setup/modules/files.sh). Los archivos y destinos administrados

@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""Schedule one explicit power action with a cancellable systemd user timer."""
+import argparse
+import contextlib
+import fcntl
+import json
+import os
+from pathlib import Path
+import secrets
+import subprocess
+import time
+
+STATE = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}')) / 'dotfiles-power-timer'
+UNIT = 'dotfiles-power-timer'
+SELF = str(Path(__file__).resolve())
+
+
+def read_state():
+    try:
+        return json.loads((STATE / 'timer.json').read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+@contextlib.contextmanager
+def locked():
+    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (STATE / 'lock').open('a') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        yield
+
+
+def write_state(value):
+    path = STATE / ('state-' + secrets.token_hex(6))
+    path.write_text(json.dumps(value))
+    path.replace(STATE / 'timer.json')
+
+
+def cancel():
+    with locked():
+        # Invalidate the token first, so an already queued helper does nothing.
+        write_state({})
+        subprocess.run(['systemctl', '--user', 'stop', UNIT + '.timer'], capture_output=True, timeout=15)
+
+
+def schedule(kind, minutes):
+    if kind not in ('poweroff', 'suspend') or not 1 <= minutes <= 10080:
+        raise ValueError('Choose an action and a duration between 1 minute and 7 days.')
+    with locked():
+        subprocess.run(['systemctl', '--user', 'stop', UNIT + '.timer'], capture_output=True, timeout=15)
+        subprocess.run(['systemctl', '--user', 'reset-failed', UNIT + '.service'], capture_output=True, timeout=15)
+        value = {'kind': kind, 'deadline': time.time() + minutes * 60, 'token': secrets.token_hex(16)}
+        write_state(value)
+        try:
+            subprocess.run(['systemd-run', '--user', '--collect', '--unit=' + UNIT,
+                            '--on-active=' + str(minutes * 60) + 's', '--timer-property=AccuracySec=1s',
+                            '/usr/bin/python3', SELF, '--execute', value['token']],
+                           capture_output=True, text=True, check=True, timeout=15)
+        except Exception:
+            write_state({}); raise
+
+
+def execute(token):
+    with locked():
+        value = read_state()
+        if value.get('token') != token or value.get('kind') not in ('poweroff', 'suspend'):
+            return
+        if time.time() + 2 < value.get('deadline', 0):
+            return
+        write_state({})
+        command = ['systemctl', 'poweroff'] if value['kind'] == 'poweroff' else [str(Path.home() / '.local/bin/dotfiles-sleep')]
+        subprocess.run(['notify-send', 'Power timer', 'The scheduled action is starting.'], check=False)
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode:
+            subprocess.run(['notify-send', 'Power timer failed', result.stderr[:250]], check=False)
+            raise RuntimeError(result.stderr[:250])
+
+
+def gui():
+    import gi
+    gi.require_version('Gtk', '3.0')
+    from gi.repository import Gtk, GLib, Gdk
+    app = Gtk.Application(application_id='com.dotfiles.PowerTimer')
+    def activate(application):
+        if application.get_active_window():
+            application.get_active_window().present(); return
+        window = Gtk.ApplicationWindow(application=application, title='Power timer')
+        window.set_wmclass('dotfiles-power-timer', 'DotfilesPowerTimer')
+        window.set_type_hint(Gdk.WindowTypeHint.DIALOG)
+        window.set_position(Gtk.WindowPosition.CENTER)
+        window.set_default_size(400, 390)
+        window.set_name('power-timer')
+        Gtk.Settings.get_default().set_property('gtk-application-prefer-dark-theme', True)
+        css = Gtk.CssProvider()
+        css.load_from_data(b"""
+          #power-timer {background:#1e1e2e;color:#cdd6f4;font-family:'JetBrainsMono Nerd Font';font-size:11px}
+          #power-timer button {background:#313244;color:#cdd6f4;border:1px solid #45475a;border-radius:9px;padding:8px 10px;box-shadow:none;text-shadow:none}
+          #power-timer button:hover {background:#45475a;border-color:#cba6f7}
+          #power-timer button:disabled {color:#6c7086;background:#242435;border-color:#313244}
+          #power-timer button.primary {background:#cba6f7;color:#1e1e2e;font-weight:bold;border-color:#cba6f7}
+          #power-timer button.cancel {color:#f38ba8;background:transparent;border-color:#584052}
+          #power-timer button.preset {padding:5px 8px;font-size:10px}
+          #power-timer label.title {color:#cba6f7;font-size:17px;font-weight:bold}
+          #power-timer label.caption {color:#9399b2;font-size:10px}
+          #power-timer label.clock {color:#cdd6f4;font-size:27px;font-weight:bold}
+          #power-timer label.badge {color:#cba6f7;background:#353047;border-radius:12px;font-size:25px;padding:9px}
+          #power-timer spinbutton {background:#313244;color:#cdd6f4;border:1px solid #45475a;border-radius:8px}
+          #power-timer spinbutton entry {color:#cdd6f4;background:transparent;min-width:48px}
+          #power-timer spinbutton button {padding:3px 6px;border:0;background:transparent}
+        """)
+        Gtk.StyleContext.add_provider_for_screen(window.get_screen(), css, 600)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin=22)
+        window.add(box)
+        header = Gtk.Box(spacing=12)
+        badge = Gtk.Label(label='󰔟'); badge.get_style_context().add_class('badge')
+        header.pack_start(badge, False, False, 0)
+        titles = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        title = Gtk.Label(label='Power timer', xalign=0); title.get_style_context().add_class('title')
+        caption = Gtk.Label(label='A little time before signing off', xalign=0); caption.get_style_context().add_class('caption')
+        titles.pack_start(title, False, False, 0); titles.pack_start(caption, False, False, 0)
+        header.pack_start(titles, True, True, 0); box.pack_start(header, False, False, 0)
+        action = Gtk.ComboBoxText(); action.append('poweroff', '󰐥  Shut down'); action.append('suspend', '󰒲  Suspend'); action.set_active_id('suspend')
+        box.pack_start(action, False, False, 0)
+        row = Gtk.Box(spacing=10)
+        row.pack_start(Gtk.Label(label='Start after', xalign=0), True, True, 0)
+        minutes = Gtk.SpinButton.new_with_range(1, 10080, 1); minutes.set_value(30)
+        row.pack_end(Gtk.Label(label='min'), False, False, 0)
+        row.pack_end(minutes, False, False, 0); box.pack_start(row, False, False, 0)
+        presets = Gtk.Box(spacing=6, homogeneous=True)
+        for label, value in [('15 min',15),('30 min',30),('1 hour',60),('2 hours',120)]:
+            button = Gtk.Button(label=label); button.get_style_context().add_class('preset')
+            button.connect('clicked', lambda _, v=value: minutes.set_value(v))
+            presets.pack_start(button, True, True, 0)
+        box.pack_start(presets, False, False, 0)
+        clock = Gtk.Label(label='00:30:00'); clock.get_style_context().add_class('clock')
+        box.pack_start(clock, False, False, 2)
+        status = Gtk.Label(wrap=True); status.get_style_context().add_class('caption')
+        box.pack_start(status, False, False, 0)
+        actions = Gtk.Box(spacing=8, homogeneous=True)
+        start = Gtk.Button(label='󰐊  Start timer'); start.get_style_context().add_class('primary')
+        stop = Gtk.Button(label='󰜺  Cancel'); stop.get_style_context().add_class('cancel')
+        actions.pack_start(start, True, True, 0); actions.pack_start(stop, True, True, 0)
+        box.pack_start(actions, False, False, 0)
+        def tick():
+            value = read_state()
+            remaining = max(0, int(value.get('deadline', 0) - time.time())) if value else minutes.get_value_as_int() * 60
+            clock.set_text(f'{remaining // 3600:02}:{remaining // 60 % 60:02}:{remaining % 60:02}')
+            if value:
+                status.set_text(('Shut down' if value['kind'] == 'poweroff' else 'Suspend') + ' scheduled · you can close this window')
+            else:
+                status.set_text('Ready when you are · no timer scheduled')
+            stop.set_sensitive(bool(value)); start.set_sensitive(not bool(value))
+            for widget in (action, row, presets):
+                widget.set_sensitive(not bool(value))
+            return True
+        def create(_):
+            verb = 'shut down' if action.get_active_id() == 'poweroff' else 'suspend'
+            dialog = Gtk.MessageDialog(transient_for=window, modal=True, message_type=Gtk.MessageType.QUESTION,
+                                       buttons=Gtk.ButtonsType.OK_CANCEL, text=f'Schedule {verb} in {minutes.get_value_as_int()} minutes?')
+            dialog.format_secondary_text('Save your work before the countdown ends. You can cancel the timer from this menu.')
+            answer = dialog.run(); dialog.destroy()
+            if answer == Gtk.ResponseType.OK:
+                try:
+                    schedule(action.get_active_id(), minutes.get_value_as_int()); tick()
+                except Exception as error:
+                    status.set_text(str(error)[:250])
+        start.connect('clicked', create)
+        stop.connect('clicked', lambda _: (cancel(), tick()))
+        timer = GLib.timeout_add_seconds(1, tick)
+        window.connect('destroy', lambda _: GLib.source_remove(timer))
+        tick(); window.show_all()
+    app.connect('activate', activate)
+    app.run(None)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--execute', metavar='TOKEN', help=argparse.SUPPRESS)
+    parser.add_argument('--cancel', action='store_true')
+    parser.add_argument('--status', action='store_true')
+    args = parser.parse_args()
+    if args.execute:
+        execute(args.execute)
+    elif args.cancel:
+        cancel()
+    elif args.status:
+        print(json.dumps(read_state()))
+    else:
+        gui()

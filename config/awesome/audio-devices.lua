@@ -53,9 +53,21 @@ render = function(failed)
     local pages=math.max(1,math.ceil(#entries/count))
     page=math.min(page,pages)
     if #entries==0 then rows:add(style.text(failed and 'Audio unavailable' or 'No devices available',9,colors.muted,32)) end
+    local last_card
     for i=(page-1)*count+1,math.min(page*count,#entries) do
         local entry=entries[i]
-        local label=(entry.active and '●  ' or '○  ') .. entry.label
+        local description=entry.label
+        if entry.kind=='profile' then
+            local card,profile=entry.label:match('^(.-) · (.+)$')
+            if card then
+                if last_card~=entry.id then
+                    rows:add(style.text(card,9,colors.muted,24))
+                    last_card=entry.id
+                end
+                description=profile
+            end
+        end
+        local label=(entry.active and '●  ' or '○  ') .. description
         local widget=style.action(label,function() apply(entry) end,entry.active and colors.lavender or colors.text)
         awful.tooltip({objects={widget},text=entry.label})
         rows:add(widget)
@@ -66,7 +78,7 @@ render = function(failed)
         style.action('›',function() page=math.min(pages,page+1);render() end),
         layout=wibox.layout.align.horizontal})) end
     rows:add(style.text(mode=='inputs' and 'Select an input to move current recording.' or tab=='outputs' and 'Select an output to move current playback.'
-        or 'Profiles may also change microphone availability.',8,colors.muted,30))
+        or 'One profile per device. Changes may affect its microphone.',8,colors.muted,30))
     popup.widget=wibox.container.margin(rows,12,12,12,12)
     style.reveal(popup)
     style.place_below_bar(popup,anchor)

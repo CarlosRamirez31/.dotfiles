@@ -101,6 +101,11 @@ local function make_popup(kind, title, subtitle, content, width, hidden)
         shape = gears.shape.rounded_rect,
         minimum_width = width,
         maximum_width = width,
+        placement = function(p)
+            local area = p.screen.workarea
+            p.x = math.max(area.x + 8, area.x + area.width - p.width - 18)
+            p.y = area.y + 8
+        end,
         widget = {
             body,
             left = 16,
@@ -110,9 +115,6 @@ local function make_popup(kind, title, subtitle, content, width, hidden)
             widget = wibox.container.margin,
         },
     })
-    local screen = awful.screen.focused()
-    popup.x = screen.geometry.x + screen.geometry.width - width - 18
-    popup.y = screen.geometry.y + 42
     popups[kind] = popup
     return popup
 end
@@ -195,6 +197,10 @@ local function power_content(confirm_kind)
     end))
     rows:add(action_row("󰜉", "Reiniciar", "Volver a iniciar el equipo", palette.lavender, function()
         M.show_power("reboot")
+    end))
+    rows:add(action_row("󰔟", "Power timer", "Schedule shutdown or suspend", palette.lavender, function()
+        hide("power")
+        awful.spawn({ os.getenv("HOME") .. "/.local/bin/dotfiles-power-timer" })
     end))
     rows:add(action_row("󰐥", "Apagar", "Apagar el equipo", palette.red, function()
         M.show_power("shutdown")

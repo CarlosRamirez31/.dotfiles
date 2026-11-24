@@ -28,15 +28,31 @@ def ports(sink):
     return values if isinstance(values, dict) else {item['name']: item for item in values}
 
 
+def internal_stream(stream):
+    props = stream.get('properties', {})
+    return (str(props.get('node.virtual', '')).lower() in ('true', '1')
+            or props.get('application.name') == 'dotfiles-microphone'
+            or props.get('node.name', '').startswith(('dotfiles_voice_', 'input.dotfiles_personal_voice',
+                                                      'input.dotfiles_microphone'))
+            or props.get('target.object') == 'dotfiles_personal_voice_bus')
+
+
 def outputs():
     default = pulse('get-default-sink')
     rows = []
     for sink in listing('sinks'):
+        if sink['name'] == 'dotfiles_personal_voice_bus':
+            continue
         identifier = str(int(sink['index']))
-        rows.append(('sink', identifier, '-', int(sink['name'] == default), clean(sink['description'])))
-        for key, port in ports(sink).items():
-            if available(port.get('availability')):
-                rows.append(('port', identifier, key, int(sink.get('active_port') == key), clean(port['description'])))
+        connectors = [(key, port) for key, port in ports(sink).items()
+                      if available(port.get('availability'))]
+        if connectors:
+            for key, port in connectors:
+                rows.append(('port', identifier, key,
+                             int(sink['name'] == default and sink.get('active_port') == key),
+                             clean(sink['description']) + ' · ' + clean(port['description'])))
+        else:
+            rows.append(('sink', identifier, '-', int(sink['name'] == default), clean(sink['description'])))
     for card in listing('cards'):
         for key, profile in card.get('profiles', {}).items():
             if profile.get('sinks', 0) > 0 and available(profile.get('available')):
@@ -52,10 +68,15 @@ def inputs():
         if source.get('monitor_of_sink') not in (None, 4294967295, '4294967295') or source['name'].endswith('.monitor'):
             continue
         identifier = str(int(source['index']))
-        rows.append(('source', identifier, '-', int(source['name'] == default), clean(source['description'])))
-        for key, port in ports(source).items():
-            if available(port.get('availability')):
-                rows.append(('source-port', identifier, key, int(source.get('active_port') == key), clean(port['description'])))
+        connectors = [(key, port) for key, port in ports(source).items()
+                      if available(port.get('availability'))]
+        if connectors:
+            for key, port in connectors:
+                rows.append(('source-port', identifier, key,
+                             int(source['name'] == default and source.get('active_port') == key),
+                             clean(port['description'])))
+        else:
+            rows.append(('source', identifier, '-', int(source['name'] == default), clean(source['description'])))
     return rows
 
 
@@ -63,6 +84,8 @@ def route(sink):
     pulse('set-default-sink', sink['name'])
     failed = False
     for stream in listing('sink-inputs'):
+        if internal_stream(stream):
+            continue
         try:
             pulse('move-sink-input', str(int(stream['index'])), sink['name'])
         except subprocess.SubprocessError:
@@ -84,10 +107,13 @@ def apply(kind, identifier, key):
             pulse('set-source-port', source['name'], key)
         pulse('set-default-source', source['name'])
         for stream in listing('source-outputs'):
+            if internal_stream(stream):
+                continue
             pulse('move-source-output', str(int(stream['index'])), source['name'])
     elif kind in ('sink', 'port'):
         sink = next((item for item in listing('sinks') if str(item['index']) == identifier), None)
-        if not sink: raise ValueError('This output is no longer connected.')
+        if not sink or sink.get('name') == 'dotfiles_personal_voice_bus':
+            raise ValueError('This output is no longer connected.')
         if kind == 'port':
             port = ports(sink).get(key)
             if not port or not available(port.get('availability')):

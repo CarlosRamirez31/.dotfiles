@@ -199,6 +199,14 @@ return {
         },
     },
     {
+        rule_any = { class = { "DotfilesAppearance", "DotfilesPowerTimer" } },
+        properties = {
+            floating = true,
+            screen = function() return mouse.screen end,
+            placement = awful.placement.centered + awful.placement.no_offscreen,
+        },
+    },
+    {
         rule = { class = "Emulator", name = "^Emulator$" },
         properties = {
             floating = true,

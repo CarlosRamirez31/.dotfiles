@@ -112,3 +112,32 @@ Las pruebas ejercitan los controles y señales GTK sin mostrar una ventana ni
 cambiar el escritorio; esa parte se omite si no hay un display X11 disponible.
 También verifican persistencia, límites, perfiles, cancelación, cierre y la
 reversión independiente de una prueba sin confirmar.
+
+## Avatar de inicio de sesión
+
+La pestaña **Avatar** contiene los 61 estilos del catálogo DiceBear incluido,
+con miniaturas, búsqueda, personajes aleatorios y opciones propias
+de cada estilo. El personaje queda fijo a la izquierda mientras se recorre el
+catálogo o se personalizan sus partes. Cabello, ojos y accesorios se eligen
+mediante miniaturas; los colores tienen su selector visual. El selector de partes
+usa búsqueda y una lista de altura limitada con desplazamiento interno.
+Las pestañas conservan su tamaño y se recorren con los botones ‹ y ›. Funciona sin conexión. **Choose photo** abre tu selector de
+archivos y permite encuadrar una foto mediante zoom y posición. El original se
+conserva. **Save favorite** guarda una copia PNG en
+`~/.local/share/dotfiles/avatar/favorites/`; **Open favorite** permite reutilizarla.
+
+**Guardar**, estando en Avatar, conserva el personaje
+editado y aplica la imagen estática al usuario actual. El estilo, sus opciones
+y la foto seleccionada se restauran al volver a abrir el editor. Polkit pide
+administración mediante el agente gráfico `polkit-gnome` para copiarla a `/usr/share/sddm/faces/USUARIO.face.icon`, legible
+por SDDM incluso cuando el directorio personal es privado. La atribución del
+estilo se muestra en el editor y se conserva en los metadatos del PNG.
+En las otras pestañas, Guardar/Probar controlan los efectos del escritorio.
+En Avatar se desactivan Probar y Restaurar valores para evitar confusiones.
+
+El catálogo está fijado en `@dicebear/styles 10.6.0` y el motor en
+`@dicebear/core 10.7.0`. Se incluyen solo sus archivos de ejecución y licencias
+originales (aproximadamente 3,4 MB); no se instala npm ni se descargan estilos al
+abrir el editor. Fuentes: [motor](https://github.com/dicebear/dicebear) y
+[estilos](https://github.com/dicebear/styles). Las licencias específicas se
+incluyen en cada definición y en `share/avatar/vendor/styles/LICENSE`.

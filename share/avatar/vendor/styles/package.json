@@ -1,0 +1,282 @@
+{
+  "name": "@dicebear/styles",
+  "version": "10.6.0",
+  "description": "Definition files of the DiceBear avatar styles.",
+  "keywords": [
+    "avatar",
+    "dicebear"
+  ],
+  "bugs": {
+    "url": "https://github.com/dicebear/styles/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dicebear/styles.git"
+  },
+  "license": "SEE LICENSE IN LICENSE.md",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    "./adventurer-neutral.json": {
+      "types": "./dist/adventurer-neutral.min.json",
+      "default": "./dist/adventurer-neutral.min.json"
+    },
+    "./adventurer.json": {
+      "types": "./dist/adventurer.min.json",
+      "default": "./dist/adventurer.min.json"
+    },
+    "./avataaars-neutral.json": {
+      "types": "./dist/avataaars-neutral.min.json",
+      "default": "./dist/avataaars-neutral.min.json"
+    },
+    "./avataaars.json": {
+      "types": "./dist/avataaars.min.json",
+      "default": "./dist/avataaars.min.json"
+    },
+    "./big-ears-neutral.json": {
+      "types": "./dist/big-ears-neutral.min.json",
+      "default": "./dist/big-ears-neutral.min.json"
+    },
+    "./big-ears.json": {
+      "types": "./dist/big-ears.min.json",
+      "default": "./dist/big-ears.min.json"
+    },
+    "./big-smile.json": {
+      "types": "./dist/big-smile.min.json",
+      "default": "./dist/big-smile.min.json"
+    },
+    "./blobs.json": {
+      "types": "./dist/blobs.min.json",
+      "default": "./dist/blobs.min.json"
+    },
+    "./bottts-neutral.json": {
+      "types": "./dist/bottts-neutral.min.json",
+      "default": "./dist/bottts-neutral.min.json"
+    },
+    "./bottts.json": {
+      "types": "./dist/bottts.min.json",
+      "default": "./dist/bottts.min.json"
+    },
+    "./cameo.json": {
+      "types": "./dist/cameo.min.json",
+      "default": "./dist/cameo.min.json"
+    },
+    "./clay.json": {
+      "types": "./dist/clay.min.json",
+      "default": "./dist/clay.min.json"
+    },
+    "./constellation.json": {
+      "types": "./dist/constellation.min.json",
+      "default": "./dist/constellation.min.json"
+    },
+    "./critters.json": {
+      "types": "./dist/critters.min.json",
+      "default": "./dist/critters.min.json"
+    },
+    "./croodles-neutral.json": {
+      "types": "./dist/croodles-neutral.min.json",
+      "default": "./dist/croodles-neutral.min.json"
+    },
+    "./croodles.json": {
+      "types": "./dist/croodles.min.json",
+      "default": "./dist/croodles.min.json"
+    },
+    "./cutouts.json": {
+      "types": "./dist/cutouts.min.json",
+      "default": "./dist/cutouts.min.json"
+    },
+    "./disco.json": {
+      "types": "./dist/disco.min.json",
+      "default": "./dist/disco.min.json"
+    },
+    "./dylan.json": {
+      "types": "./dist/dylan.min.json",
+      "default": "./dist/dylan.min.json"
+    },
+    "./fun-emoji.json": {
+      "types": "./dist/fun-emoji.min.json",
+      "default": "./dist/fun-emoji.min.json"
+    },
+    "./gaze.json": {
+      "types": "./dist/gaze.min.json",
+      "default": "./dist/gaze.min.json"
+    },
+    "./glass.json": {
+      "types": "./dist/glass.min.json",
+      "default": "./dist/glass.min.json"
+    },
+    "./glyphs.json": {
+      "types": "./dist/glyphs.min.json",
+      "default": "./dist/glyphs.min.json"
+    },
+    "./icons.json": {
+      "types": "./dist/icons.min.json",
+      "default": "./dist/icons.min.json"
+    },
+    "./identicon.json": {
+      "types": "./dist/identicon.min.json",
+      "default": "./dist/identicon.min.json"
+    },
+    "./initial-face.json": {
+      "types": "./dist/initial-face.min.json",
+      "default": "./dist/initial-face.min.json"
+    },
+    "./initials.json": {
+      "types": "./dist/initials.min.json",
+      "default": "./dist/initials.min.json"
+    },
+    "./landscape.json": {
+      "types": "./dist/landscape.min.json",
+      "default": "./dist/landscape.min.json"
+    },
+    "./line-face.json": {
+      "types": "./dist/line-face.min.json",
+      "default": "./dist/line-face.min.json"
+    },
+    "./loops.json": {
+      "types": "./dist/loops.min.json",
+      "default": "./dist/loops.min.json"
+    },
+    "./lorelei-neutral.json": {
+      "types": "./dist/lorelei-neutral.min.json",
+      "default": "./dist/lorelei-neutral.min.json"
+    },
+    "./lorelei.json": {
+      "types": "./dist/lorelei.min.json",
+      "default": "./dist/lorelei.min.json"
+    },
+    "./marbles.json": {
+      "types": "./dist/marbles.min.json",
+      "default": "./dist/marbles.min.json"
+    },
+    "./micah.json": {
+      "types": "./dist/micah.min.json",
+      "default": "./dist/micah.min.json"
+    },
+    "./miniavs.json": {
+      "types": "./dist/miniavs.min.json",
+      "default": "./dist/miniavs.min.json"
+    },
+    "./moods.json": {
+      "types": "./dist/moods.min.json",
+      "default": "./dist/moods.min.json"
+    },
+    "./notionists-neutral.json": {
+      "types": "./dist/notionists-neutral.min.json",
+      "default": "./dist/notionists-neutral.min.json"
+    },
+    "./notionists.json": {
+      "types": "./dist/notionists.min.json",
+      "default": "./dist/notionists.min.json"
+    },
+    "./open-peeps.json": {
+      "types": "./dist/open-peeps.min.json",
+      "default": "./dist/open-peeps.min.json"
+    },
+    "./patchwork.json": {
+      "types": "./dist/patchwork.min.json",
+      "default": "./dist/patchwork.min.json"
+    },
+    "./personas.json": {
+      "types": "./dist/personas.min.json",
+      "default": "./dist/personas.min.json"
+    },
+    "./pixel-art-neutral.json": {
+      "types": "./dist/pixel-art-neutral.min.json",
+      "default": "./dist/pixel-art-neutral.min.json"
+    },
+    "./pixel-art.json": {
+      "types": "./dist/pixel-art.min.json",
+      "default": "./dist/pixel-art.min.json"
+    },
+    "./pixelbot.json": {
+      "types": "./dist/pixelbot.min.json",
+      "default": "./dist/pixelbot.min.json"
+    },
+    "./planets.json": {
+      "types": "./dist/planets.min.json",
+      "default": "./dist/planets.min.json"
+    },
+    "./rings.json": {
+      "types": "./dist/rings.min.json",
+      "default": "./dist/rings.min.json"
+    },
+    "./shadows.json": {
+      "types": "./dist/shadows.min.json",
+      "default": "./dist/shadows.min.json"
+    },
+    "./shape-grid.json": {
+      "types": "./dist/shape-grid.min.json",
+      "default": "./dist/shape-grid.min.json"
+    },
+    "./shapes.json": {
+      "types": "./dist/shapes.min.json",
+      "default": "./dist/shapes.min.json"
+    },
+    "./slice.json": {
+      "types": "./dist/slice.min.json",
+      "default": "./dist/slice.min.json"
+    },
+    "./sprouts.json": {
+      "types": "./dist/sprouts.min.json",
+      "default": "./dist/sprouts.min.json"
+    },
+    "./squircles.json": {
+      "types": "./dist/squircles.min.json",
+      "default": "./dist/squircles.min.json"
+    },
+    "./stack.json": {
+      "types": "./dist/stack.min.json",
+      "default": "./dist/stack.min.json"
+    },
+    "./stripes.json": {
+      "types": "./dist/stripes.min.json",
+      "default": "./dist/stripes.min.json"
+    },
+    "./thumbs.json": {
+      "types": "./dist/thumbs.min.json",
+      "default": "./dist/thumbs.min.json"
+    },
+    "./toon-head.json": {
+      "types": "./dist/toon-head.min.json",
+      "default": "./dist/toon-head.min.json"
+    },
+    "./triangles.json": {
+      "types": "./dist/triangles.min.json",
+      "default": "./dist/triangles.min.json"
+    },
+    "./voxel-art.json": {
+      "types": "./dist/voxel-art.min.json",
+      "default": "./dist/voxel-art.min.json"
+    },
+    "./voxel-bot.json": {
+      "types": "./dist/voxel-bot.min.json",
+      "default": "./dist/voxel-bot.min.json"
+    },
+    "./waves.json": {
+      "types": "./dist/waves.min.json",
+      "default": "./dist/waves.min.json"
+    },
+    "./weave.json": {
+      "types": "./dist/weave.min.json",
+      "default": "./dist/weave.min.json"
+    }
+  },
+  "files": [
+    "LICENSE.md",
+    "dist/",
+    "src/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "test": "npm run validate",
+    "validate": "bash scripts/validate.sh"
+  },
+  "devDependencies": {
+    "@dicebear/schema": "^1.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

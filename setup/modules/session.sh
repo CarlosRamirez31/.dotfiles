@@ -10,8 +10,9 @@ require_arch_user
 # installed as a safe fallback, but install Betterlockscreen and every
 # repository dependency its launcher checks for so it cannot silently fall
 # back after a fresh `session` install.
-install_packages bc xorg-xdpyinfo xorg-xset xsecurelock xss-lock
+install_packages base-devel curl bc xorg-xdpyinfo xorg-xset xsecurelock xss-lock
 install_aur_packages betterlockscreen
+bash "$component_root/session/build-locker.sh"
 
 if compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
     if pacman -Q tlp >/dev/null 2>&1; then

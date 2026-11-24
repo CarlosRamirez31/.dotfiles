@@ -82,6 +82,11 @@ El comando solicita la contraseña de sudo para escribir
 sesión. La política recomendada suspende sin monitores y permite trabajar con
 ellos aunque la tapa esté cerrada. La opción de Super+P controla las pantallas;
 la política de logind controla suspensión, bloqueo o apagado.
+Si logind no detecta los monitores de una GPU secundaria, Awesome protege la
+opción de no suspender con monitores externos mediante un inhibidor de tapa.
+Se activa mientras haya una salida externa encendida y la política para
+monitores externos sea `ignore`; se retira al desactivarlas o cambiar esa
+política. No impide suspender manualmente ni cambia la regla sin monitores.
 
 Las resoluciones y frecuencias se consultan por salida con XRandR. Cada fila
 incluye un selector de Hz para la resolución elegida; se conserva la frecuencia
@@ -135,3 +140,51 @@ en el monitor de destino. Mostrar su escritorio, recuperar la ventana, darle
 el foco o moverla manualmente cancela su retorno automático. Las ventanas que
 ya estaban minimizadas conservan ese estado. Esta memoria dura durante la
 sesión de Awesome; no reabre aplicaciones después de cerrar sesión.
+
+## Temporizador de energía
+
+| Atajo / comando | Acción |
+| --- | --- |
+| `Alt+Shift+F9` | Abrir Power timer para programar apagado o suspensión. |
+| `dotfiles-power-timer` | Abrir el temporizador con cuenta regresiva y cancelación. |
+| `dotfiles-power-timer --cancel` | Cancelar la acción pendiente. |
+| `dotfiles-power-timer --status` | Consultar la programación en JSON. |
+
+También aparece en el menú de energía de Polybar. La duración admite de un
+minuto a siete días y pide confirmación al programar. Cerrar la ventana no
+cancela el temporizador: systemd lo mantiene durante la sesión. No está pensado
+para ejecutarse después de cerrar sesión ni reiniciar el equipo. La suspensión
+usa `dotfiles-sleep`, respetando la política existente para máquinas virtuales.
+
+## Adaptación de menús entre pantallas
+
+Los menús de Awesome se sitúan en la pantalla donde se abren y se ajustan a su
+área útil, respetando la barra y las coordenadas de monitores secundarios,
+incluso a la izquierda de la principal. Cambiar resolución o desconectar una
+pantalla vuelve a acomodar menús y ventanas flotantes. File tray conserva su
+anclaje inferior y su detección propia del monitor de arrastre.
+El editor de Apariencia limita su tamaño inicial al monitor bajo el puntero y
+sus pestañas permiten desplazamiento horizontal en espacios pequeños.
+
+
+## Renderizado de paneles y miniaturas
+
+`rendering.lua` compone el árbol de widgets de Awesome sobre una imagen Cairo
+propia antes de transferirlo a X11. Evita que el renderizado acelerado de
+transformaciones y recortes deje partes del panel vacías hasta pasar el mouse.
+Se reutiliza un buffer en memoria por árbol, redimensionado cuando es necesario;
+este buffer no crea capturas en disco. Los destinos que ya son imágenes conservan su
+ruta normal de dibujo. Picom mantiene sus animaciones y sombras.
+
+Este método sustituye el antiguo ajuste `CAIRO_DEBUG=xrender-version=…`;
+Awesome lo elimina de su entorno y `.xprofile` ya no lo establece.
+
+Las vistas previas de ventanas se capturan con `dotfiles-window-snapshot`
+(`maim` + ImageMagick), en procesos con su propia conexión X11. No se usa
+`client.content`: una ventana que desaparece no debe invalidar recursos Cairo
+del gestor de ventanas. La imagen se reduce a 320×200 como máximo y se carga
+en memoria; el PNG temporal en `$XDG_RUNTIME_DIR/dotfiles-window-previews`
+se elimina al terminar. Si falla una captura se conserva la última válida.
+Se limita a una captura pendiente y una por segundo por ventana.
+Las ventanas visibles se actualizan cada tres segundos para conservar su última
+vista al cambiar de escritorio; las ventanas ocultas no se vuelven a capturar.

@@ -45,7 +45,7 @@ COMPOSITOR_KEYS = tuple(PICOM) + ("window_animations", "menu_animations", "works
 MENU_MATCH = ("(window_type = 'popup_menu' || window_type = 'dropdown_menu' || window_type = 'menu' "
               "|| window_type = 'tooltip' || (window_type = 'dialog' "
               "&& (class_g = 'awesome' || class_g = 'Awesome')))")
-EFFECT_MATCH = ("!fullscreen && window_type != 'dock' && window_type != 'desktop' "
+EFFECT_MATCH = ("name != 'Bollow Wallpaper' && !fullscreen && window_type != 'dock' && window_type != 'desktop' "
                 "&& class_g != 'Emulator' "
                 "&& class_g != 'XSecureLock' && class_g != 'xsecurelock'")
 PRESETS = {
@@ -363,7 +363,7 @@ def watch(token):
         time.sleep(min(1, remaining))
 
 
-def gui(test_hook=None):
+def gui(test_hook=None, initial_page=None):
     import concurrent.futures
     import gi
     gi.require_version("Gtk", "3.0")
@@ -377,6 +377,10 @@ def gui(test_hook=None):
             self.set_type_hint(Gdk.WindowTypeHint.DIALOG)
             self.set_position(Gtk.WindowPosition.CENTER)
             self.set_default_size(750, 490)
+            display = Gdk.Display.get_default()
+            _, px, py = display.get_default_seat().get_pointer().get_position()
+            work = display.get_monitor_at_point(px, py).get_workarea()
+            self.set_default_size(min(850, work.width - 32), min(680, work.height - 48))
             self.set_name("appearance")
             self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             self.widgets, self.token, self.working, self.closing = {}, None, False, False
@@ -474,7 +478,42 @@ def gui(test_hook=None):
             right.pack_start(heading, False, False, 0)
             self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE)
             switcher = Gtk.StackSwitcher(stack=self.stack, halign=Gtk.Align.START)
-            right.pack_start(switcher, False, False, 0)
+            switcher.set_homogeneous(False)
+            tabs = Gtk.ScrolledWindow()
+            tabs.set_policy(Gtk.PolicyType.EXTERNAL, Gtk.PolicyType.NEVER)
+            tabs.add(switcher)
+            tab_row = Gtk.Box(spacing=4)
+            previous = Gtk.Button(label="‹")
+            following = Gtk.Button(label="›")
+            previous.set_tooltip_text("Previous sections")
+            following.set_tooltip_text("More sections")
+            tab_row.pack_start(previous, False, False, 0)
+            tab_row.pack_start(tabs, True, True, 0)
+            tab_row.pack_end(following, False, False, 0)
+            adjustment = tabs.get_hadjustment()
+            def move_tabs(step):
+                limit = max(0, adjustment.get_upper() - adjustment.get_page_size())
+                adjustment.set_value(max(0, min(limit, adjustment.get_value() + step)))
+            previous.connect("clicked", lambda _: move_tabs(-180))
+            following.connect("clicked", lambda _: move_tabs(180))
+            def tab_arrows(*_):
+                previous.set_sensitive(adjustment.get_value() > 0)
+                following.set_sensitive(adjustment.get_value() + adjustment.get_page_size() < adjustment.get_upper() - 1)
+            adjustment.connect("changed", tab_arrows)
+            adjustment.connect("value-changed", tab_arrows)
+            def reveal_tab(*_):
+                def position():
+                    for button in switcher.get_children():
+                        if button.get_active():
+                            rect = button.get_allocation()
+                            if rect.x < adjustment.get_value():
+                                adjustment.set_value(rect.x)
+                            elif rect.x + rect.width > adjustment.get_value() + adjustment.get_page_size():
+                                adjustment.set_value(min(adjustment.get_upper() - adjustment.get_page_size(), rect.x + rect.width - adjustment.get_page_size()))
+                    return False
+                GLib.idle_add(position)
+            self.stack.connect("notify::visible-child", reveal_tab)
+            right.pack_start(tab_row, False, False, 0)
             right.pack_start(self.stack, True, True, 0)
             content.pack_start(right, True, True, 0)
             root.pack_start(content, True, True, 0)
@@ -543,6 +582,13 @@ def gui(test_hook=None):
             sddm_buttons.pack_start(self.sddm_reset, False, False, 0)
             background.pack_start(sddm_buttons, False, False, 0)
             background.pack_start(self.sddm_preview, False, False, 6)
+            avatar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            avatar.get_style_context().add_class("card")
+            self.stack.add_titled(avatar, "avatar", "Avatar")
+            import runpy
+            editor = Path(__file__).resolve().parents[1] / "libexec/avatar/editor.py"
+            self.avatar_editor = runpy.run_path(str(editor))["build_page"](self)
+            avatar.pack_start(self.avatar_editor, True, True, 0)
             self.status = self.label("Los cambios no se guardan hasta pulsar Guardar.", "muted")
             self.status.set_line_wrap(True)
             root.pack_start(self.status, False, False, 0)
@@ -566,6 +612,13 @@ def gui(test_hook=None):
             for tab, name in zip(switcher.get_children(), ("windows", "effects", "animations", "opacity", "background")):
                 tab.get_style_context().add_class("tab-" + name)
             root.pack_start(buttons, False, False, 0)
+            def section_actions(*_):
+                is_avatar = self.stack.get_visible_child_name() == "avatar"
+                self.try_button.set_sensitive(not is_avatar)
+                reset.set_sensitive(not is_avatar)
+                self.status.set_text("Guardar conserva el personaje y lo aplica a SDDM; puede pedir autorización." if is_avatar else "Los cambios no se guardan hasta pulsar Guardar.")
+            self.stack.connect("notify::visible-child", section_actions)
+            section_actions()
             def background_actions(*_):
                 name = self.stack.get_visible_child_name()
                 if name == "background":
@@ -759,6 +812,9 @@ def gui(test_hook=None):
             if self.stack.get_visible_child_name() == "background":
                 self.save_sddm_background()
                 return
+            if self.stack.get_visible_child_name() == "avatar":
+                self.avatar_editor.save_avatar()
+                return
             values = dict(self.values)
             def done(_):
                 self.original = values
@@ -830,6 +886,8 @@ def gui(test_hook=None):
                 window = Panel(self, visible=test_hook is None)
                 if test_hook:
                     GLib.idle_add(test_hook, window)
+            if initial_page:
+                window.stack.set_visible_child_name(initial_page)
     return App().run([sys.argv[0]])
 
 
@@ -837,6 +895,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--export", action="store_true")
+    action.add_argument("--avatar", action="store_true", help="Open the login avatar editor")
     action.add_argument("--export-saved", action="store_true")
     action.add_argument("--start-compositor", action="store_true")
     action.add_argument("--ensure-compositor", action="store_true")
@@ -852,7 +911,7 @@ def main():
     elif args.watch:
         watch(args.watch)
     else:
-        return gui()
+        return gui(initial_page="avatar" if args.avatar else None)
     return 0
 
 

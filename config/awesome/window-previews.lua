@@ -27,26 +27,40 @@ local function eligible(c)
         and c.type ~= "desktop" and c.type ~= "dock" and c.type ~= "splash"
 end
 
+local capture_state = setmetatable({}, {__mode='k'})
+local capture_dir = os.getenv('XDG_RUNTIME_DIR')
+capture_dir = capture_dir and (capture_dir .. '/dotfiles-window-previews')
+if capture_dir then lgi.GLib.mkdir_with_parents(capture_dir, 448) end
 local function remember(c)
-    if not eligible(c) or c.minimized or c.hidden then return end
-    local source = gears.surface.load_uncached(c.content)
-    local width, height = gears.surface.get_size(source)
-    if width < 1 or height < 1 then return end
-    local scale = math.min(1, 320 / width, 200 / height)
-    local image = cairo.ImageSurface.create(cairo.Format.ARGB32,
-        math.max(1, math.ceil(width * scale)), math.max(1, math.ceil(height * scale)))
-    local cr = cairo.Context(image)
-    cr:scale(scale, scale)
-    cr:set_source_surface(source, 0, 0)
-    cr:paint()
-    cr:set_source_rgba(0, 0, 0, 0)
-    image:flush()
-    if cr.status == "SUCCESS" then snapshots[c] = image end
+    if not capture_dir or not eligible(c) or c.minimized or c.hidden then return end
+    local now = lgi.GLib.get_monotonic_time()
+    local state = capture_state[c] or {last=0}
+    capture_state[c] = state
+    if state.pending or now - state.last < 1000000 then return end
+    state.pending, state.last = true, now
+    local window = string.format('%d', c.window)
+    local path = capture_dir .. '/' .. window .. '-' .. string.format('%.0f', now) .. '.png'
+    -- A disappearing X11 window must only invalidate this child connection,
+    -- never a GC cached by the window manager's shared Cairo device.
+    awful.spawn.easy_async({os.getenv('HOME') .. '/.local/bin/dotfiles-window-snapshot',
+        window, path}, function(_, _, _, code)
+        state.pending = false
+        if code == 0 and c.valid then
+            local ok, image = pcall(cairo.ImageSurface.create_from_png, path)
+            if ok and image.status == 'SUCCESS' then
+                snapshots[c] = image
+                for _, box in ipairs({preview, switcher}) do
+                    if box.visible and box.widget then box.widget:emit_signal('widget::redraw_needed') end
+                end
+            end
+        end
+        os.remove(path)
+    end)
 end
 
 local function remember_tag(t)
     if t.selected then return end
-    -- Awesome emits this signal before X11 unmaps the departing windows.
+    -- Keep the last successful image if a departing window unmaps before capture.
     for _, c in ipairs(t:clients()) do remember(c) end
 end
 
@@ -197,6 +211,10 @@ function M.start()
     tag.connect_signal("property::selected", remember_tag)
     client.connect_signal("unfocus", remember_visible)
     for _, c in ipairs(client.get()) do remember_visible(c) end
+    -- Capture while mapped: asynchronous capture after leaving a tag is too late.
+    gears.timer({ timeout = 3, autostart = true, callback = function()
+        for _, c in ipairs(client.get()) do remember_visible(c) end
+    end })
     local hovered_client = mouse.current_client
     if hovered_client then enter_bar(hovered_client) end
 end

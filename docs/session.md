@@ -3,7 +3,7 @@
 Este componente aporta bloqueo X11 y reglas conservadoras de suspensión. En
 Awesome, Xss-lock observa el salvapantallas de X11 y ejecuta Betterlockscreen,
 con el fondo actual oscurecido, un reloj grande y la fecha. El indicador de
-contraseña aparece al teclear. Mientras se instalan sus dependencias,
+contraseña permanece visible, junto al estado de Bloq Mayús. Mientras se instalan sus dependencias,
 Xsecurelock es el fallback seguro. No hay un segundo
 temporizador DPMS que pueda dejar la pantalla negra al desbloquear. Las VMs no
 se suspenden automáticamente.
@@ -23,6 +23,13 @@ seleccionado con efecto de oscurecimiento y un indicador de contraseña minimali
 `dotfiles-lock` no inicia una segunda instancia del locker. Si falla la
 generación del fondo o el inicio de Betterlockscreen, intenta Xsecurelock en
 lugar de terminar dejando la sesión sin bloqueo.
+
+El fondo se regenera al cambiar los monitores, sus posiciones o resoluciones.
+El módulo compila i3lock-color 2.13.c.5 desde un archivo con SHA-256 fijado y
+aplica únicamente una etiqueta XKB `Caps Lock: ON/OFF`, actualizada en tiempo
+real. El binario queda en `~/.local/opt/dotfiles-lock/i3lock`; el paquete del
+sistema, la autenticación PAM y el respaldo Xsecurelock se conservan.
+Para reconstruirlo desde el repositorio: `bash setup/modules/session/build-locker.sh`.
 
 En hardware físico, `dotfiles-sleep` suspende mediante systemd. En VMware solo
 bloquea la sesión; para guardar el estado completo, suspende la VM desde el

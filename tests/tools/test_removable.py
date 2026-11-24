@@ -2,6 +2,8 @@ import copy
 import importlib.machinery
 import importlib.util
 import io
+import os
+import re
 from pathlib import Path
 import unittest
 from unittest.mock import Mock, patch
@@ -27,6 +29,19 @@ class RemovableTest(unittest.TestCase):
     def setUp(self):
         self.output = patch('sys.stdout', new_callable=io.StringIO).start()
         self.addCleanup(patch.stopall)
+
+    def test_menu_lines_fit_narrow_terminals_and_wide_labels(self):
+        for width in (24, 40, 64):
+            with self.subTest(width=width), patch.object(app.shutil, 'get_terminal_size', return_value=os.terminal_size((width, 24))):
+                self.output.seek(0)
+                self.output.truncate()
+                app.menu_line('[1] ' + '界' * 40, color=app.LAVENDER)
+                app.menu_line('931.5 GiB · unmounted', indent=6)
+                app.menu_line('Number: select · r: refresh · no: close', wrap=True)
+                for line in self.output.getvalue().splitlines():
+                    plain = re.sub(r'\x1b\[[0-9;]*m', '', line)
+                    cells = sum(2 if app.unicodedata.east_asian_width(c) in ('W', 'F') else 1 for c in plain)
+                    self.assertLess(cells, width)
 
     def test_internal_ignored_mounted_crypto_and_loop_are_not_offered(self):
         changes = [('internal', lambda o: o[D][app.DRIVE].update(ConnectionBus='nvme')),

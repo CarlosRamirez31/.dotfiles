@@ -82,9 +82,19 @@ Awesome pausa cada fondo por separado si las ventanas cubren el área útil de s
 monitor (ignorando los márgenes del mosaico). El selector pausa todos los fondos;
 al cerrarse solo reanuda los visibles. El controlador espera el primer fotograma
 antes de pausar y valida identidad de procesos/grupos antes de señalarlos.
+Las escenas pausan el render mediante un marcador por monitor y siguen atendiendo
+eventos gráficos; no se suspenden con SIGSTOP, que provocaba bloqueos de X11 al
+cambiar de escritorio o mostrar vistas previas. Los vídeos usan la pausa interna de MPV después del primer fotograma;
+los fondos web esperan la primera pintura de CEF. Al cambiar de fondo se cierran
+y recogen los grupos de procesos, incluso si CEF se movió a otro scope de systemd.
+MPV usa OpenGL/EGL y VA-API del escritorio para evitar la selección automática
+de NVIDIA/Vulkan en esta sesión híbrida.
 
-En equilibrado/rendimiento, las escenas usan NVIDIA PRIME cuando está disponible
-y un límite de FPS basado en los Hz activos; ahorro usa la integrada y 30/15 FPS.
+Las escenas usan el proveedor gráfico del escritorio, sin forzar NVIDIA PRIME:
+el offload en esta sesión híbrida presentó congelamientos de la salida externa.
+En equilibrado/rendimiento el límite de FPS sigue los Hz activos; ahorro usa 30/15 FPS.
+El render espera completar el trabajo de GPU de cada fotograma antes de iniciar
+el siguiente para evitar acumular trabajo delante del compositor.
 Cambiar un perfil con `dotfiles-power-profile` reinicia solo el reproductor activo.
 El límite no garantiza la tasa de renderizado real. La compatibilidad de escenas
 no es universal; las seis escenas 3D predeterminadas no compatibles siguen marcadas.
@@ -96,3 +106,9 @@ cambios si encuentra el repositorio del selector. Diagnóstico:
 systemctl --user status bollow-wallpaper.service bollow-wallpaper-sync.path
 journalctl --user -u bollow-wallpaper-sync.service -u bollow-wallpaper-previews.service
 ```
+
+El [fork de xwinwrap](https://github.com/CarlosRamirez31/xwinwrap), local en
+`~/Documents/Programacion/xwinwrap`, contiene una corrección:
+`-ovr` respeta `-g` explícito en vez de expandirse a todo el escritorio X11.
+Se compila con `make` y se instala en `~/.local/bin/xwinwrap`; cada ventana debe
+medir lo mismo que su monitor y conservar el tipo de ventana DESKTOP.

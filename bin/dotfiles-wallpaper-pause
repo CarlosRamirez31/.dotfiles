@@ -51,7 +51,16 @@ with (runtime / 'dotfiles-wallpaper-pause.lock').open('a') as mutex:
                 ready = not player['ready'] or Path(player['ready']).is_file()
                 covered = policy.get('all', False) or player['bounds'] in policy.get('screens', [])
                 pause = ready and (picker_open or covered)
-                os.killpg(pid, signal.SIGSTOP if pause else signal.SIGCONT)
+                pause_file = player.get('pause_file')
+                if pause_file:
+                    if pause:
+                        Path(pause_file).touch()
+                    else:
+                        Path(pause_file).unlink(missing_ok=True)
+                    # Release legacy STOP state; the engine now pauses its render loop.
+                    os.killpg(pid, signal.SIGCONT)
+                else:
+                    os.killpg(pid, signal.SIGSTOP if pause else signal.SIGCONT)
             except (ProcessLookupError, FileNotFoundError):
                 continue
     except (OSError, ValueError, KeyError, subprocess.SubprocessError):

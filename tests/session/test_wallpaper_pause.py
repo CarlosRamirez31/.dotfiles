@@ -49,9 +49,17 @@ class WallpaperPauseTests(unittest.TestCase):
                 execute('refresh')
                 self.assertFalse(stopped(players[0]))
                 self.assertTrue(stopped(players[1]))
+                # Scene players pause rendering cooperatively, never SIGSTOP GLX.
+                pause_file = root / 'scene.pause'
+                records[1]['pause_file'] = str(pause_file)
+                save()
+                execute('refresh')
+                self.assertTrue(pause_file.exists())
+                self.assertFalse(stopped(players[1]))
                 ready.unlink()
                 execute('refresh')
                 self.assertFalse(any(stopped(p) for p in players))
+                self.assertFalse(pause_file.exists())
                 ready.touch()
                 records[1]['start'] = 'invalid'
                 save()
